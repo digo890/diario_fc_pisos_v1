@@ -1,8 +1,44 @@
 import { Hono } from "npm:hono";
 import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
+import { createClient } from "jsr:@supabase/supabase-js@2.49.8";
 import * as kv from "./kv_store.tsx";
 const app = new Hono();
+
+// Supabase client with service role (for admin operations)
+const getSupabaseAdmin = () => createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+);
+
+// Supabase client with anon key (for auth operations)
+const getSupabaseClient = () => createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_ANON_KEY")!,
+);
+
+// Middleware to verify auth token
+const requireAuth = async (c: any, next: any) => {
+  const accessToken = c.req.header('Authorization')?.split(' ')[1];
+  
+  if (!accessToken) {
+    return c.json({ success: false, error: 'Token de autenticação não fornecido' }, 401);
+  }
+
+  const supabase = getSupabaseAdmin();
+  const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+  
+  if (error || !user) {
+    console.error('Erro de autenticação:', error?.message);
+    return c.json({ success: false, error: 'Token inválido ou expirado' }, 401);
+  }
+
+  // Attach user to context
+  c.set('userId', user.id);
+  c.set('userEmail', user.email);
+  
+  await next();
+};
 
 // Enable logger
 app.use('*', logger(console.log));
@@ -25,11 +61,147 @@ app.get("/make-server-1ff231a2/health", (c) => {
 });
 
 // ============================================
-// USUÁRIOS
+// AUTENTICAÇÃO
+// ============================================
+
+// Criar usuário master (apenas para inicialização)
+app.post("/make-server-1ff231a2/auth/create-master", async (c) => {
+  try {
+    console.log('🔧 Rota /auth/create-master chamada');
+    console.log('📦 Headers:', Object.fromEntries(c.req.raw.headers.entries()));
+    
+    const { email, password, nome } = await c.req.json();
+    console.log('📤 Dados recebidos:', { email, nome });
+    
+    const supabase = getSupabaseAdmin();
+    
+    // Verificar se usuário já existe
+    console.log('🔍 Verificando se usuário já existe...');
+    const { data: existingUsers } = await supabase.auth.admin.listUsers();
+    const userExists = existingUsers?.users?.some(u => u.email === email);
+    
+    if (userExists) {
+      console.log('⚠️ Usuário já existe, retornando sucesso');
+      // Buscar dados do usuário existente
+      const existingUser = existingUsers.users.find(u => u.email === email);
+      let userData = await kv.get(`user:${existingUser.id}`);
+      
+      // Se não existe no KV, criar agora
+      if (!userData) {
+        console.log('💾 Criando entrada no KV para usuário existente...');
+        userData = {
+          id: existingUser.id,
+          nome: existingUser.user_metadata?.nome || nome,
+          email: existingUser.email,
+          tipo: existingUser.user_metadata?.tipo || 'Administrador',
+          ativo: true,
+          created_at: existingUser.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        await kv.set(`user:${existingUser.id}`, userData);
+        console.log('✅ Entrada criada no KV');
+      }
+      
+      return c.json({ 
+        success: true, 
+        message: 'Usuário já existe',
+        data: userData
+      });
+    }
+    
+    // Criar usuário no Supabase Auth
+    console.log('➕ Criando novo usuário no Supabase Auth...');
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true, // Auto-confirmar email (não temos servidor de email configurado)
+      user_metadata: { 
+        nome,
+        tipo: 'Administrador'
+      }
+    });
+
+    if (authError) {
+      console.error('❌ Erro ao criar usuário no Supabase Auth:', authError);
+      return c.json({ success: false, error: authError.message }, 500);
+    }
+
+    console.log('✅ Usuário criado no Auth:', authData.user.id);
+
+    // Salvar dados do usuário no KV store
+    const user = {
+      id: authData.user.id,
+      nome,
+      email,
+      tipo: 'Administrador',
+      ativo: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    
+    console.log('💾 Salvando usuário no KV store...');
+    await kv.set(`user:${authData.user.id}`, user);
+    console.log('✅ Usuário salvo no KV store');
+
+    return c.json({ 
+      success: true, 
+      message: 'Usuário master criado com sucesso',
+      data: user 
+    });
+  } catch (error) {
+    console.error('❌ Erro ao criar usuário master:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// Obter dados do usuário logado
+app.get("/make-server-1ff231a2/auth/me", requireAuth, async (c) => {
+  try {
+    const userId = c.get('userId');
+    const userEmail = c.get('userEmail');
+    
+    console.log('🔍 Buscando dados do usuário:', userId);
+    
+    let user = await kv.get(`user:${userId}`);
+    
+    // Se o usuário não existe no KV store, criar entrada baseada nos dados do Auth
+    if (!user) {
+      console.log('⚠️ Usuário não encontrado no KV store, criando entrada...');
+      
+      const supabase = getSupabaseAdmin();
+      const { data: authUser } = await supabase.auth.admin.getUserById(userId);
+      
+      if (authUser?.user) {
+        user = {
+          id: authUser.user.id,
+          nome: authUser.user.user_metadata?.nome || 'Usuário',
+          email: authUser.user.email || userEmail,
+          tipo: authUser.user.user_metadata?.tipo || 'Administrador',
+          ativo: true,
+          created_at: authUser.user.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        
+        await kv.set(`user:${userId}`, user);
+        console.log('✅ Usuário criado no KV store:', user);
+      } else {
+        return c.json({ success: false, error: 'Usuário não encontrado no Auth' }, 404);
+      }
+    }
+
+    return c.json({ success: true, data: user });
+  } catch (error) {
+    console.error('Erro ao buscar dados do usuário:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// ============================================
+// USUÁRIOS (protegidas com auth)
 // ============================================
 
 // Listar todos os usuários
-app.get("/make-server-1ff231a2/users", async (c) => {
+app.get("/make-server-1ff231a2/users", requireAuth, async (c) => {
   try {
     const users = await kv.getByPrefix("user:");
     return c.json({ success: true, data: users });
@@ -40,17 +212,42 @@ app.get("/make-server-1ff231a2/users", async (c) => {
 });
 
 // Criar usuário
-app.post("/make-server-1ff231a2/users", async (c) => {
+app.post("/make-server-1ff231a2/users", requireAuth, async (c) => {
   try {
     const body = await c.req.json();
-    const userId = crypto.randomUUID();
+    const { nome, email, senha, tipo } = body;
+    
+    const supabase = getSupabaseAdmin();
+    
+    // Criar usuário no Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password: senha,
+      email_confirm: true,
+      user_metadata: { 
+        nome,
+        tipo
+      }
+    });
+
+    if (authError) {
+      console.error('Erro ao criar usuário no Supabase Auth:', authError);
+      return c.json({ success: false, error: authError.message }, 500);
+    }
+
+    // Salvar no KV store
     const user = {
-      id: userId,
-      ...body,
+      id: authData.user.id,
+      nome,
+      email,
+      tipo,
+      ativo: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-    await kv.set(`user:${userId}`, user);
+    
+    await kv.set(`user:${authData.user.id}`, user);
+    
     return c.json({ success: true, data: user });
   } catch (error) {
     console.error("Erro ao criar usuário:", error);
@@ -59,7 +256,7 @@ app.post("/make-server-1ff231a2/users", async (c) => {
 });
 
 // Buscar usuário por ID
-app.get("/make-server-1ff231a2/users/:id", async (c) => {
+app.get("/make-server-1ff231a2/users/:id", requireAuth, async (c) => {
   try {
     const id = c.req.param("id");
     const user = await kv.get(`user:${id}`);
@@ -74,7 +271,7 @@ app.get("/make-server-1ff231a2/users/:id", async (c) => {
 });
 
 // Atualizar usuário
-app.put("/make-server-1ff231a2/users/:id", async (c) => {
+app.put("/make-server-1ff231a2/users/:id", requireAuth, async (c) => {
   try {
     const id = c.req.param("id");
     const body = await c.req.json();
@@ -96,7 +293,7 @@ app.put("/make-server-1ff231a2/users/:id", async (c) => {
 });
 
 // Deletar usuário
-app.delete("/make-server-1ff231a2/users/:id", async (c) => {
+app.delete("/make-server-1ff231a2/users/:id", requireAuth, async (c) => {
   try {
     const id = c.req.param("id");
     await kv.del(`user:${id}`);

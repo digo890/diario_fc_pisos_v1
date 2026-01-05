@@ -2,9 +2,16 @@
 // API Service - Integração com Backend
 // ============================================
 
-import { projectId, publicAnonKey } from '../../config/supabase';
+import { projectId, publicAnonKey } from '/utils/supabase/info';
 
 const BASE_URL = `https://${projectId}.supabase.co/functions/v1/make-server-1ff231a2`;
+
+// Token de acesso (será definido pelo AuthContext)
+let accessToken: string | null = null;
+
+export const setAuthToken = (token: string | null) => {
+  accessToken = token;
+};
 
 // Helper para fazer requisições
 async function request<T>(
@@ -12,9 +19,13 @@ async function request<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
+  
+  // Usar accessToken se disponível, caso contrário usar publicAnonKey
+  const authToken = accessToken || publicAnonKey;
+  
   const headers = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${publicAnonKey}`,
+    'Authorization': `Bearer ${authToken}`,
     ...options.headers,
   };
 

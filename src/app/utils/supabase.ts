@@ -3,7 +3,7 @@
 // ============================================
 
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-import { projectId, publicAnonKey } from '../../config/supabase';
+import { projectId, publicAnonKey } from '/utils/supabase/info';
 
 // Usar as credenciais do Figma Make (já configuradas automaticamente)
 const supabaseUrl = `https://${projectId}.supabase.co`;

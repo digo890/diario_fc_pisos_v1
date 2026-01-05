@@ -6,7 +6,12 @@ import { useEffect, useState } from 'react';
 import { userApi, obraApi, formularioApi } from '../utils/api';
 import * as db from '../utils/database';
 
-export function useSyncData() {
+interface UseSyncDataProps {
+  accessToken: string | null;
+  enabled?: boolean;
+}
+
+export function useSyncData({ accessToken, enabled = true }: UseSyncDataProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -15,6 +20,11 @@ export function useSyncData() {
   const syncToCloud = async () => {
     if (!navigator.onLine) {
       console.log('📴 Offline - sincronização adiada');
+      return;
+    }
+
+    if (!accessToken) {
+      console.log('🔐 Sem token de autenticação - sincronização bloqueada');
       return;
     }
 
@@ -81,6 +91,11 @@ export function useSyncData() {
       return;
     }
 
+    if (!accessToken) {
+      console.log('🔐 Sem token de autenticação - sincronização bloqueada');
+      return;
+    }
+
     try {
       setIsSyncing(true);
       setError(null);
@@ -138,21 +153,28 @@ export function useSyncData() {
 
   // Auto-sync quando voltar online
   useEffect(() => {
+    if (!enabled || !accessToken) return;
+
     const handleOnline = () => {
       console.log('🌐 Conexão restaurada - sincronizando...');
-      sync();
+      syncToCloud();
+      syncFromCloud();
     };
 
     window.addEventListener('online', handleOnline);
     return () => window.removeEventListener('online', handleOnline);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, enabled]);
 
-  // Auto-sync inicial
+  // Auto-sync inicial (só quando autenticado)
   useEffect(() => {
-    if (navigator.onLine) {
-      sync();
+    if (enabled && accessToken && navigator.onLine) {
+      console.log('🔄 Executando sincronização inicial (usuário autenticado)');
+      syncToCloud();
+      syncFromCloud();
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, enabled]);
 
   return {
     isSyncing,

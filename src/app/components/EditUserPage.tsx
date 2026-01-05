@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowLeft, Eye, EyeOff, ChevronRight, UserRound, Shield, Mail, Phone, Lock, Hash } from 'lucide-react';
 import { motion } from 'motion/react';
 import { saveUser } from '../utils/database';
+import { userApi } from '../utils/api';
 import type { User, UserRole } from '../types';
 import BottomSheet from './BottomSheet';
 
@@ -38,18 +39,43 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
       return;
     }
 
-    const userAtualizado: User = {
-      ...user,
-      nome: formData.nome,
-      tipo: formData.tipo,
-      email: formData.email,
-      telefone: formData.telefone,
-      // Só atualiza a senha se foi preenchida
-      ...(formData.senha && { senha: formData.senha })
-    };
+    try {
+      // Preparar dados para atualização
+      const updateData: any = {
+        nome: formData.nome,
+        tipo: formData.tipo,
+        email: formData.email,
+        telefone: formData.telefone
+      };
 
-    await saveUser(userAtualizado);
-    onSuccess();
+      // Só incluir senha se foi fornecida
+      if (formData.senha) {
+        updateData.senha = formData.senha;
+      }
+
+      // Atualizar no backend
+      const response = await userApi.update(user.id, updateData);
+
+      if (response.success) {
+        // Atualizar também localmente
+        const userAtualizado: User = {
+          ...user,
+          nome: formData.nome,
+          tipo: formData.tipo,
+          email: formData.email,
+          telefone: formData.telefone,
+          // Não salvamos a senha no IndexedDB local
+        };
+
+        await saveUser(userAtualizado);
+        onSuccess();
+      } else {
+        alert(`Erro ao atualizar usuário: ${response.error}`);
+      }
+    } catch (error: any) {
+      console.error('❌ Erro ao atualizar usuário:', error);
+      alert(`Erro ao atualizar usuário: ${error.message}`);
+    }
   };
 
   const selectedTipo = tipoOptions.find(opt => opt.id === formData.tipo);

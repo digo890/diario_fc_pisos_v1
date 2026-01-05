@@ -109,7 +109,7 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
       {/* Cards de Métricas Principais */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total de Obras */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
+        <div className="bg-white dark:bg-gray-900 rounded-lg border dark:border-gray-800 p-4">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-full bg-[#FD5521]/10 flex items-center justify-center">
               <FileText className="w-5 h-5 text-[#FD5521]" />
@@ -124,7 +124,7 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
         </div>
 
         {/* Formulários Preenchidos */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
+        <div className="bg-white dark:bg-gray-900 rounded-lg border dark:border-gray-800 p-4">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
               <FileText className="w-5 h-5 text-blue-500" />
@@ -139,7 +139,7 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
         </div>
 
         {/* Formulários em Revisão */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
+        <div className="bg-white dark:bg-gray-900 rounded-lg border dark:border-gray-800 p-4">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
               <Clock className="w-5 h-5 text-amber-500" />
@@ -154,7 +154,7 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
         </div>
 
         {/* Formulários Validados */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
+        <div className="bg-white dark:bg-gray-900 rounded-lg border dark:border-gray-800 p-4">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
               <CheckCircle2 className="w-5 h-5 text-green-500" />

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowLeft, Eye, EyeOff, ChevronRight, UserRound, Shield, Mail, Phone, Lock } from 'lucide-react';
 import { motion } from 'motion/react';
 import { saveUser } from '../utils/database';
+import { userApi } from '../utils/api';
 import type { User, UserRole } from '../types';
 import BottomSheet from './BottomSheet';
 
@@ -66,18 +67,35 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
       return;
     }
 
-    const novoUser: User = {
-      id: `user-${Date.now()}`,
-      nome: formData.nome,
-      tipo: formData.tipo as UserRole,
-      email: formData.email,
-      telefone: formData.telefone,
-      senha: formData.senha || undefined,
-      createdAt: Date.now()
-    };
+    try {
+      // Criar usuário no backend (Supabase)
+      const response = await userApi.create({
+        nome: formData.nome,
+        email: formData.email,
+        senha: formData.senha || 'senha123', // Senha padrão se não fornecida
+        tipo: formData.tipo
+      });
 
-    await saveUser(novoUser);
-    onSuccess();
+      if (response.success) {
+        // Salvar também localmente no IndexedDB
+        const novoUser: User = {
+          id: response.data.id, // Usar o ID gerado pelo backend
+          nome: formData.nome,
+          tipo: formData.tipo as UserRole,
+          email: formData.email,
+          telefone: formData.telefone,
+          createdAt: Date.now()
+        };
+
+        await saveUser(novoUser);
+        onSuccess();
+      } else {
+        alert(`Erro ao criar usuário: ${response.error}`);
+      }
+    } catch (error: any) {
+      console.error('❌ Erro ao criar usuário:', error);
+      alert(`Erro ao criar usuário: ${error.message}`);
+    }
   };
 
   const selectedTipo = tipoOptions.find(opt => opt.id === formData.tipo);
