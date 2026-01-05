@@ -1,0 +1,261 @@
+import React, { useState, useEffect } from 'react';
+import { Moon, Sun, LogOut, ChevronRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { getObras, getUsers } from '../utils/database';
+import { getStatusDisplay } from '../utils/diarioHelpers';
+import type { Obra, User } from '../types';
+import FormularioPage from './FormularioPage';
+import FcLogo from '../../imports/FcLogo';
+
+const EncarregadoDashboard: React.FC = () => {
+  const { currentUser, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const [obras, setObras] = useState<Obra[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [selectedObra, setSelectedObra] = useState<Obra | null>(null);
+  const [filtroStatus, setFiltroStatus] = useState<'todas' | 'novo' | 'em_andamento' | 'enviado_preposto' | 'concluidas'>('todas');
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    const [obrasData, usersData] = await Promise.all([
+      getObras(),
+      getUsers()
+    ]);
+    
+    // Filtrar apenas obras atribuídas a este encarregado
+    const minhasObras = obrasData.filter(o => o.encarregadoId === currentUser?.id);
+    setObras(minhasObras);
+    setUsers(usersData);
+  };
+
+  const getUserName = (id: string) => {
+    const user = users.find(u => u.id === id);
+    return user?.nome || 'N/A';
+  };
+
+  // Filtrar obras com base no status selecionado
+  const obrasFiltradas = obras.filter(obra => {
+    if (filtroStatus === 'todas') return true;
+    if (filtroStatus === 'novo') return obra.status === 'novo';
+    if (filtroStatus === 'em_andamento') return obra.status === 'em_preenchimento';
+    if (filtroStatus === 'enviado_preposto') return obra.status === 'enviado_preposto';
+    if (filtroStatus === 'concluidas') return obra.status === 'enviado_admin' || obra.status === 'concluido';
+    return true;
+  }).sort((a, b) => b.createdAt - a.createdAt); // Ordenar por data de criação, mais recentes primeiro
+
+  // Contar obras por status
+  const contadores = {
+    todas: obras.length,
+    novo: obras.filter(o => o.status === 'novo').length,
+    em_andamento: obras.filter(o => o.status === 'em_preenchimento').length,
+    enviado_preposto: obras.filter(o => o.status === 'enviado_preposto').length,
+    concluidas: obras.filter(o => o.status === 'enviado_admin' || o.status === 'concluido').length
+  };
+
+  return (
+    <AnimatePresence mode="wait">
+      {selectedObra ? (
+        <motion.div
+          key="formulario"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: 20 }}
+          transition={{ duration: 0.3, ease: 'easeInOut' }}
+        >
+          <FormularioPage
+            obra={selectedObra}
+            isReadOnly={selectedObra.status !== 'novo' && selectedObra.status !== 'em_preenchimento'}
+            onBack={() => {
+              setSelectedObra(null);
+              loadData();
+            }}
+          />
+        </motion.div>
+      ) : (
+        <motion.div
+          key="dashboard"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          transition={{ duration: 0.3, ease: 'easeInOut' }}
+          className="min-h-screen bg-[#EDEFE4] dark:bg-gray-950"
+        >
+          {/* Header */}
+          <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+            <div className="max-w-7xl mx-auto px-4 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#FD5521] flex items-center justify-center flex-shrink-0 p-2">
+                    <FcLogo />
+                  </div>
+                  <div>
+                    <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                      Obras
+                    </h1>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={toggleTheme}
+                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 
+                             text-gray-600 dark:text-gray-400"
+                    aria-label="Alternar tema claro/escuro"
+                  >
+                    {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+                  </button>
+                  <button
+                    onClick={logout}
+                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 
+                             text-gray-600 dark:text-gray-400"
+                    aria-label="Sair do sistema"
+                  >
+                    <LogOut className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          {/* Filtros de Status */}
+          <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+            <div className="max-w-7xl mx-auto px-4">
+              <div className="flex gap-6 overflow-x-auto scrollbar-hide">
+                <button
+                  onClick={() => setFiltroStatus('todas')}
+                  className={`py-4 px-2 border-b-2 font-medium transition-colors whitespace-nowrap ${
+                    filtroStatus === 'todas'
+                      ? 'border-[#FD5521] text-[#FD5521]'
+                      : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                  }`}
+                >
+                  Todas ({contadores.todas})
+                </button>
+                <button
+                  onClick={() => setFiltroStatus('novo')}
+                  className={`py-4 px-2 border-b-2 font-medium transition-colors whitespace-nowrap ${
+                    filtroStatus === 'novo'
+                      ? 'border-[#FD5521] text-[#FD5521]'
+                      : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                  }`}
+                >
+                  Nova ({contadores.novo})
+                </button>
+                <button
+                  onClick={() => setFiltroStatus('em_andamento')}
+                  className={`py-4 px-2 border-b-2 font-medium transition-colors whitespace-nowrap ${
+                    filtroStatus === 'em_andamento'
+                      ? 'border-[#FD5521] text-[#FD5521]'
+                      : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                  }`}
+                >
+                  Em andamento ({contadores.em_andamento})
+                </button>
+                <button
+                  onClick={() => setFiltroStatus('enviado_preposto')}
+                  className={`py-4 px-2 border-b-2 font-medium transition-colors whitespace-nowrap ${
+                    filtroStatus === 'enviado_preposto'
+                      ? 'border-[#FD5521] text-[#FD5521]'
+                      : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                  }`}
+                >
+                  Aguardando conferência ({contadores.enviado_preposto})
+                </button>
+                <button
+                  onClick={() => setFiltroStatus('concluidas')}
+                  className={`py-4 px-2 border-b-2 font-medium transition-colors whitespace-nowrap ${
+                    filtroStatus === 'concluidas'
+                      ? 'border-[#FD5521] text-[#FD5521]'
+                      : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                  }`}
+                >
+                  Concluídas ({contadores.concluidas})
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="max-w-7xl mx-auto px-4 py-6">
+            <motion.div
+              key={filtroStatus}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-3"
+            >
+              {obrasFiltradas.map((obra, index) => {
+                const status = getStatusDisplay(obra);
+                
+                // Determinar cor da borda
+                let borderColor = 'border-l-gray-300 dark:border-l-gray-700';
+                if (obra.status === 'novo') borderColor = 'border-l-yellow-500 dark:border-l-yellow-600';
+                if (obra.status === 'em_preenchimento') borderColor = 'border-l-blue-500 dark:border-l-blue-600';
+                if (obra.status === 'enviado_preposto') borderColor = 'border-l-purple-500 dark:border-l-purple-600';
+                if (obra.status === 'enviado_admin') borderColor = 'border-l-green-500 dark:border-l-green-600';
+                
+                return (
+                  <motion.div
+                    key={obra.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                    onClick={() => setSelectedObra(obra)}
+                    className={`p-5 cursor-pointer transition-all duration-200 border-l-4 ${borderColor} rounded-xl dark:border dark:border-gray-800 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800`}
+                  >
+                    {/* Cabeçalho com título e status */}
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg text-gray-900 dark:text-white leading-tight">
+                          {obra.cliente} - {obra.obra}
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                          {obra.cidade}
+                        </p>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${status.color}`}>
+                        {status.label}
+                      </span>
+                    </div>
+                    
+                    {/* Informações da obra */}
+                    <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                      <div className="space-y-1">
+                        <div className="text-gray-500 dark:text-gray-500 text-xs">Data</div>
+                        <div className="text-gray-900 dark:text-gray-100 font-medium">{obra.data}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-gray-500 dark:text-gray-500 text-xs">Preposto</div>
+                        <div className="text-gray-900 dark:text-gray-100 font-medium truncate">
+                          {obra.prepostoNome || obra.prepostoEmail || obra.prepostoWhatsapp || 'N/A'}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Rodapé */}
+                    <div className="flex items-center justify-between text-[#FD5521] hover:text-[#E54A1D] transition-colors pt-3 border-t border-[#EDEFE4] dark:border-gray-700">
+                      <span className="font-medium text-sm">Abrir formulário</span>
+                      <ChevronRight className="w-5 h-5" />
+                    </div>
+                  </motion.div>
+                );
+              })}
+
+              {obrasFiltradas.length === 0 && (
+                <div className="text-center py-12 text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
+                  Nenhuma obra atribuída a você
+                </div>
+              )}
+            </motion.div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
+export default EncarregadoDashboard;
