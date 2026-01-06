@@ -255,6 +255,8 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
                           <img
                             src={item.foto}
                             alt="Registro"
+                            loading="lazy"
+                            decoding="async"
                             className="w-[72px] h-[72px] object-cover rounded-lg border border-gray-300 dark:border-gray-700 cursor-pointer hover:opacity-80 transition-opacity"
                             onClick={() => setImagePreview({ key, src: item.foto! })}
                           />
@@ -427,6 +429,8 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
                           <img
                             src={item.foto}
                             alt="Registro"
+                            loading="lazy"
+                            decoding="async"
                             className="w-[72px] h-[72px] object-cover rounded-lg border border-gray-300 dark:border-gray-700 cursor-pointer hover:opacity-80 transition-opacity"
                             onClick={() => setImagePreview({ key, src: item.foto! })}
                           />

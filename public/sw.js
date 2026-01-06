@@ -6,17 +6,22 @@ const urlsToCache = [
   '/manifest.json'
 ];
 
+// Logger condicional (apenas em desenvolvimento)
+const IS_DEV = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
+const log = IS_DEV ? console.log.bind(console) : () => {};
+const logError = console.error.bind(console); // Sempre manter logs de erro
+
 // Instalação do Service Worker
 self.addEventListener('install', (event) => {
-  console.log('[SW] Instalando Service Worker...');
+  log('[SW] Instalando Service Worker...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[SW] Cache aberto');
+        log('[SW] Cache aberto');
         return cache.addAll(urlsToCache);
       })
       .catch((error) => {
-        console.error('[SW] Erro ao cachear:', error);
+        logError('[SW] Erro ao cachear:', error);
       })
   );
   self.skipWaiting();
@@ -24,13 +29,13 @@ self.addEventListener('install', (event) => {
 
 // Ativação do Service Worker
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Ativando Service Worker...');
+  log('[SW] Ativando Service Worker...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            console.log('[SW] Removendo cache antigo:', cacheName);
+            log('[SW] Removendo cache antigo:', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -86,7 +91,7 @@ self.addEventListener('sync', (event) => {
 });
 
 async function syncDiarios() {
-  console.log('[SW] Sincronizando diários...');
+  log('[SW] Sincronizando diários...');
   // Implementar sincronização com Supabase no futuro
 }
 

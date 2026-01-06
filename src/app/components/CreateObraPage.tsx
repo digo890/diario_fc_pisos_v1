@@ -152,7 +152,6 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
         
         // Enviar email para o encarregado
         if (selectedEncarregado && selectedEncarregado.email) {
-          console.log('📧 Enviando email ao encarregado:', selectedEncarregado.email);
           const emailResult = await sendEncarregadoNovaObraEmail({
             encarregadoEmail: selectedEncarregado.email,
             encarregadoNome: selectedEncarregado.nome,
@@ -160,13 +159,11 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
             cliente: formData.cliente,
             cidade: formData.cidade,
             prepostoNome: formData.prepostoNome || 'A definir',
-            obraId: response.data.id, // Adicionado para deep linking
+            obraId: response.data.id,
           });
           
-          if (emailResult.success) {
-            console.log('✅ Email enviado com sucesso ao encarregado');
-          } else {
-            console.warn('⚠️ Erro ao enviar email ao encarregado:', emailResult.error);
+          if (!emailResult.success) {
+            // Silently fail - email is not critical
           }
         }
         
@@ -175,7 +172,6 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
         showToast(`Erro ao criar obra: ${response.error}`, 'error');
       }
     } catch (error: any) {
-      console.error('❌ Erro ao criar obra:', error);
       showToast(`Erro ao criar obra: ${error.message}`, 'error');
     } finally {
       setIsCreating(false);

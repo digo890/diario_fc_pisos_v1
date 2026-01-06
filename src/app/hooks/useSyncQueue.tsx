@@ -55,6 +55,10 @@ export function useSyncQueue() {
     setStatus(prev => ({ ...prev, isSyncing: true, lastError: null }));
 
     try {
+      // Obter token do usuário autenticado
+      const { data: { session } } = await import('../utils/supabase').then(m => m.supabase.auth.getSession());
+      const accessToken = session?.access_token;
+
       const result = await processSyncQueue(async (item) => {
         const baseUrl = `https://${projectId}.supabase.co/functions/v1/make-server-1ff231a2`;
         
@@ -101,12 +105,19 @@ export function useSyncQueue() {
           throw new Error(`Endpoint não definido para ${item.entity} ${item.type}`);
         }
 
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${publicAnonKey}`,
+        };
+
+        // Adicionar token do usuário se disponível
+        if (accessToken) {
+          headers['X-User-Token'] = accessToken;
+        }
+
         const response = await fetch(endpoint, {
           method,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${publicAnonKey}`,
-          },
+          headers,
           body: body ? JSON.stringify(body) : null,
         });
 

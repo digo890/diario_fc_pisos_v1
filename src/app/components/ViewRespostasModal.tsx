@@ -468,6 +468,8 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
                               key={idx}
                               src={foto}
                               alt={`Foto ${idx + 1}`}
+                              loading="lazy"
+                              decoding="async"
                               className="w-full aspect-square object-contain rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800"
                             />
                           ))}

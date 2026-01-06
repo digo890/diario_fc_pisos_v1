@@ -28,31 +28,17 @@ const requireAuth = async (c: any, next: any) => {
     accessToken = c.req.header('Authorization')?.split(' ')[1];
   }
   
-  console.log('🔐 requireAuth - Verificando autenticação...');
-  console.log('🔑 Token recebido:', accessToken ? `${accessToken.substring(0, 20)}...` : 'NENHUM');
-  
   if (!accessToken) {
-    console.error('❌ Token de autenticação não fornecido');
     return c.json({ success: false, error: 'Token de autenticação não fornecido' }, 401);
   }
 
   const supabase = getSupabaseAdmin();
   
-  console.log('🔍 Verificando token com Supabase...');
   const { data: { user }, error } = await supabase.auth.getUser(accessToken);
   
-  if (error) {
-    console.error('❌ Erro ao verificar token:', error.message);
-    console.error('❌ Error details:', error);
+  if (error || !user) {
     return c.json({ success: false, error: 'Token inválido ou expirado' }, 401);
   }
-  
-  if (!user) {
-    console.error('❌ Usuário não encontrado para o token');
-    return c.json({ success: false, error: 'Token inválido ou expirado' }, 401);
-  }
-
-  console.log('✅ Usuário autenticado:', user.id, user.email);
   
   // Attach user to context
   c.set('userId', user.id);
@@ -84,88 +70,6 @@ app.get("/make-server-1ff231a2/health", (c) => {
 // ============================================
 // AUTENTICAÇÃO
 // ============================================
-
-// Rota pública para cadastro de novos usuários
-app.post("/make-server-1ff231a2/auth/signup", async (c) => {
-  try {
-    console.log('🔧 Rota /auth/signup chamada');
-    
-    const body = await c.req.json();
-    const { nome, email, password, tipo } = body;
-    
-    console.log('📤 Dados recebidos:', { email, nome, tipo });
-    
-    // Validações
-    if (!nome || !email || !password || !tipo) {
-      return c.json({ 
-        success: false, 
-        error: 'Nome, email, senha e tipo são obrigatórios' 
-      }, 400);
-    }
-    
-    if (!['Administrador', 'Encarregado'].includes(tipo)) {
-      return c.json({ 
-        success: false, 
-        error: 'Tipo deve ser Administrador ou Encarregado' 
-      }, 400);
-    }
-    
-    const supabase = getSupabaseAdmin();
-    
-    // Verificar se já existe usuário com este email
-    console.log('🔍 Verificando se usuário já existe...');
-    const { data: existingUsers } = await supabase.auth.admin.listUsers();
-    const userExists = existingUsers?.users?.some(u => u.email === email);
-    
-    if (userExists) {
-      console.log('⚠️ Usuário já existe com este email');
-      return c.json({ 
-        success: false, 
-        error: 'Já existe um usuário cadastrado com este email' 
-      }, 400);
-    }
-    
-    // Criar usuário no Supabase Auth
-    console.log('👤 Criando usuário no Supabase Auth...');
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true, // Auto-confirmar email
-      user_metadata: { 
-        nome,
-        tipo
-      }
-    });
-
-    if (authError) {
-      console.error('❌ Erro ao criar usuário no Supabase Auth:', authError);
-      return c.json({ 
-        success: false, 
-        error: authError.message 
-      }, 500);
-    }
-
-    // Salvar no KV store
-    console.log('💾 Salvando usuário no KV store...');
-    const user = {
-      id: authData.user.id,
-      nome,
-      email,
-      tipo,
-      ativo: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    
-    await kv.set(`user:${authData.user.id}`, user);
-    
-    console.log('✅ Usuário criado com sucesso:', user);
-    return c.json({ success: true, data: user });
-  } catch (error) {
-    console.error('❌ Erro ao criar usuário:', error);
-    return c.json({ success: false, error: error.message }, 500);
-  }
-});
 
 // Criar usuário master (apenas para inicialização)
 app.post("/make-server-1ff231a2/auth/create-master", async (c) => {
@@ -505,7 +409,7 @@ app.delete("/make-server-1ff231a2/users/:id", requireAuth, async (c) => {
 // ============================================
 
 // Listar todas as obras
-app.get("/make-server-1ff231a2/obras", async (c) => {
+app.get("/make-server-1ff231a2/obras", requireAuth, async (c) => {
   try {
     const obras = await kv.getByPrefix("obra:");
     return c.json({ success: true, data: obras });
@@ -516,7 +420,7 @@ app.get("/make-server-1ff231a2/obras", async (c) => {
 });
 
 // Criar obra
-app.post("/make-server-1ff231a2/obras", async (c) => {
+app.post("/make-server-1ff231a2/obras", requireAuth, async (c) => {
   try {
     const body = await c.req.json();
     const obraId = crypto.randomUUID();
@@ -536,7 +440,7 @@ app.post("/make-server-1ff231a2/obras", async (c) => {
 });
 
 // Buscar obra por ID
-app.get("/make-server-1ff231a2/obras/:id", async (c) => {
+app.get("/make-server-1ff231a2/obras/:id", requireAuth, async (c) => {
   try {
     const id = c.req.param("id");
     const obra = await kv.get(`obra:${id}`);
@@ -551,7 +455,7 @@ app.get("/make-server-1ff231a2/obras/:id", async (c) => {
 });
 
 // Atualizar obra
-app.put("/make-server-1ff231a2/obras/:id", async (c) => {
+app.put("/make-server-1ff231a2/obras/:id", requireAuth, async (c) => {
   try {
     const id = c.req.param("id");
     const body = await c.req.json();
@@ -573,7 +477,7 @@ app.put("/make-server-1ff231a2/obras/:id", async (c) => {
 });
 
 // Deletar obra
-app.delete("/make-server-1ff231a2/obras/:id", async (c) => {
+app.delete("/make-server-1ff231a2/obras/:id", requireAuth, async (c) => {
   try {
     const id = c.req.param("id");
     await kv.del(`obra:${id}`);
@@ -589,7 +493,7 @@ app.delete("/make-server-1ff231a2/obras/:id", async (c) => {
 // ============================================
 
 // Listar todos os formulários
-app.get("/make-server-1ff231a2/formularios", async (c) => {
+app.get("/make-server-1ff231a2/formularios", requireAuth, async (c) => {
   try {
     const formularios = await kv.getByPrefix("formulario:");
     return c.json({ success: true, data: formularios });
@@ -600,7 +504,7 @@ app.get("/make-server-1ff231a2/formularios", async (c) => {
 });
 
 // Criar formulário
-app.post("/make-server-1ff231a2/formularios", async (c) => {
+app.post("/make-server-1ff231a2/formularios", requireAuth, async (c) => {
   try {
     const body = await c.req.json();
     const formularioId = crypto.randomUUID();
@@ -619,7 +523,7 @@ app.post("/make-server-1ff231a2/formularios", async (c) => {
 });
 
 // Buscar formulário por ID
-app.get("/make-server-1ff231a2/formularios/:id", async (c) => {
+app.get("/make-server-1ff231a2/formularios/:id", requireAuth, async (c) => {
   try {
     const id = c.req.param("id");
     const formulario = await kv.get(`formulario:${id}`);
@@ -633,7 +537,7 @@ app.get("/make-server-1ff231a2/formularios/:id", async (c) => {
   }
 });
 
-// Buscar formulário por token de validação
+// Buscar formulário por token de validação (PÚBLICA - para prepostos externos)
 app.get("/make-server-1ff231a2/formularios/token/:token", async (c) => {
   try {
     const token = c.req.param("token");
@@ -650,7 +554,7 @@ app.get("/make-server-1ff231a2/formularios/token/:token", async (c) => {
 });
 
 // Atualizar formulário
-app.put("/make-server-1ff231a2/formularios/:id", async (c) => {
+app.put("/make-server-1ff231a2/formularios/:id", requireAuth, async (c) => {
   try {
     const id = c.req.param("id");
     const body = await c.req.json();
@@ -672,7 +576,7 @@ app.put("/make-server-1ff231a2/formularios/:id", async (c) => {
 });
 
 // Deletar formulário
-app.delete("/make-server-1ff231a2/formularios/:id", async (c) => {
+app.delete("/make-server-1ff231a2/formularios/:id", requireAuth, async (c) => {
   try {
     const id = c.req.param("id");
     await kv.del(`formulario:${id}`);
@@ -688,7 +592,7 @@ app.delete("/make-server-1ff231a2/formularios/:id", async (c) => {
 // ============================================
 
 // Enviar email ao preposto para conferência
-app.post("/make-server-1ff231a2/emails/send-preposto-conferencia", async (c) => {
+app.post("/make-server-1ff231a2/emails/send-preposto-conferencia", requireAuth, async (c) => {
   try {
     console.log('📧 Rota /emails/send-preposto-conferencia chamada');
     
@@ -758,7 +662,7 @@ app.post("/make-server-1ff231a2/emails/send-preposto-conferencia", async (c) => 
 });
 
 // Enviar email ao admin sobre assinatura do preposto
-app.post("/make-server-1ff231a2/emails/send-admin-notificacao", async (c) => {
+app.post("/make-server-1ff231a2/emails/send-admin-notificacao", requireAuth, async (c) => {
   try {
     console.log('📧 Rota /emails/send-admin-notificacao chamada');
     
@@ -817,7 +721,7 @@ app.post("/make-server-1ff231a2/emails/send-admin-notificacao", async (c) => {
 });
 
 // Enviar email ao encarregado sobre nova obra
-app.post("/make-server-1ff231a2/emails/send-encarregado-nova-obra", async (c) => {
+app.post("/make-server-1ff231a2/emails/send-encarregado-nova-obra", requireAuth, async (c) => {
   try {
     console.log('📧 Rota /emails/send-encarregado-nova-obra chamada');
     

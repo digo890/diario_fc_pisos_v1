@@ -465,10 +465,10 @@ const AdminDashboard: React.FC = () => {
                     <div
                       key={obra.id}
                       onClick={() => setViewingObra(obra)}
-                      className="bg-white dark:bg-gray-900 rounded-xl p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all relative"
+                      className="bg-white dark:bg-gray-900 rounded-xl p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all relative"
                     >
                       {/* Container com gradiente */}
-                      <div className={`rounded-xl px-6 py-6 mb-3 ${
+                      <div className={`rounded-xl px-5 py-4 mb-2.5 ${
                         obra.status === 'novo'
                           ? 'bg-gradient-to-r from-[#fff5df] to-[#f7e3cc] dark:from-gray-800 dark:to-gray-800'
                           : obra.status === 'enviado_preposto' 
@@ -478,17 +478,17 @@ const AdminDashboard: React.FC = () => {
                           : 'bg-gradient-to-r from-[#e7f3db] to-[#ccf7f3] dark:from-gray-800 dark:to-gray-800'
                       }`}>
                         {/* Título da Obra */}
-                        <h3 className="font-semibold text-2xl leading-[27px] text-gray-900 dark:text-white mb-[15px]">
+                        <h3 className="font-semibold text-xl leading-6 text-gray-900 dark:text-white mb-3">
                           {obra.cliente} - {obra.obra}
                         </h3>
                         
                         {/* ID e Data */}
-                        <p className="font-['Cousine',monospace] text-sm text-gray-900/[0.56] dark:text-gray-400/[0.56] mb-[21px] tracking-[1px]">
+                        <p className="font-['Cousine',monospace] text-sm text-gray-900/[0.56] dark:text-gray-400/[0.56] mb-4 tracking-[1px]">
                           #{String(obra.id).slice(-5)} - {obra.createdAt ? new Date(Number(obra.createdAt)).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : 'N/A'}
                         </p>
                         
                         {/* Informações */}
-                        <div className="space-y-3 text-lg leading-5 text-gray-900 dark:text-white">
+                        <div className="space-y-2 text-sm leading-normal text-gray-900 dark:text-white">
                           <p>
                             <span className="font-normal">Cidade: </span>
                             <span className="font-semibold">{obra.cidade}</span>
@@ -505,7 +505,7 @@ const AdminDashboard: React.FC = () => {
                       </div>
                       
                       {/* Rodapé: Status e Ações (fora do gradiente) */}
-                      <div className="flex items-center justify-between px-3">
+                      <div className="flex items-center justify-between px-2.5">
                         {/* Badge de Status */}
                         <div className="flex items-center gap-2.5">
                           <div className="relative w-2.5 h-2.5">

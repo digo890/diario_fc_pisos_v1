@@ -119,6 +119,8 @@ export function CondicionalField({ label, value, onChange, disabled = false }: C
                 <img
                   src={value.foto}
                   alt="Anexo"
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-40 object-cover rounded-lg border border-border"
                 />
                 {!disabled && (

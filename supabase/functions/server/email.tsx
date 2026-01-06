@@ -6,8 +6,9 @@ const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
 // Se você não verificou domínio ainda, use: 'onboarding@resend.dev'
 const FROM_EMAIL = 'onboarding@resend.dev'; // Altere para 'FC Pisos <noreply@seudominio.com.br>' depois
 
-// Email para desenvolvimento/testes (quando domínio não está verificado)
-const DEV_EMAIL = 'digoo890@gmail.com';
+// Email para desenvolvimento/testes (variável de ambiente)
+// Configure DEV_TEST_EMAIL nas variáveis de ambiente do Supabase se precisar redirecionar emails em dev
+const DEV_TEST_EMAIL = Deno.env.get('DEV_TEST_EMAIL');
 
 // Detecta se estamos em modo de desenvolvimento (sem domínio verificado)
 const isDevelopmentMode = FROM_EMAIL === 'onboarding@resend.dev';
@@ -20,9 +21,9 @@ interface SendEmailParams {
 
 export async function sendEmail({ to, subject, html }: SendEmailParams) {
   try {
-    // Em modo de desenvolvimento, redireciona para o email do desenvolvedor
-    const actualTo = isDevelopmentMode ? DEV_EMAIL : to;
-    const actualSubject = isDevelopmentMode 
+    // Em modo de desenvolvimento, só redireciona se DEV_TEST_EMAIL estiver configurado
+    const actualTo = (isDevelopmentMode && DEV_TEST_EMAIL) ? DEV_TEST_EMAIL : to;
+    const actualSubject = (isDevelopmentMode && DEV_TEST_EMAIL)
       ? `[TESTE - Destinatário: ${to}] ${subject}`
       : subject;
     

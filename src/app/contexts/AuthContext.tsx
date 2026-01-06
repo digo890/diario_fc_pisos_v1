@@ -38,7 +38,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Erro ao carregar sessão:', error);
           setIsLoading(false);
           return;
         }
@@ -52,8 +51,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               `https://${projectId}.supabase.co/functions/v1/make-server-1ff231a2/auth/me`,
               {
                 headers: {
-                  'Authorization': `Bearer ${publicAnonKey}`, // Para passar pelo JWT verification
-                  'X-User-Token': session.access_token, // Token do usuário para autenticação
+                  'Authorization': `Bearer ${publicAnonKey}`,
+                  'X-User-Token': session.access_token,
                   'Content-Type': 'application/json',
                 },
               }
@@ -64,11 +63,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setCurrentUser(data);
             }
           } catch (error) {
-            console.error('Erro ao buscar dados do usuário:', error);
+            // Silently fail - user will need to login again
           }
         }
       } catch (error) {
-        console.error('Erro ao carregar sessão:', error);
+        // Silently fail - user will need to login again
       } finally {
         setIsLoading(false);
       }
@@ -90,8 +89,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             `https://${projectId}.supabase.co/functions/v1/make-server-1ff231a2/auth/me`,
             {
               headers: {
-                'Authorization': `Bearer ${publicAnonKey}`, // Para passar pelo JWT verification
-                'X-User-Token': session.access_token, // Token do usuário para autenticação
+                'Authorization': `Bearer ${publicAnonKey}`,
+                'X-User-Token': session.access_token,
                 'Content-Type': 'application/json',
               },
             }
@@ -102,7 +101,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setCurrentUser(data);
           }
         } catch (error) {
-          console.error('Erro ao buscar dados do usuário:', error);
+          // Silently fail - user will need to login again
         }
       }
     });
@@ -113,8 +112,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string) => {
-    console.log('🔐 Tentando fazer login com:', { email });
-    
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -122,7 +119,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) {
-        console.error('❌ Erro no Supabase Auth:', error);
         // Traduzir mensagens de erro comuns
         if (error.message === 'Invalid login credentials') {
           throw new Error('Email ou senha inválidos');
@@ -130,61 +126,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(error.message);
       }
 
-      console.log('✅ Login bem-sucedido no Supabase Auth');
-      console.log('📦 Session data:', data.session);
-      console.log('👤 User data:', data.user);
-
       if (data.session?.access_token) {
         updateToken(data.session.access_token);
         
-        console.log('🔍 Buscando dados do usuário no backend...');
-        console.log('🔑 Access token:', data.session.access_token.substring(0, 30) + '...');
-        
         // Buscar dados do usuário
         const url = `https://${projectId}.supabase.co/functions/v1/make-server-1ff231a2/auth/me`;
-        console.log('📍 URL:', url);
         
         const headers = {
-          'Authorization': `Bearer ${publicAnonKey}`, // Para passar pelo JWT verification
-          'X-User-Token': data.session.access_token, // Token do usuário para autenticação
+          'Authorization': `Bearer ${publicAnonKey}`,
+          'X-User-Token': data.session.access_token,
           'Content-Type': 'application/json',
         };
-        console.log('📤 Headers:', {
-          'Authorization': `Bearer ${publicAnonKey.substring(0, 20)}...`,
-          'X-User-Token': data.session.access_token.substring(0, 30) + '...',
-          'Content-Type': 'application/json',
-        });
         
         const response = await fetch(url, { headers });
-
-        console.log('📡 Response status:', response.status);
-        console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
         
         if (!response.ok) {
           const errorText = await response.text();
-          console.error('❌ Erro ao buscar dados do usuário:', errorText);
           
           try {
             const errorData = JSON.parse(errorText);
-            console.error('❌ Error details:', errorData);
+            throw new Error(errorData.error || 'Erro ao buscar dados do usuário');
           } catch {
-            console.error('❌ Error response (texto):', errorText);
+            throw new Error('Erro ao buscar dados do usuário');
           }
-          
-          throw new Error('Erro ao buscar dados do usuário');
         }
 
         const responseText = await response.text();
-        console.log('📡 Response body:', responseText);
-        
         const { data: userData } = JSON.parse(responseText);
-        console.log('✅ Dados do usuário recebidos:', userData);
         setCurrentUser(userData);
       } else {
         throw new Error('Sessão não criada');
       }
     } catch (err: any) {
-      console.error('❌ Erro completo no login:', err);
       throw err;
     }
   };
