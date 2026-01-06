@@ -1,9 +1,19 @@
 // Service Worker para PWA - FC Pisos Diário de Obras
-const CACHE_NAME = 'fc-pisos-v1';
-const urlsToCache = [
+// 🚀 ESTRATÉGIAS DE CACHE POR TIPO DE RECURSO
+
+const CACHE_VERSION = '2.0.0';
+const CACHE_NAME = `fc-pisos-v${CACHE_VERSION}`;
+const RUNTIME_CACHE = `fc-pisos-runtime-v${CACHE_VERSION}`;
+const IMAGE_CACHE = `fc-pisos-images-v${CACHE_VERSION}`;
+const API_CACHE = `fc-pisos-api-v${CACHE_VERSION}`;
+
+// Recursos para cachear na instalação (Cache First - sempre disponível offline)
+const PRECACHE_URLS = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.json',
+  '/icon-192.png',
+  '/icon-512.png',
 ];
 
 // Logger condicional (apenas em desenvolvimento)
@@ -18,7 +28,7 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => {
         log('[SW] Cache aberto');
-        return cache.addAll(urlsToCache);
+        return cache.addAll(PRECACHE_URLS);
       })
       .catch((error) => {
         logError('[SW] Erro ao cachear:', error);
@@ -34,7 +44,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
+          if (cacheName !== CACHE_NAME && cacheName !== RUNTIME_CACHE && cacheName !== IMAGE_CACHE && cacheName !== API_CACHE) {
             log('[SW] Removendo cache antigo:', cacheName);
             return caches.delete(cacheName);
           }
@@ -47,41 +57,163 @@ self.addEventListener('activate', (event) => {
 
 // Estratégia: Network First, fallback para Cache
 self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
   // Ignorar requisições não-GET e chrome-extension
-  if (event.request.method !== 'GET' || event.request.url.startsWith('chrome-extension://')) {
+  if (request.method !== 'GET' || url.protocol === 'chrome-extension:') {
     return;
   }
 
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        // Se a resposta é válida, cachear uma cópia
-        if (response && response.status === 200) {
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-        }
-        return response;
-      })
-      .catch(() => {
-        // Se falhar (offline), tentar buscar do cache
-        return caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          // Se não estiver no cache e for navegação, retornar index.html
-          if (event.request.mode === 'navigate') {
-            return caches.match('/index.html');
-          }
-          return new Response('Offline', {
-            status: 503,
-            statusText: 'Service Unavailable'
-          });
-        });
-      })
-  );
+  // ESTRATÉGIA 1: Cache First para recursos estáticos (JS, CSS, fonts)
+  if (
+    request.destination === 'script' ||
+    request.destination === 'style' ||
+    request.destination === 'font'
+  ) {
+    event.respondWith(cacheFirst(request, CACHE_NAME));
+    return;
+  }
+
+  // ESTRATÉGIA 2: Cache First com atualização para imagens
+  if (request.destination === 'image') {
+    event.respondWith(cacheFirstUpdate(request, IMAGE_CACHE));
+    return;
+  }
+
+  // ESTRATÉGIA 3: Network First com cache curto para API
+  if (url.pathname.includes('/functions/') || url.pathname.includes('/api/')) {
+    event.respondWith(networkFirstShortCache(request, API_CACHE, 5000));
+    return;
+  }
+
+  // ESTRATÉGIA 4: Network First para HTML e navegação
+  if (request.mode === 'navigate' || request.destination === 'document') {
+    event.respondWith(networkFirst(request, RUNTIME_CACHE));
+    return;
+  }
+
+  // ESTRATÉGIA PADRÃO: Network First
+  event.respondWith(networkFirst(request, RUNTIME_CACHE));
 });
+
+// ============================================
+// CACHE STRATEGIES
+// ============================================
+
+/**
+ * Cache First: Busca do cache, fallback para network
+ * Ideal para: JS, CSS, fonts (recursos que não mudam)
+ */
+async function cacheFirst(request, cacheName) {
+  const cached = await caches.match(request);
+  if (cached) {
+    log('[SW] Cache hit:', request.url);
+    return cached;
+  }
+
+  try {
+    const response = await fetch(request);
+    if (response.status === 200) {
+      const cache = await caches.open(cacheName);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    logError('[SW] Fetch failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Cache First com atualização em background
+ * Ideal para: Imagens (retorna do cache mas atualiza)
+ */
+async function cacheFirstUpdate(request, cacheName) {
+  const cached = await caches.match(request);
+  
+  // Atualizar cache em background
+  const fetchPromise = fetch(request).then((response) => {
+    if (response.status === 200) {
+      const cache = caches.open(cacheName);
+      cache.then((c) => c.put(request, response.clone()));
+    }
+    return response;
+  }).catch(() => null);
+
+  // Retornar do cache imediatamente se disponível
+  return cached || fetchPromise;
+}
+
+/**
+ * Network First: Busca da network, fallback para cache
+ * Ideal para: HTML, navegação (quer versão mais recente)
+ */
+async function networkFirst(request, cacheName) {
+  try {
+    const response = await fetch(request);
+    if (response.status === 200) {
+      const cache = await caches.open(cacheName);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    log('[SW] Network failed, trying cache:', request.url);
+    const cached = await caches.match(request);
+    
+    if (cached) {
+      return cached;
+    }
+
+    // Se for navegação, retornar index.html
+    if (request.mode === 'navigate') {
+      const indexCached = await caches.match('/index.html');
+      if (indexCached) {
+        return indexCached;
+      }
+    }
+
+    return new Response('Offline', {
+      status: 503,
+      statusText: 'Service Unavailable',
+      headers: { 'Content-Type': 'text/plain' },
+    });
+  }
+}
+
+/**
+ * Network First com timeout
+ * Ideal para: APIs (tenta network mas com timeout)
+ */
+async function networkFirstShortCache(request, cacheName, timeout = 3000) {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    const response = await fetch(request, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (response.status === 200) {
+      const cache = await caches.open(cacheName);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    // Se timeout ou erro, tentar cache
+    log('[SW] Network timeout/failed, trying cache:', request.url);
+    const cached = await caches.match(request);
+    
+    if (cached) {
+      return cached;
+    }
+
+    return new Response(JSON.stringify({ error: 'Offline' }), {
+      status: 503,
+      statusText: 'Service Unavailable',
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+}
 
 // Sincronização em background (futuro)
 self.addEventListener('sync', (event) => {

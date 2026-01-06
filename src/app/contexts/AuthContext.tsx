@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { supabase } from '/utils/supabase/client';
 import { projectId, publicAnonKey } from '/utils/supabase/info';
 import { setAuthToken } from '../utils/api';
 import type { User } from '../types';
@@ -10,25 +10,91 @@ interface AuthContextType {
   logout: () => Promise<void>;
   isLoading: boolean;
   accessToken: string | null;
+  refreshSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// Criar cliente Supabase
-const supabase = createClient(
-  `https://${projectId}.supabase.co`,
-  publicAnonKey
-);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [accessToken, setAccessTokenState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Helper para atualizar token
   const updateToken = (token: string | null) => {
     setAccessTokenState(token);
     setAuthToken(token); // Atualizar token no api.ts
+    
+    if (token) {
+      console.log('✅ Token atualizado com sucesso');
+    }
+  };
+
+  // Função para renovar sessão
+  const refreshSession = async () => {
+    try {
+      console.log('🔄 Renovando sessão...');
+      const { data: { session }, error } = await supabase.auth.refreshSession();
+      
+      if (error) {
+        console.error('❌ Erro ao renovar sessão:', error.message);
+        // Se falhar ao renovar, fazer logout
+        await logout();
+        return;
+      }
+
+      if (session?.access_token) {
+        console.log('✅ Sessão renovada com sucesso');
+        updateToken(session.access_token);
+        
+        // Agendar próxima renovação (50 minutos - token expira em 1h)
+        scheduleTokenRefresh();
+      }
+    } catch (error) {
+      console.error('❌ Erro ao renovar sessão:', error);
+    }
+  };
+
+  // Agendar renovação automática do token
+  const scheduleTokenRefresh = () => {
+    // Limpar timeout anterior se existir
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
+
+    // Renovar a cada 50 minutos (3000000ms)
+    refreshTimeoutRef.current = setTimeout(() => {
+      refreshSession();
+    }, 50 * 60 * 1000);
+  };
+
+  // Função para buscar dados do usuário
+  const fetchUserData = async (token: string): Promise<User | null> => {
+    try {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-1ff231a2/auth/me`,
+        {
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+            'X-User-Token': token,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Erro ao buscar dados do usuário:', errorText);
+        return null;
+      }
+
+      const { data } = await response.json();
+      return data;
+    } catch (error) {
+      console.error('❌ Erro ao buscar dados do usuário:', error);
+      return null;
+    }
   };
 
   useEffect(() => {
@@ -46,24 +112,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           updateToken(session.access_token);
           
           // Buscar dados do usuário
-          try {
-            const response = await fetch(
-              `https://${projectId}.supabase.co/functions/v1/make-server-1ff231a2/auth/me`,
-              {
-                headers: {
-                  'Authorization': `Bearer ${publicAnonKey}`,
-                  'X-User-Token': session.access_token,
-                  'Content-Type': 'application/json',
-                },
-              }
-            );
-
-            if (response.ok) {
-              const { data } = await response.json();
-              setCurrentUser(data);
-            }
-          } catch (error) {
-            // Silently fail - user will need to login again
+          const userData = await fetchUserData(session.access_token);
+          if (userData) {
+            setCurrentUser(userData);
           }
         }
       } catch (error) {
@@ -84,24 +135,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateToken(session.access_token);
         
         // Buscar dados do usuário
-        try {
-          const response = await fetch(
-            `https://${projectId}.supabase.co/functions/v1/make-server-1ff231a2/auth/me`,
-            {
-              headers: {
-                'Authorization': `Bearer ${publicAnonKey}`,
-                'X-User-Token': session.access_token,
-                'Content-Type': 'application/json',
-              },
-            }
-          );
-
-          if (response.ok) {
-            const { data } = await response.json();
-            setCurrentUser(data);
-          }
-        } catch (error) {
-          // Silently fail - user will need to login again
+        const userData = await fetchUserData(session.access_token);
+        if (userData) {
+          setCurrentUser(userData);
         }
       }
     });
@@ -169,7 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, login, logout, isLoading, accessToken }}>
+    <AuthContext.Provider value={{ currentUser, login, logout, isLoading, accessToken, refreshSession }}>
       {children}
     </AuthContext.Provider>
   );
@@ -182,3 +218,16 @@ export const useAuth = () => {
   }
   return context;
 };
+
+// ============================================
+// Fast Refresh - Garantir compatibilidade
+// ============================================
+
+// Marcar componentes para preservação durante Fast Refresh
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}
+
+// Adicionar display name para melhor debugging
+AuthProvider.displayName = 'AuthProvider';
+AuthContext.displayName = 'AuthContext';

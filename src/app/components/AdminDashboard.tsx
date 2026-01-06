@@ -3,7 +3,7 @@ import { Plus, Edit2, Trash2, FileText, Moon, Sun, LogOut, Download, Building2, 
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { getObras, getUsers, deleteObra as deleteObraLocal, deleteUser as deleteUserLocal, getFormByObraId } from '../utils/database';
+import { getObras, getUsers, deleteObra as deleteObraLocal, deleteUser as deleteUserLocal, getFormByObraId, saveObra, saveUser } from '../utils/database';
 import { obraApi, userApi } from '../utils/api';
 import { getStatusDisplay } from '../utils/diarioHelpers';
 import type { Obra, User, UserRole, FormData } from '../types';
@@ -104,7 +104,7 @@ const AdminDashboard: React.FC = () => {
             // Salvar cada usuário no IndexedDB
             await Promise.all(
               usersData.map((user: User) => 
-                import('../utils/database').then(db => db.saveUser(user))
+                saveUser(user)
               )
             );
             setUsers(usersData);
@@ -112,8 +112,6 @@ const AdminDashboard: React.FC = () => {
 
           // Salvar obras no IndexedDB local (cache)
           if (obrasResponse.success && obrasResponse.data) {
-            console.log('📊 Dados do backend (ANTES da conversão):', obrasResponse.data[0]);
-            
             // Converter dados do backend (snake_case) para frontend (camelCase)
             const obrasData = obrasResponse.data.map((obraBackend: any) => ({
               id: obraBackend.id,
@@ -132,12 +130,10 @@ const AdminDashboard: React.FC = () => {
               createdBy: obraBackend.created_by
             } as Obra));
             
-            console.log('✅ Dados convertidos (DEPOIS da conversão):', obrasData[0]);
-            
             // Salvar cada obra no IndexedDB
             await Promise.all(
               obrasData.map((obra: Obra) => 
-                import('../utils/database').then(db => db.saveObra(obra))
+                saveObra(obra)
               )
             );
             setObras(obrasData);

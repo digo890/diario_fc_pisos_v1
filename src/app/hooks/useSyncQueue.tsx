@@ -11,160 +11,26 @@ import {
 } from '../utils/syncQueue';
 import { projectId, publicAnonKey } from '/utils/supabase/info';
 
-interface SyncStatus {
+interface UseSyncQueueReturn {
   isPending: boolean;
   count: number;
   isSyncing: boolean;
-  lastSync: Date | null;
+  isOnline: boolean;
   lastError: string | null;
+  sync: () => Promise<void>;
 }
 
-export function useSyncQueue() {
-  const [status, setStatus] = useState<SyncStatus>({
-    isPending: false,
-    count: 0,
-    isSyncing: false,
-    lastSync: null,
-    lastError: null,
-  });
+export function useSyncQueue(): UseSyncQueueReturn {
+  const [isPending, setIsPending] = useState(false);
+  const [count, setCount] = useState(0);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [lastError, setLastError] = useState<string | null>(null);
 
-  const [isOnline, setIsOnline] = useState(true);
-
-  // Atualizar contagem de itens pendentes
-  const updatePendingCount = useCallback(async () => {
-    try {
-      const count = await getSyncQueueCount();
-      const pending = await hasPendingSyncs();
-      
-      setStatus(prev => ({
-        ...prev,
-        count,
-        isPending: pending,
-      }));
-    } catch (error) {
-      console.error('Erro ao atualizar contagem de sync:', error);
-    }
-  }, []);
-
-  // Sincronizar itens da fila com o backend
-  const syncWithBackend = useCallback(async () => {
-    if (!isOnline) {
-      return;
-    }
-
-    setStatus(prev => ({ ...prev, isSyncing: true, lastError: null }));
-
-    try {
-      // Obter token do usuário autenticado
-      const { data: { session } } = await import('../utils/supabase').then(m => m.supabase.auth.getSession());
-      const accessToken = session?.access_token;
-
-      const result = await processSyncQueue(async (item) => {
-        const baseUrl = `https://${projectId}.supabase.co/functions/v1/make-server-1ff231a2`;
-        
-        let endpoint = '';
-        let method = 'POST';
-        let body: any = null;
-
-        // Determinar endpoint e método baseado no tipo e entidade
-        if (item.entity === 'obra') {
-          if (item.type === 'create') {
-            endpoint = `${baseUrl}/obras`;
-            method = 'POST';
-            body = item.data;
-          } else if (item.type === 'update') {
-            endpoint = `${baseUrl}/obras/${item.data.id}`;
-            method = 'PUT';
-            body = item.data;
-          } else if (item.type === 'delete') {
-            endpoint = `${baseUrl}/obras/${item.data.id}`;
-            method = 'DELETE';
-          }
-        } else if (item.entity === 'user') {
-          if (item.type === 'create') {
-            endpoint = `${baseUrl}/users`;
-            method = 'POST';
-            body = item.data;
-          } else if (item.type === 'update') {
-            endpoint = `${baseUrl}/users/${item.data.id}`;
-            method = 'PUT';
-            body = item.data;
-          } else if (item.type === 'delete') {
-            endpoint = `${baseUrl}/users/${item.data.id}`;
-            method = 'DELETE';
-          }
-        } else if (item.entity === 'formulario') {
-          if (item.type === 'create' || item.type === 'update') {
-            endpoint = `${baseUrl}/formularios`;
-            method = 'POST';
-            body = item.data;
-          }
-        }
-
-        if (!endpoint) {
-          throw new Error(`Endpoint não definido para ${item.entity} ${item.type}`);
-        }
-
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${publicAnonKey}`,
-        };
-
-        // Adicionar token do usuário se disponível
-        if (accessToken) {
-          headers['X-User-Token'] = accessToken;
-        }
-
-        const response = await fetch(endpoint, {
-          method,
-          headers,
-          body: body ? JSON.stringify(body) : null,
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => null);
-          throw new Error(errorData?.error || `Erro HTTP ${response.status}`);
-        }
-
-        console.log(`✅ Item sincronizado: ${item.entity} ${item.type}`);
-      });
-
-      setStatus(prev => ({
-        ...prev,
-        isSyncing: false,
-        lastSync: new Date(),
-        lastError: result.failed > 0 ? `${result.failed} itens falharam` : null,
-      }));
-
-      await updatePendingCount();
-
-      if (result.success > 0) {
-        console.log(`✅ ${result.success} itens sincronizados com sucesso`);
-      }
-    } catch (error: any) {
-      console.error('❌ Erro ao sincronizar:', error);
-      setStatus(prev => ({
-        ...prev,
-        isSyncing: false,
-        lastError: error.message || 'Erro desconhecido',
-      }));
-    }
-  }, [isOnline, updatePendingCount]);
-
-  // Detectar mudanças no status online/offline
+  // Atualizar estado de rede
   useEffect(() => {
-    const handleOnline = () => {
-      console.log('🌐 Conexão restaurada.');
-      setIsOnline(true);
-      setTimeout(() => {
-        syncWithBackend();
-      }, 1000);
-    };
-
-    const handleOffline = () => {
-      console.log('📡 Conexão perdida. Modo offline ativado.');
-      setIsOnline(false);
-    };
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -173,30 +39,65 @@ export function useSyncQueue() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [syncWithBackend]);
+  }, []);
 
-  // Atualizar contagem periodicamente
+  // Verificar fila de sincronização
+  const checkQueue = useCallback(async () => {
+    try {
+      const pending = await hasPendingSyncs();
+      const queueCount = await getSyncQueueCount();
+      
+      setIsPending(pending);
+      setCount(queueCount);
+    } catch (error) {
+      console.error('Erro ao verificar fila de sincronização:', error);
+    }
+  }, []);
+
+  // Sincronizar fila
+  const sync = useCallback(async () => {
+    if (isSyncing || !isOnline) return;
+
+    try {
+      setIsSyncing(true);
+      setLastError(null);
+
+      await processSyncQueue(
+        `https://${projectId}.supabase.co/functions/v1/make-server-1ff231a2`,
+        publicAnonKey
+      );
+
+      await checkQueue();
+    } catch (error: any) {
+      console.error('Erro ao sincronizar:', error);
+      setLastError(error.message || 'Erro ao sincronizar');
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [isSyncing, isOnline, checkQueue]);
+
+  // Verificar fila periodicamente
   useEffect(() => {
-    updatePendingCount();
+    checkQueue();
 
-    const interval = setInterval(() => {
-      updatePendingCount();
-    }, 10000); // Atualizar a cada 10 segundos
+    const interval = setInterval(checkQueue, 10000); // A cada 10 segundos
 
     return () => clearInterval(interval);
-  }, [updatePendingCount]);
+  }, [checkQueue]);
 
-  // Sincronizar automaticamente quando voltar online
+  // Sincronizar automaticamente quando ficar online
   useEffect(() => {
-    if (isOnline && status.isPending && !status.isSyncing) {
-      syncWithBackend();
+    if (isOnline && isPending && !isSyncing) {
+      sync();
     }
-  }, [isOnline, status.isPending, status.isSyncing, syncWithBackend]);
+  }, [isOnline, isPending, isSyncing, sync]);
 
   return {
-    ...status,
+    isPending,
+    count,
+    isSyncing,
     isOnline,
-    sync: syncWithBackend,
-    updateCount: updatePendingCount,
+    lastError,
+    sync,
   };
 }

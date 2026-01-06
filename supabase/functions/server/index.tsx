@@ -4,6 +4,7 @@ import { logger } from "npm:hono/logger";
 import { createClient } from "jsr:@supabase/supabase-js@2.49.8";
 import * as kv from "./kv_store.tsx";
 import * as emailService from "./email.tsx";
+import * as validation from "./validation.tsx";
 const app = new Hono();
 
 // Supabase client with service role (for admin operations)
@@ -25,40 +26,107 @@ const requireAuth = async (c: any, next: any) => {
   
   // Se não tiver, tentar pegar do Authorization (para retrocompatibilidade)
   if (!accessToken) {
-    accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const authHeader = c.req.header('Authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const tokenFromAuth = authHeader.split(' ')[1];
+      // Só usar se não for o publicAnonKey
+      if (tokenFromAuth !== Deno.env.get("SUPABASE_ANON_KEY")) {
+        accessToken = tokenFromAuth;
+      }
+    }
   }
   
   if (!accessToken) {
+    console.error('❌ [AUTH] Token de autenticação não fornecido');
+    console.error('Headers recebidos:', {
+      'X-User-Token': c.req.header('X-User-Token') ? 'presente' : 'ausente',
+      'Authorization': c.req.header('Authorization') ? 'presente (mascarado)' : 'ausente',
+    });
     return c.json({ success: false, error: 'Token de autenticação não fornecido' }, 401);
   }
-
+  
+  console.log('🔐 [AUTH] Validando token...');
+  
   const supabase = getSupabaseAdmin();
   
-  const { data: { user }, error } = await supabase.auth.getUser(accessToken);
-  
-  if (error || !user) {
-    return c.json({ success: false, error: 'Token inválido ou expirado' }, 401);
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    
+    if (error) {
+      console.error('❌ [AUTH] Erro ao validar token:', error.message);
+      return c.json({ success: false, error: 'Token inválido ou expirado' }, 401);
+    }
+    
+    if (!user) {
+      console.error('❌ [AUTH] Usuário não encontrado para o token fornecido');
+      return c.json({ success: false, error: 'Token inválido ou expirado' }, 401);
+    }
+    
+    console.log('✅ [AUTH] Token válido para usuário:', user.email);
+    
+    // Attach user to context
+    c.set('userId', user.id);
+    c.set('userEmail', user.email);
+    
+    await next();
+  } catch (error: any) {
+    console.error('❌ [AUTH] Erro inesperado ao validar token:', error.message);
+    return c.json({ success: false, error: 'Erro ao validar autenticação' }, 500);
   }
-  
-  // Attach user to context
-  c.set('userId', user.id);
-  c.set('userEmail', user.email);
-  
-  await next();
 };
 
 // Enable logger
 app.use('*', logger(console.log));
 
 // Enable CORS for all routes and methods
+// SEGURANÇA: Restrito a domínios específicos em produção
+const getAllowedOrigins = () => {
+  const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:4173',
+    'http://127.0.0.1:5173',
+    'https://cjwuooaappcnsqxgdpta.supabase.co',
+    'https://figma-make.vercel.app', // Figma Make preview
+  ];
+  
+  // Adicionar domínio customizado se configurado
+  const customDomain = Deno.env.get('CUSTOM_DOMAIN');
+  if (customDomain) {
+    allowedOrigins.push(customDomain);
+  }
+  
+  // Adicionar qualquer domínio .figma.com para desenvolvimento
+  return allowedOrigins;
+};
+
 app.use(
   "/*",
   cors({
-    origin: "*",
-    allowHeaders: ["Content-Type", "Authorization", "X-User-Token"],
+    origin: (origin) => {
+      const allowedOrigins = getAllowedOrigins();
+      
+      // Permitir requests sem origin (mobile apps, Postman, etc)
+      if (!origin) return '*';
+      
+      // Permitir domínios da lista
+      if (allowedOrigins.includes(origin)) return origin;
+      
+      // Permitir qualquer subdomínio do Figma Make e Vercel  
+      if (origin.includes('.figma.com') || 
+          origin.includes('figma-make') || 
+          origin.includes('.vercel.app') ||
+          origin.includes('figmaiframepreview.figma.site')) {
+        return origin;
+      }
+      
+      // Bloquear outros
+      return false;
+    },
+    allowHeaders: ["Content-Type", "Authorization", "X-User-Token", "X-Setup-Key"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
     maxAge: 600,
+    credentials: true,
   }),
 );
 
@@ -72,30 +140,32 @@ app.get("/make-server-1ff231a2/health", (c) => {
 // ============================================
 
 // Criar usuário master (apenas para inicialização)
+// SEGURANÇA: Esta rota requer uma chave secreta para evitar criação não autorizada de admins
 app.post("/make-server-1ff231a2/auth/create-master", async (c) => {
   try {
-    console.log('🔧 Rota /auth/create-master chamada');
-    console.log('📦 Headers:', Object.fromEntries(c.req.raw.headers.entries()));
+    // Validar chave de setup
+    const setupKey = c.req.header('X-Setup-Key');
+    const expectedSetupKey = Deno.env.get('MASTER_SETUP_KEY') || 'setup-fc-pisos-2024';
+    
+    if (setupKey !== expectedSetupKey) {
+      return c.json({ success: false, error: 'Chave de setup inválida' }, 403);
+    }
     
     const { email, password, nome } = await c.req.json();
-    console.log('📤 Dados recebidos:', { email, nome });
     
     const supabase = getSupabaseAdmin();
     
     // Verificar se usuário já existe
-    console.log('🔍 Verificando se usuário já existe...');
     const { data: existingUsers } = await supabase.auth.admin.listUsers();
     const userExists = existingUsers?.users?.some(u => u.email === email);
     
     if (userExists) {
-      console.log('⚠️ Usuário já existe, retornando sucesso');
       // Buscar dados do usuário existente
       const existingUser = existingUsers.users.find(u => u.email === email);
       let userData = await kv.get(`user:${existingUser.id}`);
       
       // Se não existe no KV, criar agora
       if (!userData) {
-        console.log('💾 Criando entrada no KV para usuário existente...');
         userData = {
           id: existingUser.id,
           nome: existingUser.user_metadata?.nome || nome,
@@ -106,7 +176,6 @@ app.post("/make-server-1ff231a2/auth/create-master", async (c) => {
           updated_at: new Date().toISOString(),
         };
         await kv.set(`user:${existingUser.id}`, userData);
-        console.log('✅ Entrada criada no KV');
       }
       
       return c.json({ 
@@ -117,7 +186,6 @@ app.post("/make-server-1ff231a2/auth/create-master", async (c) => {
     }
     
     // Criar usuário no Supabase Auth
-    console.log('➕ Criando novo usuário no Supabase Auth...');
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
@@ -129,11 +197,9 @@ app.post("/make-server-1ff231a2/auth/create-master", async (c) => {
     });
 
     if (authError) {
-      console.error('❌ Erro ao criar usuário no Supabase Auth:', authError);
+      console.error('❌ Erro ao criar usuário master:', authError.message);
       return c.json({ success: false, error: authError.message }, 500);
     }
-
-    console.log('✅ Usuário criado no Auth:', authData.user.id);
 
     // Salvar dados do usuário no KV store
     const user = {
@@ -146,9 +212,7 @@ app.post("/make-server-1ff231a2/auth/create-master", async (c) => {
       updated_at: new Date().toISOString(),
     };
     
-    console.log('💾 Salvando usuário no KV store...');
     await kv.set(`user:${authData.user.id}`, user);
-    console.log('✅ Usuário salvo no KV store');
 
     return c.json({ 
       success: true, 
@@ -226,17 +290,46 @@ app.post("/make-server-1ff231a2/users", requireAuth, async (c) => {
     
     console.log('👤 Criando usuário:', { nome, email, tipo, telefone });
     
+    // VALIDAÇÃO: Validar dados do usuário
+    const validationResult = validation.validateUserData({
+      nome,
+      email,
+      tipo,
+      password: senha,
+      telefone
+    }, false);
+    
+    if (!validationResult.isValid) {
+      console.error('❌ Dados inválidos:', validationResult.errors);
+      return c.json({ 
+        success: false, 
+        error: validationResult.errors.join(', ') 
+      }, 400);
+    }
+    
+    // RATE LIMITING: Verificar limite de requisições
+    const rateLimit = validation.checkRateLimit(`create-user:${c.get('userId')}`, 10, 60000);
+    if (!rateLimit.allowed) {
+      return c.json({ 
+        success: false, 
+        error: 'Muitas requisições. Tente novamente em 1 minuto.' 
+      }, 429);
+    }
+    
     const supabase = getSupabaseAdmin();
+    
+    // Usar dados sanitizados
+    const sanitized = validationResult.sanitized;
     
     // Criar usuário no Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email,
-      password: senha,
+      email: sanitized.email,
+      password: sanitized.password,
       email_confirm: true,
       user_metadata: { 
-        nome,
-        tipo,
-        telefone
+        nome: sanitized.nome,
+        tipo: sanitized.tipo,
+        telefone: sanitized.telefone
       }
     });
 
@@ -245,13 +338,13 @@ app.post("/make-server-1ff231a2/users", requireAuth, async (c) => {
       return c.json({ success: false, error: authError.message }, 500);
     }
 
-    // Salvar no KV store
+    // Salvar no KV store (sem senha)
     const user = {
       id: authData.user.id,
-      nome,
-      email,
-      tipo,
-      telefone,
+      nome: sanitized.nome,
+      email: sanitized.email,
+      tipo: sanitized.tipo,
+      telefone: sanitized.telefone,
       ativo: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -423,10 +516,31 @@ app.get("/make-server-1ff231a2/obras", requireAuth, async (c) => {
 app.post("/make-server-1ff231a2/obras", requireAuth, async (c) => {
   try {
     const body = await c.req.json();
+    
+    // VALIDAÇÃO: Validar dados da obra
+    const validationResult = validation.validateObraData(body);
+    
+    if (!validationResult.isValid) {
+      console.error('❌ Dados da obra inválidos:', validationResult.errors);
+      return c.json({ 
+        success: false, 
+        error: validationResult.errors.join(', ') 
+      }, 400);
+    }
+    
+    // RATE LIMITING: Verificar limite de requisições
+    const rateLimit = validation.checkRateLimit(`create-obra:${c.get('userId')}`, 20, 60000);
+    if (!rateLimit.allowed) {
+      return c.json({ 
+        success: false, 
+        error: 'Muitas requisições. Tente novamente em 1 minuto.' 
+      }, 429);
+    }
+    
     const obraId = crypto.randomUUID();
     const obra = {
       id: obraId,
-      ...body,
+      ...validationResult.sanitized,
       token_validacao: crypto.randomUUID(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

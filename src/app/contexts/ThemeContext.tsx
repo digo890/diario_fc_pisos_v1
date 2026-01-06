@@ -51,3 +51,16 @@ export const useTheme = () => {
   }
   return context;
 };
+
+// ============================================
+// Fast Refresh - Garantir compatibilidade
+// ============================================
+
+// Marcar componentes para preservação durante Fast Refresh
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}
+
+// Adicionar display name para melhor debugging
+ThemeProvider.displayName = 'ThemeProvider';
+ThemeContext.displayName = 'ThemeContext';
