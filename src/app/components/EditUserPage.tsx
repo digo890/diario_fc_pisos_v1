@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Eye, EyeOff, ChevronRight, UserRound, Shield, Mail, Phone, Lock, Hash } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, UserRound, Shield, Mail, Phone, Lock, Hash } from 'lucide-react';
 import { motion } from 'motion/react';
 import { saveUser } from '../utils/database';
 import { userApi } from '../utils/api';
 import type { User, UserRole } from '../types';
-import BottomSheet from './BottomSheet';
+import { useToast } from './Toast';
 
 interface Props {
   user: User;
@@ -13,6 +13,7 @@ interface Props {
 }
 
 const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
+  const { showToast, ToastComponent } = useToast();
   const [formData, setFormData] = useState({
     nome: user.nome,
     tipo: user.tipo,
@@ -22,9 +23,13 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
     confirmarSenha: ''
   });
 
+  const [errors, setErrors] = useState({
+    senhas: false
+  });
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [showTipoSheet, setShowTipoSheet] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const tipoOptions = [
     { id: 'Administrador', label: 'Administrador', sublabel: 'Acesso total ao sistema' },
@@ -34,10 +39,16 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Prevenir múltiplos cliques
+    if (isSaving) return;
+
     if (formData.senha && formData.senha !== formData.confirmarSenha) {
-      alert('As senhas não coincidem');
+      setErrors({ senhas: true });
+      showToast('As senhas não coincidem', 'error');
       return;
     }
+
+    setIsSaving(true);
 
     try {
       // Preparar dados para atualização
@@ -68,13 +79,20 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
         };
 
         await saveUser(userAtualizado);
-        onSuccess();
+        showToast('Usuário atualizado com sucesso!', 'success');
+        
+        // Aguardar um pouco para o usuário ver o toast antes de voltar
+        setTimeout(() => {
+          onSuccess();
+        }, 1000);
       } else {
-        alert(`Erro ao atualizar usuário: ${response.error}`);
+        showToast(`Erro ao atualizar usuário: ${response.error}`, 'error');
       }
     } catch (error: any) {
       console.error('❌ Erro ao atualizar usuário:', error);
-      alert(`Erro ao atualizar usuário: ${error.message}`);
+      showToast(`Erro ao atualizar usuário: ${error.message}`, 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -121,7 +139,7 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
       </header>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto bg-[#EDEFE4] dark:bg-gray-950">
+      <div className="flex-1 overflow-y-auto bg-[#EDEFE4] dark:bg-gray-900">
         <form onSubmit={handleSubmit} className="max-w-3xl mx-auto p-4 space-y-3">
           {/* ID do Usuário */}
           <div className="relative">
@@ -144,6 +162,7 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
               onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
               className="w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                       border border-gray-200 dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
               placeholder="Nome completo *"
@@ -152,19 +171,36 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
 
           {/* Tipo de Perfil - Bottom Sheet Trigger */}
           <div>
-            <button
-              type="button"
-              onClick={() => setShowTipoSheet(true)}
-              className="w-full pl-12 pr-4 py-3 rounded-xl 
-                       bg-white dark:bg-gray-800 text-left flex items-center justify-between
-                       focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40 relative"
-            >
-              <Shield className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none" />
-              <div className="flex-1 text-gray-900 dark:text-white">
-                {selectedTipo?.label}
-              </div>
-              <ChevronRight className="w-5 h-5 text-gray-400" />
-            </button>
+            <div className="relative inline-flex w-full p-1 bg-[#DDE1D7] dark:bg-gray-800 rounded-lg">
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, tipo: 'Administrador' })}
+                className={`flex-1 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200 ${
+                  formData.tipo === 'Administrador'
+                    ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <Shield className="w-4 h-4" />
+                  <span>Administrador</span>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, tipo: 'Encarregado' })}
+                className={`flex-1 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200 ${
+                  formData.tipo === 'Encarregado'
+                    ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <UserRound className="w-4 h-4" />
+                  <span>Encarregado</span>
+                </div>
+              </button>
+            </div>
           </div>
 
           {/* Email */}
@@ -176,6 +212,7 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               className="w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                       border border-gray-200 dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
               placeholder="Email *"
@@ -191,6 +228,7 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
               onChange={(e) => setFormData({ ...formData, telefone: formatPhone(e.target.value) })}
               className="w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                       border border-gray-200 dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
               placeholder="Telefone"
@@ -206,6 +244,7 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
               onChange={(e) => setFormData({ ...formData, senha: e.target.value })}
               className="w-full pl-12 pr-12 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                       border border-gray-200 dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
               placeholder="Nova senha (deixe em branco para manter)"
@@ -227,10 +266,12 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
               type={showConfirmPassword ? 'text' : 'password'}
               value={formData.confirmarSenha}
               onChange={(e) => setFormData({ ...formData, confirmarSenha: e.target.value })}
-              className="w-full pl-12 pr-12 py-3 rounded-xl 
+              className={`w-full pl-12 pr-12 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                       border border-gray-200 dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
-                       focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
+                       focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
+                       ${errors.senhas ? 'ring-2 ring-red-500' : ''}`}
               placeholder="Confirmar nova senha"
             />
             <button
@@ -241,27 +282,33 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
             >
               {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
+            {errors.senhas && <p className="text-red-500 text-xs mt-1 ml-1">As senhas não coincidem</p>}
           </div>
 
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full px-6 py-3 rounded-xl bg-[#FD5521] text-white font-medium hover:bg-[#E54A1D] transition-colors mt-6 focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40 focus:ring-offset-2"
+            disabled={isSaving}
+            className="relative w-full px-6 py-3 rounded-xl bg-[#FD5521] text-white font-medium hover:bg-[#E54A1D] transition-colors mt-6 focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
           >
-            Salvar Alterações
+            {/* Animação de preenchimento horizontal */}
+            {isSaving && (
+              <motion.div
+                className="absolute inset-0 bg-[#E54A1D]"
+                initial={{ width: '0%' }}
+                animate={{ width: '100%' }}
+                transition={{ duration: 2, ease: 'linear' }}
+              />
+            )}
+            <span className="relative z-10">
+              {isSaving ? 'Salvando alterações...' : 'Salvar Alterações'}
+            </span>
           </button>
         </form>
       </div>
 
-      {/* Tipo Bottom Sheet */}
-      <BottomSheet
-        isOpen={showTipoSheet}
-        onClose={() => setShowTipoSheet(false)}
-        title="Tipo de Perfil"
-        options={tipoOptions}
-        selectedId={formData.tipo}
-        onSelect={(id) => setFormData({ ...formData, tipo: id as UserRole })}
-      />
+      {/* Toast */}
+      {ToastComponent}
     </motion.div>
   );
 };

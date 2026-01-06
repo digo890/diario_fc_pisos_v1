@@ -39,7 +39,7 @@ export function PWAInstallPrompt() {
     const { outcome } = await deferredPrompt.userChoice;
 
     if (outcome === 'accepted') {
-      console.log('PWA instalado');
+      // PWA installed successfully
     }
 
     setDeferredPrompt(null);

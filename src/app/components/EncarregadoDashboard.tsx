@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Moon, Sun, LogOut, ChevronRight } from 'lucide-react';
+import { Moon, Sun, LogOut, ChevronRight, FolderOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -246,8 +246,13 @@ const EncarregadoDashboard: React.FC = () => {
               })}
 
               {obrasFiltradas.length === 0 && (
-                <div className="text-center py-12 text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
-                  Nenhuma obra atribuída a você
+                <div className="text-center py-16">
+                  <FolderOpen className="w-16 h-16 mx-auto mb-4 text-[#DDE1D7]" />
+                  <p className="text-gray-500 dark:text-gray-400">
+                    {obras.length === 0 
+                      ? 'Nenhuma obra atribuída a você' 
+                      : 'Nenhuma obra encontrada com este filtro'}
+                  </p>
                 </div>
               )}
             </motion.div>

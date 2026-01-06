@@ -109,7 +109,7 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
       {/* Cards de Métricas Principais */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total de Obras */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg border dark:border-gray-800 p-4">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-white dark:border-gray-900 p-4">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-full bg-[#FD5521]/10 flex items-center justify-center">
               <FileText className="w-5 h-5 text-[#FD5521]" />
@@ -124,7 +124,7 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
         </div>
 
         {/* Formulários Preenchidos */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg border dark:border-gray-800 p-4">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-white dark:border-gray-900 p-4">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
               <FileText className="w-5 h-5 text-blue-500" />
@@ -139,7 +139,7 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
         </div>
 
         {/* Formulários em Revisão */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg border dark:border-gray-800 p-4">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-white dark:border-gray-900 p-4">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
               <Clock className="w-5 h-5 text-amber-500" />
@@ -154,7 +154,7 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
         </div>
 
         {/* Formulários Validados */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg border dark:border-gray-800 p-4">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-white dark:border-gray-900 p-4">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
               <CheckCircle2 className="w-5 h-5 text-green-500" />
@@ -172,7 +172,7 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
       {/* Cards de Taxa de Conclusão e Obras Recentes */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Taxa de Conclusão */}
-        <div className="bg-gradient-to-br from-[#FD5521] to-[#E54A1D] rounded-lg p-6 text-white">
+        <div className="bg-gradient-to-br from-[#FD5521] to-[#E54A1D] rounded-xl p-6 text-white">
           <div className="flex items-center gap-3 mb-4">
             <TrendingUp className="w-6 h-6" />
             <div className="text-lg font-semibold">Taxa de Conclusão</div>
@@ -184,7 +184,7 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
         </div>
 
         {/* Obras Recentes */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-white dark:border-gray-900 p-6">
           <div className="flex items-center gap-3 mb-4">
             <Calendar className="w-6 h-6 text-[#FD5521]" />
             <div className="text-lg font-semibold text-gray-900 dark:text-white">Últimos 30 dias</div>
@@ -201,7 +201,7 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
       {/* Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Gráfico de Status das Obras */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-white dark:border-gray-900 p-6">
           <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
             Status das Obras
           </h3>
@@ -233,7 +233,7 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
         </div>
 
         {/* Gráfico de Formulários */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-white dark:border-gray-900 p-6">
           <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
             Status dos Formulários
           </h3>
@@ -264,48 +264,6 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Resumo de Análise */}
-      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
-        <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
-          Resumo Analítico
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
-          <div>
-            <div className="text-gray-600 dark:text-gray-400 mb-2">Obras em Andamento</div>
-            <div className="text-2xl font-bold text-gray-900 dark:text-white">
-              {dashboardData.obrasAndamento}
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-              {dashboardData.totalObras > 0 
-                ? `${Math.round((dashboardData.obrasAndamento / dashboardData.totalObras) * 100)}%`
-                : '0%'} do total
-            </div>
-          </div>
-
-          <div>
-            <div className="text-gray-600 dark:text-gray-400 mb-2">Obras Novas</div>
-            <div className="text-2xl font-bold text-gray-900 dark:text-white">
-              {dashboardData.obrasNovas}
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-              Aguardando início
-            </div>
-          </div>
-
-          <div>
-            <div className="text-gray-600 dark:text-gray-400 mb-2">Taxa de Validação</div>
-            <div className="text-2xl font-bold text-gray-900 dark:text-white">
-              {dashboardData.formulariosPreenchidos > 0
-                ? Math.round((dashboardData.formulariosValidados / dashboardData.formulariosPreenchidos) * 100)
-                : 0}%
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-              Formulários aprovados
-            </div>
-          </div>
         </div>
       </div>
 

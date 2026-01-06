@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, FileText, Moon, Sun, LogOut, Download, Building2, Users, BarChart3, Bell, Filter } from 'lucide-react';
+import { Plus, Edit2, Trash2, FileText, Moon, Sun, LogOut, Download, Building2, Users, BarChart3, Bell, Filter, LayoutGrid, LayoutList, FolderOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { getObras, getUsers, deleteObra, deleteUser, getFormByObraId } from '../utils/database';
+import { getObras, getUsers, deleteObra as deleteObraLocal, deleteUser as deleteUserLocal, getFormByObraId } from '../utils/database';
+import { obraApi, userApi } from '../utils/api';
 import { getStatusDisplay } from '../utils/diarioHelpers';
 import type { Obra, User, UserRole, FormData } from '../types';
 import CreateObraPage from './CreateObraPage';
@@ -13,7 +14,9 @@ import EditUserPage from './EditUserPage';
 import ViewRespostasModal from './ViewRespostasModal';
 import ConfirmModal from './ConfirmModal';
 import ResultadosDashboard from './ResultadosDashboard';
+import NotificationDrawer, { Notification } from './NotificationDrawer';
 import FcLogo from '../../imports/FcLogo';
+import { useToast } from './Toast';
 
 type TabType = 'resultados' | 'obras' | 'usuarios';
 type ObraFilter = 'todas' | 'novo' | 'em_andamento' | 'conferencia' | 'concluidas';
@@ -46,12 +49,15 @@ const getAvatarColor = (userId: string): string => {
 const AdminDashboard: React.FC = () => {
   const { currentUser, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { showToast, ToastComponent } = useToast();
   const [activeTab, setActiveTab] = useState<TabType>('resultados');
   const [obras, setObras] = useState<Obra[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [obraFilter, setObraFilter] = useState<ObraFilter>('todas');
   const [userFilter, setUserFilter] = useState<UserFilter>('todos');
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid'); // Para desktop apenas
   
   const [showCreateObra, setShowCreateObra] = useState(false);
   const [showCreateUser, setShowCreateUser] = useState(false);
@@ -61,6 +67,10 @@ const AdminDashboard: React.FC = () => {
   const [viewingFormData, setViewingFormData] = useState<FormData | null>(null);
   const [deletingObra, setDeletingObra] = useState<Obra | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  
+  // Notification state
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
     loadData();
@@ -71,29 +81,202 @@ const AdminDashboard: React.FC = () => {
       loadFormData(viewingObra.id);
     }
   }, [viewingObra]);
+  
+  // Generate notifications when obras data changes
+  useEffect(() => {
+    generateNotifications();
+  }, [obras, users]);
 
   const loadData = async () => {
-    const [obrasData, usersData] = await Promise.all([
-      getObras(),
-      getUsers()
-    ]);
-    setObras(obrasData);
-    setUsers(usersData);
+    try {
+      // Primeiro, tentar buscar dados do backend (online)
+      if (navigator.onLine) {
+        try {
+          // Buscar usuários e obras do backend
+          const [usersResponse, obrasResponse] = await Promise.all([
+            userApi.list(),
+            obraApi.list()
+          ]);
+
+          // Salvar usuários no IndexedDB local (cache)
+          if (usersResponse.success && usersResponse.data) {
+            const usersData = usersResponse.data;
+            // Salvar cada usuário no IndexedDB
+            await Promise.all(
+              usersData.map((user: User) => 
+                import('../utils/database').then(db => db.saveUser(user))
+              )
+            );
+            setUsers(usersData);
+          }
+
+          // Salvar obras no IndexedDB local (cache)
+          if (obrasResponse.success && obrasResponse.data) {
+            console.log('📊 Dados do backend (ANTES da conversão):', obrasResponse.data[0]);
+            
+            // Converter dados do backend (snake_case) para frontend (camelCase)
+            const obrasData = obrasResponse.data.map((obraBackend: any) => ({
+              id: obraBackend.id,
+              cliente: obraBackend.cliente,
+              obra: obraBackend.obra,
+              cidade: obraBackend.cidade,
+              data: obraBackend.data,
+              encarregadoId: obraBackend.encarregado_id,
+              prepostoNome: obraBackend.preposto_nome,
+              prepostoEmail: obraBackend.preposto_email,
+              prepostoWhatsapp: obraBackend.preposto_whatsapp,
+              validationToken: obraBackend.token_validacao,
+              status: obraBackend.status,
+              progress: obraBackend.progress || 0,
+              createdAt: obraBackend.created_at ? new Date(obraBackend.created_at).getTime() : Date.now(),
+              createdBy: obraBackend.created_by
+            } as Obra));
+            
+            console.log('✅ Dados convertidos (DEPOIS da conversão):', obrasData[0]);
+            
+            // Salvar cada obra no IndexedDB
+            await Promise.all(
+              obrasData.map((obra: Obra) => 
+                import('../utils/database').then(db => db.saveObra(obra))
+              )
+            );
+            setObras(obrasData);
+          }
+
+          return; // Sucesso, não precisa continuar
+        } catch (apiError) {
+          console.warn('⚠️ Erro ao buscar dados do backend, usando cache local:', apiError);
+          // Continua para buscar do IndexedDB como fallback
+        }
+      }
+
+      // Fallback: buscar dados locais do IndexedDB (offline ou erro na API)
+      const [obrasData, usersData] = await Promise.all([
+        getObras(),
+        getUsers()
+      ]);
+      setObras(obrasData);
+      setUsers(usersData);
+    } catch (error) {
+      console.error('❌ Erro ao carregar dados:', error);
+      // Em caso de erro total, mostrar arrays vazios
+      setObras([]);
+      setUsers([]);
+    }
   };
 
   const loadFormData = async (obraId: string) => {
     const form = await getFormByObraId(obraId);
     setViewingFormData(form || null);
   };
+  
+  const generateNotifications = async () => {
+    const newNotifications: Notification[] = [];
+    const storedReadIds = JSON.parse(localStorage.getItem('readNotifications') || '[]') as string[];
+    
+    for (const obra of obras) {
+      // Notificação quando encarregado responde o formulário
+      if (obra.status === 'enviado_preposto' || obra.status === 'aprovado_preposto' || 
+          obra.status === 'reprovado_preposto' || obra.status === 'enviado_admin' || obra.status === 'concluido') {
+        const formData = await getFormByObraId(obra.id);
+        if (formData && formData.assinaturaEncarregado) {
+          const encarregado = users.find(u => u.id === obra.encarregadoId);
+          const notificationId = `form_submitted_${obra.id}`;
+          newNotifications.push({
+            id: notificationId,
+            type: 'form_submitted',
+            obraId: obra.id,
+            obraNome: `${obra.cliente} - ${obra.obra}`,
+            userName: encarregado?.nome || 'Encarregado',
+            timestamp: formData.updatedAt || obra.updatedAt,
+            read: storedReadIds.includes(notificationId)
+          });
+        }
+      }
+      
+      // Notificação quando preposto assina o formulário
+      if (obra.status === 'aprovado_preposto' || obra.status === 'enviado_admin' || obra.status === 'concluido') {
+        const formData = await getFormByObraId(obra.id);
+        if (formData && formData.assinaturaPreposto && formData.prepostoConfirmado) {
+          const notificationId = `form_signed_${obra.id}`;
+          newNotifications.push({
+            id: notificationId,
+            type: 'form_signed',
+            obraId: obra.id,
+            obraNome: `${obra.cliente} - ${obra.obra}`,
+            userName: obra.prepostoNome || 'Preposto',
+            timestamp: formData.prepostoReviewedAt || obra.updatedAt,
+            read: storedReadIds.includes(notificationId)
+          });
+        }
+      }
+    }
+    
+    // Sort by timestamp (newest first)
+    newNotifications.sort((a, b) => b.timestamp - a.timestamp);
+    setNotifications(newNotifications);
+  };
+  
+  const handleNotificationClick = (notification: Notification) => {
+    const obra = obras.find(o => o.id === notification.obraId);
+    if (obra) {
+      setViewingObra(obra);
+      setShowNotifications(false);
+    }
+  };
+  
+  const handleMarkAsRead = (notificationId: string) => {
+    const storedReadIds = JSON.parse(localStorage.getItem('readNotifications') || '[]') as string[];
+    if (!storedReadIds.includes(notificationId)) {
+      storedReadIds.push(notificationId);
+      localStorage.setItem('readNotifications', JSON.stringify(storedReadIds));
+      
+      setNotifications(prev => 
+        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+      );
+    }
+  };
+  
+  const unreadNotificationsCount = notifications.filter(n => !n.read).length;
 
   const handleDeleteObra = async (id: string) => {
-    await deleteObra(id);
-    await loadData();
+    try {
+      // Deletar do backend primeiro
+      const response = await obraApi.delete(id);
+      
+      if (response.success) {
+        // Deletar também do IndexedDB local
+        await deleteObraLocal(id);
+        await loadData();
+        setDeletingObra(null);
+        showToast('Obra excluída com sucesso!', 'success');
+      } else {
+        showToast(`Erro ao excluir obra: ${response.error}`, 'error');
+      }
+    } catch (error: any) {
+      console.error('❌ Erro ao excluir obra:', error);
+      showToast(`Erro ao excluir obra: ${error.message}`, 'error');
+    }
   };
 
   const handleDeleteUser = async (id: string) => {
-    await deleteUser(id);
-    await loadData();
+    try {
+      // Deletar do backend primeiro
+      const response = await userApi.delete(id);
+      
+      if (response.success) {
+        // Deletar também do IndexedDB local
+        await deleteUserLocal(id);
+        await loadData();
+        setDeletingUser(null);
+        showToast('Usuário excluído com sucesso!', 'success');
+      } else {
+        showToast(`Erro ao excluir usuário: ${response.error}`, 'error');
+      }
+    } catch (error: any) {
+      console.error('❌ Erro ao excluir usuário:', error);
+      showToast(`Erro ao excluir usuário: ${error.message}`, 'error');
+    }
   };
 
   const handleCloseModal = () => {
@@ -153,16 +336,15 @@ const AdminDashboard: React.FC = () => {
                 {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
               </button>
               <button
-                onClick={() => setObraFilter('concluidas')}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 
-                         text-gray-600 dark:text-gray-400 relative"
-                title="Obras concluídas"
-                aria-label={`Obras concluídas (${obrasConcluidas})`}
+                onClick={() => setShowNotifications(true)}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 \n                         text-gray-600 dark:text-gray-400 relative"
+                title="Notificações"
+                aria-label={`Notificações (${unreadNotificationsCount})`}
               >
                 <Bell className="w-5 h-5" />
-                {obrasConcluidas > 0 && (
+                {unreadNotificationsCount > 0 && (
                   <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#FD5521] text-white text-xs font-medium rounded-full flex items-center justify-center">
-                    {obrasConcluidas}
+                    {unreadNotificationsCount}
                   </span>
                 )}
               </button>
@@ -247,6 +429,14 @@ const AdminDashboard: React.FC = () => {
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Obras</h2>
                 <div className="flex gap-2">
+                  {/* Botão de visualização - apenas desktop */}
+                  <button
+                    onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+                    className="hidden md:flex w-12 h-12 rounded-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors items-center justify-center shadow-md"
+                    title={viewMode === 'grid' ? 'Visualizar como lista' : 'Visualizar como cards'}
+                  >
+                    {viewMode === 'grid' ? <LayoutList className="w-5 h-5" /> : <LayoutGrid className="w-5 h-5" />}
+                  </button>
                   <button
                     onClick={() => setShowFilterDrawer(true)}
                     className="w-12 h-12 rounded-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-center shadow-md relative"
@@ -266,7 +456,8 @@ const AdminDashboard: React.FC = () => {
               </div>
 
               {/* Lista de Obras */}
-              <div className="space-y-3">
+              {/* Visualização em Cards - Sempre no mobile, opcional no desktop */}
+              <div className={`space-y-3 ${viewMode === 'list' ? 'md:hidden' : ''}`}>
                 {filteredObras.map(obra => {
                   const status = getStatusDisplay(obra);
                   
@@ -274,10 +465,10 @@ const AdminDashboard: React.FC = () => {
                     <div
                       key={obra.id}
                       onClick={() => setViewingObra(obra)}
-                      className="bg-white dark:bg-gray-900 rounded-[30px] p-3 pb-4 cursor-pointer hover:shadow-md transition-all relative"
+                      className="bg-white dark:bg-gray-900 rounded-xl p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all relative"
                     >
                       {/* Container com gradiente */}
-                      <div className={`rounded-[15px] px-6 py-6 mb-3 ${
+                      <div className={`rounded-xl px-6 py-6 mb-3 ${
                         obra.status === 'novo'
                           ? 'bg-gradient-to-r from-[#fff5df] to-[#f7e3cc] dark:from-gray-800 dark:to-gray-800'
                           : obra.status === 'enviado_preposto' 
@@ -293,7 +484,7 @@ const AdminDashboard: React.FC = () => {
                         
                         {/* ID e Data */}
                         <p className="font-['Cousine',monospace] text-sm text-gray-900/[0.56] dark:text-gray-400/[0.56] mb-[21px] tracking-[1px]">
-                          #{String(obra.id).slice(-5)} - {new Date(obra.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                          #{String(obra.id).slice(-5)} - {obra.createdAt ? new Date(Number(obra.createdAt)).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : 'N/A'}
                         </p>
                         
                         {/* Informações */}
@@ -365,6 +556,106 @@ const AdminDashboard: React.FC = () => {
                   <button
                     onClick={() => setShowCreateObra(true)}
                     className="w-full text-center py-12 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl transition-colors group"
+                  >
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-16 h-16 rounded-full bg-[#FD5521]/10 flex items-center justify-center group-hover:bg-[#FD5521]/20 transition-colors">
+                        <Plus className="w-8 h-8 text-[#FD5521]" />
+                      </div>
+                      <div>
+                        <p className="text-gray-900 dark:text-white font-medium mb-1">Nenhuma obra encontrada</p>
+                        <p className="text-sm text-[#FD5521] group-hover:underline">Clique aqui para cadastrar a primeira obra</p>
+                      </div>
+                    </div>
+                  </button>
+                )}
+              </div>
+
+              {/* Visualização em Lista - Desktop apenas */}
+              <div className={`bg-white dark:bg-gray-900 rounded-lg overflow-hidden ${viewMode === 'list' ? 'hidden md:block' : 'hidden'}`}>
+                {filteredObras.length > 0 ? (
+                  filteredObras.map((obra, index) => {
+                    const status = getStatusDisplay(obra);
+                    
+                    return (
+                      <div key={obra.id}>
+                        <div
+                          onClick={() => setViewingObra(obra)}
+                          className="px-5 py-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                        >
+                          <div className="flex items-center justify-between gap-4">
+                            {/* Info da obra */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-3 mb-2">
+                                <h3 className="font-semibold text-lg text-gray-900 dark:text-white truncate">
+                                  {obra.cliente} - {obra.obra}
+                                </h3>
+                                {/* Badge de Status */}
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                  <div className="relative w-2 h-2">
+                                    <svg className="absolute inset-0" viewBox="0 0 18 18" fill="none">
+                                      <circle cx="9" cy="9" r="5" className={status.color.includes('blue') ? 'fill-blue-600' : status.color.includes('green') ? 'fill-green-600' : status.color.includes('yellow') ? 'fill-yellow-600' : 'fill-gray-400'} />
+                                    </svg>
+                                  </div>
+                                  <span className={`font-medium text-sm ${
+                                    status.color.includes('blue') ? 'text-blue-600' : 
+                                    status.color.includes('green') ? 'text-green-600' : 
+                                    status.color.includes('yellow') ? 'text-yellow-600' : 
+                                    'text-gray-600'
+                                  }`}>
+                                    {status.label}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400">
+                                <span>
+                                  <span className="font-medium text-gray-900 dark:text-gray-300">{obra.cidade}</span>
+                                </span>
+                                <span>•</span>
+                                <span>{getUserName(obra.encarregadoId)}</span>
+                                <span>•</span>
+                                <span>{new Date(obra.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>
+                                <span>•</span>
+                                <span className="font-['Cousine',monospace] text-xs">
+                                  #{String(obra.id).slice(-5)}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            {/* Botões de ação */}
+                            <div className="flex gap-2 flex-shrink-0">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingObra(obra);
+                                }}
+                                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
+                                title="Editar"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeletingObra(obra);
+                                }}
+                                className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
+                                title="Excluir"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        {index < filteredObras.length - 1 && (
+                          <div className="mx-5 border-b border-[#EDEFE4] dark:border-gray-800"></div>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <button
+                    onClick={() => setShowCreateObra(true)}
+                    className="w-full text-center py-12 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
                   >
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-16 h-16 rounded-full bg-[#FD5521]/10 flex items-center justify-center group-hover:bg-[#FD5521]/20 transition-colors">
@@ -452,8 +743,13 @@ const AdminDashboard: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                  Nenhum usuário encontrado
+                <div className="text-center py-16">
+                  <Users className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-700" />
+                  <p className="text-gray-500 dark:text-gray-400">
+                    {userFilter === 'todos' 
+                      ? 'Nenhum usuário encontrado' 
+                      : `Nenhum ${userFilter === 'Encarregado' ? 'encarregado' : 'administrador'} encontrado`}
+                  </p>
                 </div>
               )}
             </motion.div>
@@ -683,6 +979,18 @@ const AdminDashboard: React.FC = () => {
           </motion.div>
         </div>
       )}
+      
+      {/* Notification Drawer */}
+      <NotificationDrawer
+        isOpen={showNotifications}
+        notifications={notifications}
+        onClose={() => setShowNotifications(false)}
+        onNotificationClick={handleNotificationClick}
+        onMarkAsRead={handleMarkAsRead}
+      />
+      
+      {/* Toast Component */}
+      {ToastComponent}
     </div>
   );
 };

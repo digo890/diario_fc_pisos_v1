@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import { ArrowLeft, ChevronRight, Calendar, UserRound, Building2, MapPin, HardHat, Mail, Phone } from 'lucide-react';
 import { motion } from 'motion/react';
 import { saveObra } from '../utils/database';
-import type { User, Obra } from '../types';
+import { obraApi } from '../utils/api';
+import { sendEncarregadoNovaObraEmail } from '../utils/emailApi';
+import type { User, Obra, UserRole } from '../types';
 import SearchableBottomSheet from './SearchableBottomSheet';
+import { useToast } from './Toast';
 
 interface Props {
   users: User[];
@@ -12,6 +15,7 @@ interface Props {
 }
 
 const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     cliente: '',
     obra: '',
@@ -30,6 +34,8 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
     encarregadoId: false,
     prepostoContato: false
   });
+
+  const [isCreating, setIsCreating] = useState(false);
 
   const [activeSheet, setActiveSheet] = useState<'encarregado' | null>(null);
 
@@ -105,28 +111,75 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
       return;
     }
 
-    // Gerar token único para validação do preposto
-    const validationToken = `token-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+    setIsCreating(true);
 
-    const novaObra: Obra = {
-      id: `obra-${Date.now()}`,
-      cliente: formData.cliente,
-      obra: formData.obra,
-      cidade: formData.cidade,
-      data: formData.data,
-      encarregadoId: formData.encarregadoId,
-      prepostoNome: formData.prepostoNome || undefined,
-      prepostoEmail: formData.prepostoEmail || undefined,
-      prepostoWhatsapp: formData.prepostoWhatsapp || undefined,
-      validationToken,
-      status: 'novo',
-      progress: 0,
-      createdAt: Date.now(),
-      createdBy: 'admin'
-    };
+    try {
+      // Criar obra no backend primeiro
+      const response = await obraApi.create({
+        cliente: formData.cliente,
+        obra: formData.obra,
+        cidade: formData.cidade,
+        data: formData.data,
+        encarregado_id: formData.encarregadoId,
+        preposto_nome: formData.prepostoNome || undefined,
+        preposto_email: formData.prepostoEmail || undefined,
+        preposto_whatsapp: formData.prepostoWhatsapp || undefined,
+        status: 'novo',
+        progress: 0,
+        created_by: 'admin'
+      });
 
-    await saveObra(novaObra);
-    onSuccess();
+      if (response.success) {
+        // Salvar também localmente (com conversão de campos)
+        const novaObra: Obra = {
+          id: response.data.id,
+          cliente: response.data.cliente,
+          obra: response.data.obra,
+          cidade: response.data.cidade,
+          data: response.data.data,
+          encarregadoId: response.data.encarregado_id,
+          prepostoNome: response.data.preposto_nome,
+          prepostoEmail: response.data.preposto_email,
+          prepostoWhatsapp: response.data.preposto_whatsapp,
+          validationToken: response.data.token_validacao,
+          status: response.data.status,
+          progress: response.data.progress || 0,
+          createdAt: new Date(response.data.created_at).getTime(),
+          createdBy: response.data.created_by
+        };
+
+        await saveObra(novaObra);
+        
+        // Enviar email para o encarregado
+        if (selectedEncarregado && selectedEncarregado.email) {
+          console.log('📧 Enviando email ao encarregado:', selectedEncarregado.email);
+          const emailResult = await sendEncarregadoNovaObraEmail({
+            encarregadoEmail: selectedEncarregado.email,
+            encarregadoNome: selectedEncarregado.nome,
+            obraNome: formData.obra,
+            cliente: formData.cliente,
+            cidade: formData.cidade,
+            prepostoNome: formData.prepostoNome || 'A definir',
+            obraId: response.data.id, // Adicionado para deep linking
+          });
+          
+          if (emailResult.success) {
+            console.log('✅ Email enviado com sucesso ao encarregado');
+          } else {
+            console.warn('⚠️ Erro ao enviar email ao encarregado:', emailResult.error);
+          }
+        }
+        
+        onSuccess();
+      } else {
+        showToast(`Erro ao criar obra: ${response.error}`, 'error');
+      }
+    } catch (error: any) {
+      console.error('❌ Erro ao criar obra:', error);
+      showToast(`Erro ao criar obra: ${error.message}`, 'error');
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   return (
@@ -157,13 +210,14 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
         <form onSubmit={handleSubmit} className="max-w-3xl mx-auto p-4 space-y-3">
           {/* Cliente */}
           <div className="relative">
-            <UserRound className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] pointer-events-none" />
+            <UserRound className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none" />
             <input
               type="text"
               value={formData.cliente}
               onChange={(e) => setFormData({ ...formData, cliente: e.target.value })}
               className={`w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                       border border-gray-200 dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                        ${errors.cliente ? 'ring-2 ring-red-500' : ''}`}
@@ -174,13 +228,14 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
 
           {/* Obra */}
           <div className="relative">
-            <Building2 className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] pointer-events-none" />
+            <Building2 className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none" />
             <input
               type="text"
               value={formData.obra}
               onChange={(e) => setFormData({ ...formData, obra: e.target.value })}
               className={`w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                       border border-gray-200 dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                        ${errors.obra ? 'ring-2 ring-red-500' : ''}`}
@@ -191,13 +246,14 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
 
           {/* Cidade */}
           <div className="relative">
-            <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] pointer-events-none" />
+            <MapPin className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none" />
             <input
               type="text"
               value={formData.cidade}
               onChange={(e) => setFormData({ ...formData, cidade: e.target.value })}
               className={`w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                       border border-gray-200 dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                        ${errors.cidade ? 'ring-2 ring-red-500' : ''}`}
@@ -208,25 +264,27 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
 
           {/* Data */}
           <div className="relative">
-            <Calendar className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] pointer-events-none" />
+            <Calendar className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none" />
             <input
               type="date"
               value={formData.data}
               onChange={(e) => setFormData({ ...formData, data: e.target.value })}
               className="w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                       border border-gray-200 dark:border-gray-800
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
             />
           </div>
 
           {/* Encarregado - Bottom Sheet Trigger */}
           <div className="relative">
-            <HardHat className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] pointer-events-none z-10" />
+            <HardHat className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none z-10" />
             <button
               type="button"
               onClick={() => setActiveSheet('encarregado')}
               className={`w-full pl-12 pr-4 py-3 rounded-xl
                        bg-white dark:bg-gray-800 text-left flex items-center justify-between
+                       border border-gray-200 dark:border-gray-800
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                        ${errors.encarregadoId ? 'ring-2 ring-red-500' : ''}`}
             >
@@ -240,13 +298,14 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
 
           {/* Preposto - Nome */}
           <div className="relative">
-            <UserRound className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] pointer-events-none" />
+            <UserRound className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none" />
             <input
               type="text"
               value={formData.prepostoNome}
               onChange={(e) => setFormData({ ...formData, prepostoNome: e.target.value })}
               className={`w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                       border border-gray-200 dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40`}
               placeholder="Nome do Preposto"
@@ -255,13 +314,14 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
 
           {/* Preposto - Email */}
           <div className="relative">
-            <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] pointer-events-none" />
+            <Mail className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none" />
             <input
               type="email"
               value={formData.prepostoEmail}
               onChange={(e) => setFormData({ ...formData, prepostoEmail: e.target.value })}
               className={`w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                       border border-gray-200 dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40`}
               placeholder="Email do Preposto"
@@ -270,13 +330,14 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
 
           {/* Preposto - Whatsapp */}
           <div className="relative">
-            <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] pointer-events-none" />
+            <Phone className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none" />
             <input
               type="text"
               value={formData.prepostoWhatsapp}
               onChange={(e) => setFormData({ ...formData, prepostoWhatsapp: formatPhoneNumber(e.target.value) })}
               className={`w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                       border border-gray-200 dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40`}
               placeholder="Whatsapp do Preposto"
@@ -286,9 +347,30 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full px-6 py-3 rounded-xl bg-[#FD5521] text-white font-medium hover:bg-[#E54A1D] transition-colors mt-4"
+            disabled={isCreating}
+            className={`relative w-full px-6 py-3 rounded-xl text-white font-medium mt-4 overflow-hidden transition-colors
+                       ${isCreating 
+                         ? 'bg-[#E54A1D] cursor-not-allowed' 
+                         : 'bg-[#FD5521] hover:bg-[#E54A1D]'}`}
           >
-            Criar diário da obra
+            {/* Animação de carregamento - preenchimento da esquerda para direita */}
+            {isCreating && (
+              <motion.div
+                className="absolute inset-0 bg-[#D4441A]"
+                initial={{ x: '-100%' }}
+                animate={{ x: '100%' }}
+                transition={{
+                  duration: 1.5,
+                  repeat: Infinity,
+                  ease: 'linear'
+                }}
+              />
+            )}
+            
+            {/* Texto do botão */}
+            <span className="relative z-10">
+              {isCreating ? 'Criando obra...' : 'Criar diário da obra'}
+            </span>
           </button>
         </form>
       </div>

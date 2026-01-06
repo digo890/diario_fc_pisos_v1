@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Copy, ChevronDown, Plus, Trash2, Clock } from 'lucide-react';
 import type { FormData, ServicoData } from '../../types';
 import BottomSheet from '../BottomSheet';
+import { useToast } from '../Toast';
 
 interface Props {
   data: FormData;
@@ -129,6 +130,7 @@ const validatePercentValue = (value: string): string => {
 };
 
 const ServicosSection: React.FC<Props> = ({ data, onChange, isReadOnly, isPreposto, activeServico, setActiveServico }) => {
+  const { showToast } = useToast();
   const [activeDropdown, setActiveDropdown] = useState<{
     servicoKey: 'servico1' | 'servico2' | 'servico3' | null;
     label: string | null;
@@ -425,7 +427,7 @@ const ServicosSection: React.FC<Props> = ({ data, onChange, isReadOnly, isPrepos
 
   const copiarServico1 = (destino: 'servico2' | 'servico3') => {
     if (!data.servicos.servico1) {
-      alert('Serviço 1 não possui dados para copiar');
+      showToast('Serviço 1 não possui dados para copiar', 'warning');
       return;
     }
 

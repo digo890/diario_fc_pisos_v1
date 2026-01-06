@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
-import { X, Download, Share2, Check } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { X, Download, Share2, Check, FileDown, FileSpreadsheet } from 'lucide-react';
+import { toast } from 'sonner';
 import { getStatusDisplay } from '../utils/diarioHelpers';
 import { copyToClipboard } from '../utils/clipboard';
+import { generateFormPDF } from '../utils/pdfGenerator';
+import { generateFormExcel } from '../utils/excelGenerator';
 import type { Obra, User, FormData } from '../types';
 
 interface Props {
@@ -82,16 +85,59 @@ const REGISTROS_ITEMS = [
 const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose }) => {
   const [activeServiceTab, setActiveServiceTab] = useState<'servico1' | 'servico2' | 'servico3'>('servico1');
   const [linkCopied, setLinkCopied] = useState(false);
+  const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
+  const downloadMenuRef = useRef<HTMLDivElement>(null);
   
   const status = getStatusDisplay(obra);
+
+  // Fechar menu ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (downloadMenuRef.current && !downloadMenuRef.current.contains(event.target as Node)) {
+        setDownloadMenuOpen(false);
+      }
+    };
+
+    if (downloadMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [downloadMenuOpen]);
 
   const getUserName = (id: string) => {
     const user = users.find(u => u.id === id);
     return user?.nome || 'N/A';
   };
 
-  const handleDownloadPDF = () => {
-    alert('Funcionalidade de download de PDF será implementada em breve');
+  const handleDownloadPDF = async () => {
+    if (!formData) return;
+    
+    try {
+      setDownloadMenuOpen(false);
+      toast.info('Gerando PDF...');
+      await generateFormPDF(obra, formData, users);
+      toast.success('PDF gerado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      toast.error('Erro ao gerar PDF. Tente novamente.');
+    }
+  };
+
+  const handleDownloadExcel = async () => {
+    if (!formData) return;
+    
+    try {
+      setDownloadMenuOpen(false);
+      toast.info('Gerando Excel...');
+      await generateFormExcel(obra, formData, users);
+      toast.success('Excel gerado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao gerar Excel:', error);
+      toast.error('Erro ao gerar Excel. Tente novamente.');
+    }
   };
 
   const handleShareLink = async () => {
@@ -102,6 +148,7 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
     
     if (success) {
       setLinkCopied(true);
+      toast.success('Link copiado!');
       setTimeout(() => setLinkCopied(false), 2000);
     }
   };
@@ -156,19 +203,39 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 p-4 flex items-center justify-between z-10">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">
             Respostas do Formulário
           </h2>
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleDownloadPDF}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#FD5521] text-white hover:bg-[#E54A1D]"
-            >
-              <Download className="w-4 h-4" />
-              Baixar
-            </button>
+            <div className="relative" ref={downloadMenuRef}>
+              <button
+                onClick={() => setDownloadMenuOpen(!downloadMenuOpen)}
+                className="p-2 rounded-lg bg-[#FD5521] text-white hover:bg-[#E54A1D]"
+                title="Baixar"
+              >
+                <Download className="w-5 h-5" />
+              </button>
+              {downloadMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-lg rounded-lg overflow-hidden min-w-[160px] z-20">
+                  <button
+                    onClick={handleDownloadPDF}
+                    className="w-full px-4 py-3 text-left text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2"
+                  >
+                    <FileDown className="w-4 h-4" />
+                    PDF
+                  </button>
+                  <button
+                    onClick={handleDownloadExcel}
+                    className="w-full px-4 py-3 text-left text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 border-t border-gray-200 dark:border-gray-800"
+                  >
+                    <FileSpreadsheet className="w-4 h-4" />
+                    Excel
+                  </button>
+                </div>
+              )}
+            </div>
             {obra.status === 'enviado_preposto' && obra.validationToken && (
               <button
                 onClick={handleShareLink}

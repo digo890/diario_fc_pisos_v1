@@ -3,6 +3,7 @@ import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import { createClient } from "jsr:@supabase/supabase-js@2.49.8";
 import * as kv from "./kv_store.tsx";
+import * as emailService from "./email.tsx";
 const app = new Hono();
 
 // Supabase client with service role (for admin operations)
@@ -19,20 +20,40 @@ const getSupabaseClient = () => createClient(
 
 // Middleware to verify auth token
 const requireAuth = async (c: any, next: any) => {
-  const accessToken = c.req.header('Authorization')?.split(' ')[1];
+  // Primeiro tentar pegar do header customizado X-User-Token
+  let accessToken = c.req.header('X-User-Token');
+  
+  // Se não tiver, tentar pegar do Authorization (para retrocompatibilidade)
+  if (!accessToken) {
+    accessToken = c.req.header('Authorization')?.split(' ')[1];
+  }
+  
+  console.log('🔐 requireAuth - Verificando autenticação...');
+  console.log('🔑 Token recebido:', accessToken ? `${accessToken.substring(0, 20)}...` : 'NENHUM');
   
   if (!accessToken) {
+    console.error('❌ Token de autenticação não fornecido');
     return c.json({ success: false, error: 'Token de autenticação não fornecido' }, 401);
   }
 
   const supabase = getSupabaseAdmin();
+  
+  console.log('🔍 Verificando token com Supabase...');
   const { data: { user }, error } = await supabase.auth.getUser(accessToken);
   
-  if (error || !user) {
-    console.error('Erro de autenticação:', error?.message);
+  if (error) {
+    console.error('❌ Erro ao verificar token:', error.message);
+    console.error('❌ Error details:', error);
+    return c.json({ success: false, error: 'Token inválido ou expirado' }, 401);
+  }
+  
+  if (!user) {
+    console.error('❌ Usuário não encontrado para o token');
     return c.json({ success: false, error: 'Token inválido ou expirado' }, 401);
   }
 
+  console.log('✅ Usuário autenticado:', user.id, user.email);
+  
   // Attach user to context
   c.set('userId', user.id);
   c.set('userEmail', user.email);
@@ -48,7 +69,7 @@ app.use(
   "/*",
   cors({
     origin: "*",
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "X-User-Token"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
     maxAge: 600,
@@ -63,6 +84,88 @@ app.get("/make-server-1ff231a2/health", (c) => {
 // ============================================
 // AUTENTICAÇÃO
 // ============================================
+
+// Rota pública para cadastro de novos usuários
+app.post("/make-server-1ff231a2/auth/signup", async (c) => {
+  try {
+    console.log('🔧 Rota /auth/signup chamada');
+    
+    const body = await c.req.json();
+    const { nome, email, password, tipo } = body;
+    
+    console.log('📤 Dados recebidos:', { email, nome, tipo });
+    
+    // Validações
+    if (!nome || !email || !password || !tipo) {
+      return c.json({ 
+        success: false, 
+        error: 'Nome, email, senha e tipo são obrigatórios' 
+      }, 400);
+    }
+    
+    if (!['Administrador', 'Encarregado'].includes(tipo)) {
+      return c.json({ 
+        success: false, 
+        error: 'Tipo deve ser Administrador ou Encarregado' 
+      }, 400);
+    }
+    
+    const supabase = getSupabaseAdmin();
+    
+    // Verificar se já existe usuário com este email
+    console.log('🔍 Verificando se usuário já existe...');
+    const { data: existingUsers } = await supabase.auth.admin.listUsers();
+    const userExists = existingUsers?.users?.some(u => u.email === email);
+    
+    if (userExists) {
+      console.log('⚠️ Usuário já existe com este email');
+      return c.json({ 
+        success: false, 
+        error: 'Já existe um usuário cadastrado com este email' 
+      }, 400);
+    }
+    
+    // Criar usuário no Supabase Auth
+    console.log('👤 Criando usuário no Supabase Auth...');
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true, // Auto-confirmar email
+      user_metadata: { 
+        nome,
+        tipo
+      }
+    });
+
+    if (authError) {
+      console.error('❌ Erro ao criar usuário no Supabase Auth:', authError);
+      return c.json({ 
+        success: false, 
+        error: authError.message 
+      }, 500);
+    }
+
+    // Salvar no KV store
+    console.log('💾 Salvando usuário no KV store...');
+    const user = {
+      id: authData.user.id,
+      nome,
+      email,
+      tipo,
+      ativo: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    
+    await kv.set(`user:${authData.user.id}`, user);
+    
+    console.log('✅ Usuário criado com sucesso:', user);
+    return c.json({ success: true, data: user });
+  } catch (error) {
+    console.error('❌ Erro ao criar usuário:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
 
 // Criar usuário master (apenas para inicialização)
 app.post("/make-server-1ff231a2/auth/create-master", async (c) => {
@@ -215,7 +318,9 @@ app.get("/make-server-1ff231a2/users", requireAuth, async (c) => {
 app.post("/make-server-1ff231a2/users", requireAuth, async (c) => {
   try {
     const body = await c.req.json();
-    const { nome, email, senha, tipo } = body;
+    const { nome, email, senha, tipo, telefone } = body;
+    
+    console.log('👤 Criando usuário:', { nome, email, tipo, telefone });
     
     const supabase = getSupabaseAdmin();
     
@@ -226,7 +331,8 @@ app.post("/make-server-1ff231a2/users", requireAuth, async (c) => {
       email_confirm: true,
       user_metadata: { 
         nome,
-        tipo
+        tipo,
+        telefone
       }
     });
 
@@ -241,6 +347,7 @@ app.post("/make-server-1ff231a2/users", requireAuth, async (c) => {
       nome,
       email,
       tipo,
+      telefone,
       ativo: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -248,6 +355,7 @@ app.post("/make-server-1ff231a2/users", requireAuth, async (c) => {
     
     await kv.set(`user:${authData.user.id}`, user);
     
+    console.log('✅ Usuário criado com sucesso');
     return c.json({ success: true, data: user });
   } catch (error) {
     console.error("Erro ao criar usuário:", error);
@@ -275,19 +383,88 @@ app.put("/make-server-1ff231a2/users/:id", requireAuth, async (c) => {
   try {
     const id = c.req.param("id");
     const body = await c.req.json();
+    
+    console.log('🔄 Atualizando usuário:', id);
+    console.log('📤 Dados recebidos:', body);
+    
     const user = await kv.get(`user:${id}`);
     if (!user) {
+      console.error('❌ Usuário não encontrado no KV store:', id);
       return c.json({ success: false, error: "Usuário não encontrado" }, 404);
     }
+    
+    console.log('✅ Usuário encontrado no KV:', user);
+    
+    const supabase = getSupabaseAdmin();
+    
+    // Se houver senha, atualizar no Supabase Auth
+    if (body.senha) {
+      console.log('🔑 Atualizando senha no Supabase Auth...');
+      const { error: authError } = await supabase.auth.admin.updateUserById(
+        id,
+        { password: body.senha }
+      );
+      
+      if (authError) {
+        console.error('❌ Erro ao atualizar senha:', authError);
+        return c.json({ success: false, error: authError.message }, 500);
+      }
+      console.log('✅ Senha atualizada com sucesso');
+    }
+    
+    // Se houver email, atualizar no Supabase Auth
+    if (body.email && body.email !== user.email) {
+      console.log('📧 Atualizando email no Supabase Auth...');
+      const { error: authError } = await supabase.auth.admin.updateUserById(
+        id,
+        { email: body.email }
+      );
+      
+      if (authError) {
+        console.error('❌ Erro ao atualizar email:', authError);
+        return c.json({ success: false, error: authError.message }, 500);
+      }
+      console.log('✅ Email atualizado com sucesso');
+    }
+    
+    // Atualizar user_metadata se nome ou tipo mudaram
+    if (body.nome || body.tipo || body.telefone) {
+      console.log('👤 Atualizando metadados do usuário...');
+      const { error: authError } = await supabase.auth.admin.updateUserById(
+        id,
+        {
+          user_metadata: {
+            nome: body.nome || user.nome,
+            tipo: body.tipo || user.tipo,
+            telefone: body.telefone !== undefined ? body.telefone : user.telefone
+          }
+        }
+      );
+      
+      if (authError) {
+        console.error('❌ Erro ao atualizar metadados:', authError);
+        return c.json({ success: false, error: authError.message }, 500);
+      }
+      console.log('✅ Metadados atualizados com sucesso');
+    }
+    
+    // Atualizar no KV store (sem a senha)
     const updatedUser = {
       ...user,
-      ...body,
+      nome: body.nome || user.nome,
+      tipo: body.tipo || user.tipo,
+      email: body.email || user.email,
+      telefone: body.telefone !== undefined ? body.telefone : user.telefone,
       updated_at: new Date().toISOString(),
     };
+    
+    console.log('💾 Salvando no KV store:', updatedUser);
     await kv.set(`user:${id}`, updatedUser);
+    
+    console.log('✅ Usuário atualizado com sucesso');
     return c.json({ success: true, data: updatedUser });
   } catch (error) {
-    console.error("Erro ao atualizar usuário:", error);
+    console.error("❌ Erro ao atualizar usuário:", error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });
@@ -296,7 +473,26 @@ app.put("/make-server-1ff231a2/users/:id", requireAuth, async (c) => {
 app.delete("/make-server-1ff231a2/users/:id", requireAuth, async (c) => {
   try {
     const id = c.req.param("id");
+    
+    console.log('🗑️ Deletando usuário:', id);
+    
+    const supabase = getSupabaseAdmin();
+    
+    // Deletar do Supabase Auth
+    console.log('🔥 Deletando do Supabase Auth...');
+    const { error: authError } = await supabase.auth.admin.deleteUser(id);
+    
+    if (authError) {
+      console.error('❌ Erro ao deletar do Auth:', authError);
+      return c.json({ success: false, error: authError.message }, 500);
+    }
+    
+    console.log('✅ Deletado do Auth');
+    
+    // Deletar do KV store
     await kv.del(`user:${id}`);
+    
+    console.log('✅ Usuário deletado com sucesso');
     return c.json({ success: true });
   } catch (error) {
     console.error("Erro ao deletar usuário:", error);
@@ -488,30 +684,193 @@ app.delete("/make-server-1ff231a2/formularios/:id", async (c) => {
 });
 
 // ============================================
-// ENVIO DE EMAIL (Mock - para testar)
+// ENVIO DE EMAIL
 // ============================================
 
-app.post("/make-server-1ff231a2/send-validation-email", async (c) => {
+// Enviar email ao preposto para conferência
+app.post("/make-server-1ff231a2/emails/send-preposto-conferencia", async (c) => {
   try {
-    const body = await c.req.json();
-    const { email, token, cliente, obra } = body;
+    console.log('📧 Rota /emails/send-preposto-conferencia chamada');
     
-    // Por enquanto, apenas log (você pode integrar Resend depois)
-    console.log("📧 Email de validação:", {
-      para: email,
-      token,
+    const body = await c.req.json();
+    const { 
+      prepostoEmail, 
+      prepostoNome, 
+      obraId,
+      obraNome, 
+      cliente, 
+      cidade, 
+      encarregadoNome 
+    } = body;
+    
+    console.log('📤 Dados recebidos:', { prepostoEmail, obraNome });
+    
+    // Validações
+    if (!prepostoEmail || !obraNome || !obraId) {
+      return c.json({ 
+        success: false, 
+        error: 'Email do preposto, nome da obra e ID são obrigatórios' 
+      }, 400);
+    }
+    
+    // Buscar a obra para pegar o token
+    const obra = await kv.get(`obra:${obraId}`);
+    if (!obra) {
+      return c.json({ success: false, error: 'Obra não encontrada' }, 404);
+    }
+    
+    // Gerar link de conferência
+    const origin = c.req.header('origin') || c.req.header('referer')?.split('/').slice(0, 3).join('/');
+    const linkConferencia = `${origin}/conferencia/${obra.token_validacao}`;
+    
+    // Gerar HTML do email
+    const htmlEmail = emailService.getPrepostoConferenciaEmail(
+      prepostoNome || 'Preposto',
+      obraNome,
       cliente,
-      obra,
-      link: `${c.req.header('origin')}/validacao/${token}`
+      cidade,
+      encarregadoNome,
+      linkConferencia
+    );
+    
+    // Enviar email
+    const result = await emailService.sendEmail({
+      to: prepostoEmail,
+      subject: `Conferência de Formulário - ${obraNome}`,
+      html: htmlEmail
     });
     
+    if (!result.success) {
+      console.error('❌ Erro ao enviar email:', result.error);
+      return c.json({ success: false, error: result.error }, 500);
+    }
+    
+    console.log('✅ Email enviado com sucesso');
     return c.json({ 
       success: true, 
-      message: "Email enviado com sucesso (mock)",
-      link: `/validacao/${token}`
+      message: 'Email enviado com sucesso',
+      link: linkConferencia
     });
-  } catch (error) {
-    console.error("Erro ao enviar email:", error);
+  } catch (error: any) {
+    console.error('❌ Erro ao enviar email:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// Enviar email ao admin sobre assinatura do preposto
+app.post("/make-server-1ff231a2/emails/send-admin-notificacao", async (c) => {
+  try {
+    console.log('📧 Rota /emails/send-admin-notificacao chamada');
+    
+    const body = await c.req.json();
+    const { 
+      adminEmail,
+      adminNome,
+      obraNome, 
+      cliente, 
+      prepostoNome,
+      aprovado
+    } = body;
+    
+    console.log('📤 Dados recebidos:', { adminEmail, obraNome, aprovado });
+    
+    // Validações
+    if (!adminEmail || !obraNome) {
+      return c.json({ 
+        success: false, 
+        error: 'Email do admin e nome da obra são obrigatórios' 
+      }, 400);
+    }
+    
+    // Gerar HTML do email
+    const htmlEmail = emailService.getAdminNotificacaoAssinaturaEmail(
+      adminNome || 'Administrador',
+      obraNome,
+      cliente,
+      prepostoNome,
+      aprovado
+    );
+    
+    const statusText = aprovado ? 'Aprovado' : 'Reprovado';
+    
+    // Enviar email
+    const result = await emailService.sendEmail({
+      to: adminEmail,
+      subject: `Formulário ${statusText} - ${obraNome}`,
+      html: htmlEmail
+    });
+    
+    if (!result.success) {
+      console.error('❌ Erro ao enviar email:', result.error);
+      return c.json({ success: false, error: result.error }, 500);
+    }
+    
+    console.log('✅ Email enviado com sucesso');
+    return c.json({ 
+      success: true, 
+      message: 'Email enviado com sucesso'
+    });
+  } catch (error: any) {
+    console.error('❌ Erro ao enviar email:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// Enviar email ao encarregado sobre nova obra
+app.post("/make-server-1ff231a2/emails/send-encarregado-nova-obra", async (c) => {
+  try {
+    console.log('📧 Rota /emails/send-encarregado-nova-obra chamada');
+    
+    const body = await c.req.json();
+    const { 
+      encarregadoEmail,
+      encarregadoNome,
+      obraNome, 
+      cliente, 
+      cidade,
+      prepostoNome,
+      obraId // Receber obraId para deep linking
+    } = body;
+    
+    console.log('📤 Dados recebidos:', { encarregadoEmail, obraNome, obraId });
+    
+    // Validações
+    if (!encarregadoEmail || !obraNome || !obraId) {
+      return c.json({ 
+        success: false, 
+        error: 'Email do encarregado, nome da obra e ID são obrigatórios' 
+      }, 400);
+    }
+    
+    // Gerar HTML do email
+    const htmlEmail = emailService.getEncarregadoNovaObraEmail(
+      encarregadoNome || 'Encarregado',
+      obraNome,
+      cliente,
+      cidade,
+      prepostoNome,
+      obraId // Passar obraId para o template
+    );
+    
+    // Enviar email
+    const result = await emailService.sendEmail({
+      to: encarregadoEmail,
+      subject: `Nova Obra Atribuída - ${obraNome}`,
+      html: htmlEmail
+    });
+    
+    if (!result.success) {
+      console.error('❌ Erro ao enviar email:', result.error);
+      return c.json({ success: false, error: result.error }, 500);
+    }
+    
+    console.log('✅ Email enviado com sucesso');
+    return c.json({ 
+      success: true, 
+      message: 'Email enviado com sucesso'
+    });
+  } catch (error: any) {
+    console.error('❌ Erro ao enviar email:', error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });

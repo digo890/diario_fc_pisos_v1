@@ -20,12 +20,12 @@ async function request<T>(
 ): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
   
-  // Usar accessToken se disponível, caso contrário usar publicAnonKey
-  const authToken = accessToken || publicAnonKey;
-  
+  // Usar accessToken se disponível para autenticação do usuário
+  // Sempre enviar publicAnonKey no Authorization para passar pelo CORS
   const headers = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${authToken}`,
+    'Authorization': `Bearer ${publicAnonKey}`,
+    ...(accessToken ? { 'X-User-Token': accessToken } : {}),
     ...options.headers,
   };
 

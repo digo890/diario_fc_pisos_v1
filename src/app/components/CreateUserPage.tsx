@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Eye, EyeOff, ChevronRight, UserRound, Shield, Mail, Phone, Lock } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, UserRound, Shield, Mail, Phone, Lock } from 'lucide-react';
 import { motion } from 'motion/react';
 import { saveUser } from '../utils/database';
 import { userApi } from '../utils/api';
 import type { User, UserRole } from '../types';
-import BottomSheet from './BottomSheet';
+import { useToast } from './Toast';
 
 interface Props {
   onBack: () => void;
@@ -12,6 +12,7 @@ interface Props {
 }
 
 const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
+  const { showToast, ToastComponent } = useToast();
   const [formData, setFormData] = useState({
     nome: '',
     tipo: '' as UserRole | '',
@@ -24,23 +25,22 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
   const [errors, setErrors] = useState({
     nome: false,
     tipo: false,
-    email: false
+    email: false,
+    senhas: false
   });
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [showTipoSheet, setShowTipoSheet] = useState(false);
-
-  const tipoOptions = [
-    { id: 'Administrador', label: 'Administrador', sublabel: 'Acesso total ao sistema' },
-    { id: 'Encarregado', label: 'Encarregado', sublabel: 'Preenche formulários de obras' }
-  ];
+  const [isCreating, setIsCreating] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Prevenir múltiplos cliques
+    if (isCreating) return;
+
     let hasErrors = false;
-    const newErrors = { nome: false, tipo: false, email: false };
+    const newErrors = { nome: false, tipo: false, email: false, senhas: false };
 
     if (!formData.nome) {
       newErrors.nome = true;
@@ -58,14 +58,17 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
     }
 
     if (formData.senha && formData.senha !== formData.confirmarSenha) {
-      alert('As senhas não coincidem');
-      return;
+      newErrors.senhas = true;
+      hasErrors = true;
+      showToast('As senhas não coincidem', 'error');
     }
 
     if (hasErrors) {
       setErrors(newErrors);
       return;
     }
+
+    setIsCreating(true);
 
     try {
       // Criar usuário no backend (Supabase)
@@ -88,17 +91,22 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
         };
 
         await saveUser(novoUser);
-        onSuccess();
+        showToast('Usuário criado com sucesso!', 'success');
+        
+        // Aguardar um pouco para o usuário ver o toast antes de voltar
+        setTimeout(() => {
+          onSuccess();
+        }, 1000);
       } else {
-        alert(`Erro ao criar usuário: ${response.error}`);
+        showToast(`Erro ao criar usuário: ${response.error}`, 'error');
       }
     } catch (error: any) {
       console.error('❌ Erro ao criar usuário:', error);
-      alert(`Erro ao criar usuário: ${error.message}`);
+      showToast(`Erro ao criar usuário: ${error.message}`, 'error');
+    } finally {
+      setIsCreating(false);
     }
   };
-
-  const selectedTipo = tipoOptions.find(opt => opt.id === formData.tipo);
 
   const formatPhone = (value: string) => {
     // Remove tudo que não é número
@@ -141,7 +149,7 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
       </header>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto bg-[#EDEFE4] dark:bg-gray-950">
+      <div className="flex-1 overflow-y-auto bg-[#EDEFE4] dark:bg-gray-900">
         <form onSubmit={handleSubmit} className="max-w-3xl mx-auto p-4 space-y-3">
           {/* Nome */}
           <div className="relative">
@@ -152,6 +160,7 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
               onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
               className={`w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                       border border-gray-200 dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                        ${errors.nome ? 'ring-2 ring-red-500' : ''}`}
@@ -162,23 +171,40 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
 
           {/* Tipo de Perfil - Bottom Sheet Trigger */}
           <div>
-            <button
-              type="button"
-              onClick={() => setShowTipoSheet(true)}
-              className={`w-full pl-12 pr-4 py-3 rounded-xl 
-                       bg-white dark:bg-gray-800 text-left flex items-center justify-between
-                       focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
-                       ${errors.tipo ? 'ring-2 ring-red-500' : ''}
-                       ${selectedTipo ? 'text-gray-900 dark:text-white' : ''} relative`}
-            >
-              <Shield className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none" />
-              <div className="flex-1">
-                <div className={selectedTipo ? 'text-gray-900 dark:text-white' : 'text-[#C6CCC2] dark:text-gray-600'}>
-                  {selectedTipo?.label || 'Tipo de perfil *'}
-                </div>
-              </div>
-              <ChevronRight className="w-5 h-5 text-gray-400" />
-            </button>
+            <div className={`relative inline-flex w-full p-1 bg-[#DDE1D7] dark:bg-gray-800 rounded-lg ${errors.tipo ? 'ring-2 ring-red-500' : ''}`}>
+              {/* Background slider */}
+              <div
+                className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-gray-900 rounded-md shadow-md transition-transform duration-200 ease-out ${
+                  formData.tipo === 'Administrador' ? 'translate-x-[calc(100%+8px)]' : 'translate-x-0'
+                }`}
+              />
+              
+              {/* Encarregado Button */}
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, tipo: 'Encarregado' })}
+                className={`relative z-10 flex-1 px-4 py-2.5 text-sm font-medium rounded-md transition-colors ${
+                  formData.tipo === 'Encarregado'
+                    ? 'text-[#FD5521]'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                Encarregado
+              </button>
+              
+              {/* Administrador Button */}
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, tipo: 'Administrador' })}
+                className={`relative z-10 flex-1 px-4 py-2.5 text-sm font-medium rounded-md transition-colors ${
+                  formData.tipo === 'Administrador'
+                    ? 'text-[#FD5521]'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                Administrador
+              </button>
+            </div>
             {errors.tipo && <p className="text-red-500 text-xs mt-1 ml-1">Campo obrigatório</p>}
           </div>
 
@@ -191,6 +217,7 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               className={`w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                       border border-gray-200 dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                        ${errors.email ? 'ring-2 ring-red-500' : ''}`}
@@ -208,6 +235,7 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
               onChange={(e) => setFormData({ ...formData, telefone: formatPhone(e.target.value) })}
               className="w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                       border border-gray-200 dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
               placeholder="Telefone"
@@ -223,6 +251,7 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
               onChange={(e) => setFormData({ ...formData, senha: e.target.value })}
               className="w-full pl-12 pr-12 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                       border border-gray-200 dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
               placeholder="Senha"
@@ -244,10 +273,12 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
               type={showConfirmPassword ? 'text' : 'password'}
               value={formData.confirmarSenha}
               onChange={(e) => setFormData({ ...formData, confirmarSenha: e.target.value })}
-              className="w-full pl-12 pr-12 py-3 rounded-xl 
+              className={`w-full pl-12 pr-12 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                       border border-gray-200 dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
-                       focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
+                       focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
+                       ${errors.senhas ? 'ring-2 ring-red-500' : ''}`}
               placeholder="Confirmar senha"
             />
             <button
@@ -258,27 +289,33 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
             >
               {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
+            {errors.senhas && <p className="text-red-500 text-xs mt-1 ml-1">As senhas não coincidem</p>}
           </div>
 
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full px-6 py-3 rounded-xl bg-[#FD5521] text-white font-medium hover:bg-[#E54A1D] transition-colors mt-6 focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40 focus:ring-offset-2"
+            disabled={isCreating}
+            className="relative w-full px-6 py-3 rounded-xl bg-[#FD5521] text-white font-medium hover:bg-[#E54A1D] transition-colors mt-6 focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
           >
-            Criar Usuário
+            {/* Animação de preenchimento horizontal */}
+            {isCreating && (
+              <motion.div
+                className="absolute inset-0 bg-[#E54A1D]"
+                initial={{ width: '0%' }}
+                animate={{ width: '100%' }}
+                transition={{ duration: 2, ease: 'linear' }}
+              />
+            )}
+            <span className="relative z-10">
+              {isCreating ? 'Criando usuário...' : 'Criar Usuário'}
+            </span>
           </button>
         </form>
       </div>
 
-      {/* Tipo Bottom Sheet */}
-      <BottomSheet
-        isOpen={showTipoSheet}
-        onClose={() => setShowTipoSheet(false)}
-        title="Tipo de Perfil"
-        options={tipoOptions}
-        selectedId={formData.tipo}
-        onSelect={(id) => setFormData({ ...formData, tipo: id as UserRole })}
-      />
+      {/* Toast */}
+      {ToastComponent}
     </motion.div>
   );
 };

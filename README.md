@@ -1,120 +1,214 @@
-# Diário de Obras - FC Pisos
+# 📱 Diário de Obras – FC Pisos
 
-Sistema de diário de obras digital, mobile-first, com funcionalidade offline-first para uso em canteiros de obra.
+Sistema PWA mobile-first para gestão e acompanhamento de obras em canteiro.
 
-## Tecnologias
+## 🎯 Sobre o Sistema
 
-- React 18 + TypeScript
-- Vite 6
-- Tailwind CSS 4
-- IndexedDB (persistência local)
-- PWA (Progressive Web App)
-- Service Worker (offline-first)
-- Material UI (componentes selecionados)
-- Radix UI (componentes base)
+O Diário de Obras é uma aplicação Progressive Web App (PWA) desenvolvida para a FC Pisos, permitindo o registro, validação e acompanhamento completo de serviços executados em obras. O sistema opera em modo offline-first, sincronizando automaticamente quando há conexão disponível.
 
-## Funcionalidades
+### Características Principais
 
-### Perfis de Usuário
+- ✅ **PWA Offline-First**: Funciona sem internet, sincroniza automaticamente
+- 🎨 **Material You Design**: Interface moderna com tema claro/escuro
+- 📧 **Notificações por Email**: Integração com Resend para envio automático
+- 📊 **Dashboard Completo**: Visualização de resultados e métricas
+- 📄 **Exportação PDF/Excel**: Gera relatórios completos
+- 🔐 **Autenticação Supabase**: Sistema seguro de login e permissões
+- 📱 **Mobile-First**: Otimizado para uso em canteiro de obras
 
-**Administrador**
-- Criar e gerenciar obras
-- Criar e gerenciar usuários (Encarregados e Prepostos)
-- Visualizar respostas de formulários
-- Baixar PDFs dos diários preenchidos
-- Atribuir encarregados e prepostos às obras
+## 👥 Perfis de Usuário
 
-**Encarregado**
-- Visualizar obras atribuídas
-- Preencher formulário completo do diário de obras
-- Enviar formulário para conferência do preposto
-- Auto-save automático
+### 1. Administrador
+- Visualiza resultados e métricas
+- Gerencia obras e usuários
+- Aprova formulários validados
+- Recebe notificações de formulários aprovados
 
-**Preposto**
-- Visualizar formulários enviados pelos encarregados
-- Conferir informações em modo leitura
-- Confirmar conferência via checkbox obrigatório
-- Enviar formulário aprovado para o administrador
+### 2. Encarregado
+- Preenche formulários de obra
+- Envia para validação do preposto
+- Gerencia múltiplas obras
+- Auto-save automático a cada 3 segundos
 
-### Formulário do Diário
+### 3. Preposto (Sem Login)
+- Acessa via link único por obra
+- Valida formulário preenchido
+- Aprova ou reprova com assinatura digital
+- Não precisa criar conta no sistema
 
-O formulário contém as seguintes seções:
+## 🔄 Fluxo de Status
 
-1. **Condições Ambientais**
-   - Clima por período (Manhã, Tarde, Noite) com ícones
-   - Temperatura mínima e máxima
-   - Umidade relativa do ar
+```
+novo → em_preenchimento → enviado_preposto → aprovado_preposto → enviado_admin → concluido
+                                           → reprovado_preposto ↩
+```
 
-2. **Serviços Executados**
-   - Até 3 serviços simultâneos (tabs)
-   - Horário e local de execução
-   - 36 etapas de execução (checkboxes)
-   - Botão "Copiar dados do Serviço 1" nos serviços 2 e 3
+## 🚀 Deploy e Configuração
 
-3. **Dados da Obra**
-   - Tipo de Ucrete (bottom sheet selector)
-   - Horário de início e término
-   - Área (m²) e Espessura (mm)
-   - Rodapé (bottom sheet selector)
-   - Estado do substrato com campo de observação
+### Pré-requisitos
 
-4. **Registros Importantes / Estado do Substrato**
-   - 20 itens condicionais com toggle Sim/Não
-   - Campo de texto para cada item ativo
-   - Opção de anexar 1 foto por item
-   - Preview e remoção de fotos
+- Node.js 18+
+- Conta Supabase (gratuita)
+- Conta Resend para emails (gratuita até 3000 emails/mês)
 
-5. **Observações Gerais**
-   - Campo de texto longo multilinha
+### 1. Configurar Supabase
 
-6. **Confirmação do Preposto**
-   - Checkbox obrigatório para conferência (apenas para Preposto)
+```bash
+# 1. Criar projeto no Supabase
+# 2. Copiar as credenciais:
+#    - SUPABASE_URL
+#    - SUPABASE_ANON_KEY
+#    - SUPABASE_SERVICE_ROLE_KEY
+```
 
-### Características Técnicas
+### 2. Deploy da Edge Function
 
-- **Offline-first**: Funciona completamente offline usando IndexedDB
-- **Auto-save**: Salvamento automático a cada 3 segundos
-- **PWA**: Instalável em dispositivos móveis
-- **Tema claro/escuro**: Toggle entre temas
-- **Material Design 3**: Interface inspirada no Material You
-- **Responsivo**: Mobile-first, otimizado para tablets e desktop
+```bash
+# Instalar Supabase CLI
+npm install -g supabase
 
-### Cores
+# Login
+supabase login
 
-- Fundo: `#FFFFFF` (claro) / `#0A0A0A` (escuro)
-- Texto principal: `#1E2D3B` (claro) / `#FFFFFF` (escuro)
-- Destaque/Primária: `#FD5521` (laranja FC Pisos)
+# Linkar projeto
+supabase link --project-ref <SEU_PROJECT_ID>
 
-## Desenvolvimento
+# Deploy da função
+supabase functions deploy server --no-verify-jwt
+```
+
+### 3. Configurar Secrets no Supabase
+
+No dashboard do Supabase, em Edge Functions → Secrets, adicionar:
+
+```bash
+RESEND_API_KEY=re_...
+```
+
+### 4. Deploy do Frontend
+
+#### Vercel (Recomendado)
+
+```bash
+# Instalar Vercel CLI
+npm install -g vercel
+
+# Deploy
+vercel
+```
+
+#### Variáveis de Ambiente no Vercel
+
+Não são necessárias! As credenciais do Supabase estão em `/utils/supabase/info.tsx` (arquivo público gerado pelo Figma Make).
+
+### 5. Criar Primeiro Usuário Admin
+
+```bash
+# Usar a rota especial para criar o primeiro admin
+POST https://<SEU_PROJECT_ID>.supabase.co/functions/v1/make-server-1ff231a2/auth/create-master
+
+# Body JSON:
+{
+  "email": "admin@fcpisos.com.br",
+  "password": "suaSenhaSegura",
+  "nome": "Administrador"
+}
+```
+
+## 🗄️ Estrutura de Dados
+
+O sistema usa IndexedDB localmente para cache offline e Supabase KV Store no backend.
+
+### Stores do IndexedDB
+
+- **users**: Cadastro de usuários
+- **obras**: Informações das obras
+- **forms**: Formulários preenchidos
+- **config**: Configurações locais
+
+### Backend (Supabase KV)
+
+Chaves com prefixos:
+- `user:<id>` - Dados de usuários
+- `obra:<id>` - Dados de obras
+- `form:<obraId>` - Formulários
+
+## 📧 Sistema de Emails
+
+O sistema envia 3 tipos de emails automaticamente:
+
+### 1. Nova Obra Criada
+**Para**: Encarregado designado
+**Quando**: Admin cria nova obra
+**Conteúdo**: Dados da obra e link para preencher formulário
+
+### 2. Formulário para Conferência
+**Para**: Preposto (cliente)
+**Quando**: Encarregado envia formulário
+**Conteúdo**: Link único para validação
+
+### 3. Formulário Validado
+**Para**: Todos os administradores
+**Quando**: Preposto aprova formulário
+**Conteúdo**: Confirmação e dados da validação
+
+## 🛠️ Desenvolvimento Local
 
 ```bash
 # Instalar dependências
 npm install
 
-# Executar em modo desenvolvimento
+# Iniciar dev server
 npm run dev
 
 # Build para produção
 npm run build
+
+# Preview da build
+npm run preview
 ```
 
-## Estrutura de Dados
+## 📦 Tecnologias Utilizadas
 
-Os dados são armazenados localmente no IndexedDB:
+- **React 18** - Framework principal
+- **TypeScript** - Tipagem estática
+- **Tailwind CSS v4** - Estilização
+- **Vite** - Build tool
+- **Supabase** - Backend (Auth + Storage + Edge Functions)
+- **IndexedDB** - Cache offline
+- **Motion** - Animações
+- **Recharts** - Gráficos
+- **jsPDF + xlsx** - Exportação de relatórios
+- **Resend** - Envio de emails
 
-- **users**: Usuários do sistema
-- **obras**: Obras cadastradas
-- **forms**: Formulários preenchidos
-- **config**: Configurações (tema, usuário logado)
+## 🎨 Design System
 
-## Próximos Passos
+- **Cor Principal**: #FD5521 (Laranja FC Pisos)
+- **Tema**: Material You adaptado
+- **Tipografia**: System fonts otimizadas
+- **Ícones**: Lucide React
+- **Componentes**: Custom + shadcn/ui (selecionados)
 
-- Integração com Supabase para sincronização em nuvem
-- Geração de PDF dos formulários
-- Assinaturas digitais
-- Sincronização automática quando online
-- Notificações push
+## 🔐 Segurança
 
-## Licença
+- ✅ Autenticação JWT via Supabase Auth
+- ✅ Tokens únicos não-adivinháveis para validação de preposto
+- ✅ Service Role Key apenas no backend (Edge Functions)
+- ✅ CORS configurado adequadamente
+- ✅ Sem exposição de credenciais no frontend
 
-Propriedade de FC Pisos - Todos os direitos reservados
+## 📱 PWA Features
+
+- ✅ Installable (prompt de instalação)
+- ✅ Funciona offline
+- ✅ Auto-sync quando volta online
+- ✅ Service Worker para cache
+- ✅ Manifesto configurado
+
+## 📞 Suporte
+
+Para questões sobre o sistema, entre em contato com a equipe de desenvolvimento.
+
+## 📄 Licença
+
+© 2025 FC Pisos. Todos os direitos reservados.

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, FileText, Building2, Calendar, MapPin, UserRound, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
-import { getObras, getFormByObraId, saveForm, saveObra } from '../utils/database';
+import { getObras, getFormByObraId, saveForm, saveObra, getUsers } from '../utils/database';
+import { sendAdminNotificacaoEmail } from '../utils/emailApi';
 import type { Obra, FormData } from '../types';
 import SignatureCanvas from 'react-signature-canvas';
 import { useToast } from './Toast';
@@ -100,6 +101,30 @@ const PrepostoValidationPage: React.FC<Props> = ({ token }) => {
       };
 
       await saveObra(obraAtualizada);
+
+      // Enviar email para todos os admins
+      console.log('📧 Enviando email para administradores...');
+      const users = await getUsers();
+      const admins = users.filter(u => u.tipo === 'Administrador');
+      
+      for (const admin of admins) {
+        if (admin.email) {
+          const emailResult = await sendAdminNotificacaoEmail({
+            adminEmail: admin.email,
+            adminNome: admin.nome,
+            obraNome: `${obra.cliente} - ${obra.obra}`,
+            cliente: obra.cliente,
+            prepostoNome: obra.prepostoNome || 'Preposto',
+            aprovado: validationType === 'aprovar',
+          });
+          
+          if (emailResult.success) {
+            console.log('✅ Email enviado para:', admin.email);
+          } else {
+            console.warn('⚠️ Erro ao enviar email para:', admin.email, emailResult.error);
+          }
+        }
+      }
 
       setValidated(true);
       setShowSignature(false);

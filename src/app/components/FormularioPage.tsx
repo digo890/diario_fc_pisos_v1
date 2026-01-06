@@ -3,6 +3,7 @@ import { ArrowLeft, Save, Send, Share2, Copy, Check, MessageCircle, Mail, X } fr
 import { getFormByObraId, saveForm, saveObra } from '../utils/database';
 import { useAuth } from '../contexts/AuthContext';
 import { copyToClipboard } from '../utils/clipboard';
+import { sendPrepostoConferenciaEmail } from '../utils/emailApi';
 import type { Obra, FormData, ServicoData } from '../types';
 import CondicoesAmbientaisSection from './form-sections/CondicoesAmbientaisSection';
 import ServicosSection from './form-sections/ServicosSection';
@@ -207,6 +208,23 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
           ...obra,
           status: 'enviado_preposto'
         });
+
+        // Enviar email ao preposto se houver email cadastrado
+        if (obra.prepostoEmail) {
+          const emailResult = await sendPrepostoConferenciaEmail({
+            prepostoEmail: obra.prepostoEmail,
+            prepostoNome: obra.prepostoNome || 'Preposto',
+            obraId: obra.id,
+            obraNome: obra.obra,
+            cliente: obra.cliente,
+            cidade: obra.cidade,
+            encarregadoNome: currentUser?.nome || 'Encarregado',
+          });
+          
+          if (!emailResult.success) {
+            // Silently handle email error - don't block form submission
+          }
+        }
 
         setSaving(false);
         

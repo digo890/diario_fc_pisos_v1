@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, Search } from 'lucide-react';
+import { X, Search, Inbox } from 'lucide-react';
 
 interface Option {
   id: string;
