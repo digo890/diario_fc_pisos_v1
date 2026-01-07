@@ -3,6 +3,7 @@ import { ArrowLeft, ChevronRight, Calendar, UserRound, Building2, MapPin, HardHa
 import { motion } from 'motion/react';
 import { saveObra } from '../utils/database';
 import { obraApi } from '../utils/api';
+import { sendEncarregadoNovaObraEmail } from '../utils/emailApi';
 import type { User, Obra } from '../types';
 import SearchableBottomSheet from './SearchableBottomSheet';
 import { useToast } from './Toast';
@@ -108,6 +109,28 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
         };
 
         await saveObra(obraAtualizada);
+        
+        // Verificar se o encarregado mudou e enviar email para o novo
+        const encarregadoMudou = obra.encarregadoId !== formData.encarregadoId;
+        if (encarregadoMudou && selectedEncarregado && selectedEncarregado.email) {
+          const emailResult = await sendEncarregadoNovaObraEmail({
+            encarregadoEmail: selectedEncarregado.email,
+            encarregadoNome: selectedEncarregado.nome,
+            obraNome: formData.obra,
+            cliente: formData.cliente,
+            cidade: formData.cidade,
+            prepostoNome: formData.prepostoNome || 'A definir',
+            obraId: obra.id,
+          });
+          
+          if (emailResult.success) {
+            console.log('✅ Email enviado para o novo encarregado');
+          } else {
+            console.warn('⚠️ Falha ao enviar email:', emailResult.error);
+            // Não bloqueia a atualização da obra se falhar o envio do email
+          }
+        }
+        
         showToast('Obra atualizada com sucesso!', 'success');
         
         // Aguardar um pouco para o usuário ver o toast antes de voltar

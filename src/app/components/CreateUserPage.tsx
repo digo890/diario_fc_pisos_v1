@@ -15,7 +15,7 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
   const { showToast, ToastComponent } = useToast();
   const [formData, setFormData] = useState({
     nome: '',
-    tipo: '' as UserRole | '',
+    tipo: 'Encarregado' as UserRole | '',
     email: '',
     telefone: '',
     senha: '',

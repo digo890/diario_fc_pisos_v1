@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { FileText, CheckCircle2, Clock, AlertCircle, TrendingUp, Calendar } from 'lucide-react';
 import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { getFormByObraId } from '../utils/database';
+import { getAllForms } from '../utils/database';
+import { SkeletonDashboard } from './SkeletonCard';
 import type { Obra, FormData } from '../types';
 
 interface Props {
@@ -46,19 +47,23 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
   const loadDashboardData = async () => {
     setLoading(true);
     
-    // Carregar todos os formulários
-    const formsPromises = obras.map(obra => getFormByObraId(obra.id));
-    const forms = await Promise.all(formsPromises);
-    const validForms = forms.filter(f => f !== null) as FormData[];
+    // 🚀 PERFORMANCE: Batch loading - busca todos os formulários de uma vez
+    const validForms = await getAllForms();
     setFormsData(validForms);
 
-    // Calcular estatísticas
+    // Calcular estatísticas com base no status REAL das obras
     const formulariosPreenchidos = validForms.length;
-    const formulariosValidados = obras.filter(o => o.status === 'finalizado' || o.status === 'enviado_admin' || o.status === 'concluido').length;
-    const formulariosEmRevisao = obras.filter(o => o.status === 'enviado_preposto' || o.status === 'em_revisao').length;
+    const formulariosValidados = obras.filter(o => o.status === 'enviado_admin' || o.status === 'concluido').length;
+    const formulariosEmRevisao = obras.filter(o => o.status === 'enviado_preposto').length;
     const obrasNovas = obras.filter(o => o.status === 'novo').length;
-    const obrasAndamento = obras.filter(o => o.status !== 'novo' && o.status !== 'finalizado' && o.status !== 'enviado_admin' && o.status !== 'concluido').length;
-    const obrasConcluidas = obras.filter(o => o.status === 'finalizado' || o.status === 'enviado_admin' || o.status === 'concluido').length;
+    
+    // Obras em andamento: em_preenchimento + reprovado_preposto
+    const obrasAndamento = obras.filter(o => 
+      o.status === 'em_preenchimento' || 
+      o.status === 'reprovado_preposto'
+    ).length;
+    
+    const obrasConcluidas = obras.filter(o => o.status === 'enviado_admin' || o.status === 'concluido').length;
 
     setDashboardData({
       totalObras: obras.length,
@@ -73,35 +78,36 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
     setLoading(false);
   };
 
-  // Preparar dados para gráfico de pizza - Status das Obras
-  const statusChartData = [
-    { name: 'Novas', value: dashboardData.obrasNovas, color: COLORS.gray },
-    { name: 'Em Andamento', value: dashboardData.obrasAndamento, color: COLORS.warning },
-    { name: 'Concluídas', value: dashboardData.obrasConcluidas, color: COLORS.success },
-  ].filter(item => item.value > 0);
+  // 🚀 PERFORMANCE: Memoização - só recalcula quando dados mudam
+  const statusChartData = useMemo(() => {
+    return [
+      { name: 'Novas', value: dashboardData.obrasNovas, color: COLORS.gray },
+      { name: 'Em Andamento', value: dashboardData.obrasAndamento, color: COLORS.warning },
+      { name: 'Concluídas', value: dashboardData.obrasConcluidas, color: COLORS.success },
+    ].filter(item => item.value > 0);
+  }, [dashboardData.obrasNovas, dashboardData.obrasAndamento, dashboardData.obrasConcluidas]);
 
-  // Preparar dados para gráfico de barras - Formulários
-  const formulariosChartData = [
-    { name: 'Preenchidos', value: dashboardData.formulariosPreenchidos, color: COLORS.info },
-    { name: 'Em Revisão', value: dashboardData.formulariosEmRevisao, color: COLORS.warning },
-    { name: 'Validados', value: dashboardData.formulariosValidados, color: COLORS.success },
-  ];
+  const formulariosChartData = useMemo(() => {
+    return [
+      { name: 'Preenchidos', value: dashboardData.formulariosPreenchidos, color: COLORS.info },
+      { name: 'Em Revisão', value: dashboardData.formulariosEmRevisao, color: COLORS.warning },
+      { name: 'Validados', value: dashboardData.formulariosValidados, color: COLORS.success },
+    ];
+  }, [dashboardData.formulariosPreenchidos, dashboardData.formulariosEmRevisao, dashboardData.formulariosValidados]);
 
-  // Calcular taxa de conclusão
-  const taxaConclusao = dashboardData.totalObras > 0 
-    ? Math.round((dashboardData.formulariosValidados / dashboardData.totalObras) * 100) 
-    : 0;
+  const taxaConclusao = useMemo(() => {
+    return dashboardData.totalObras > 0 
+      ? Math.round((dashboardData.formulariosValidados / dashboardData.totalObras) * 100) 
+      : 0;
+  }, [dashboardData.totalObras, dashboardData.formulariosValidados]);
 
-  // Análise temporal - obras criadas nos últimos 30 dias
-  const last30Days = Date.now() - (30 * 24 * 60 * 60 * 1000);
-  const obrasRecentes = obras.filter(o => o.createdAt >= last30Days).length;
+  const obrasRecentes = useMemo(() => {
+    const last30Days = Date.now() - (30 * 24 * 60 * 60 * 1000);
+    return obras.filter(o => o.createdAt >= last30Days).length;
+  }, [obras]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500 dark:text-gray-400">Carregando dados analíticos...</div>
-      </div>
-    );
+    return <SkeletonDashboard />;
   }
 
   return (

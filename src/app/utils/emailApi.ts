@@ -1,4 +1,5 @@
 import { projectId, publicAnonKey } from '/utils/supabase/info';
+import { getAuthToken } from './api';
 
 const API_URL = `https://${projectId}.supabase.co/functions/v1/make-server-1ff231a2`;
 
@@ -38,11 +39,17 @@ export async function sendPrepostoConferenciaEmail(params: SendPrepostoEmailPara
   try {
     console.log('📧 Enviando email ao preposto:', params.prepostoEmail);
     
+    const accessToken = getAuthToken();
+    if (!accessToken) {
+      throw new Error('Usuário não autenticado');
+    }
+    
     const response = await fetch(`${API_URL}/emails/send-preposto-conferencia`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${publicAnonKey}`,
+        'X-User-Token': accessToken,
       },
       body: JSON.stringify(params),
     });
@@ -68,11 +75,17 @@ export async function sendAdminNotificacaoEmail(params: SendAdminNotificacaoPara
   try {
     console.log('📧 Enviando email ao admin:', params.adminEmail);
     
+    const accessToken = getAuthToken();
+    if (!accessToken) {
+      throw new Error('Usuário não autenticado');
+    }
+    
     const response = await fetch(`${API_URL}/emails/send-admin-notificacao`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${publicAnonKey}`,
+        'X-User-Token': accessToken,
       },
       body: JSON.stringify(params),
     });
@@ -98,11 +111,17 @@ export async function sendEncarregadoNovaObraEmail(params: SendEncarregadoNovaOb
   try {
     console.log('📧 Enviando email ao encarregado:', params.encarregadoEmail);
     
+    const accessToken = getAuthToken();
+    if (!accessToken) {
+      throw new Error('Usuário não autenticado');
+    }
+    
     const response = await fetch(`${API_URL}/emails/send-encarregado-nova-obra`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${publicAnonKey}`,
+        'X-User-Token': accessToken,
       },
       body: JSON.stringify(params),
     });

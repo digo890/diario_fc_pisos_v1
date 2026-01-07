@@ -3,7 +3,7 @@ import { Moon, Sun, LogOut, ChevronRight, FolderOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { getObras, getUsers } from '../utils/database';
+import { getObras, getUsers, getAllForms, saveObra } from '../utils/database';
 import { getStatusDisplay } from '../utils/diarioHelpers';
 import type { Obra, User } from '../types';
 import FormularioPage from './FormularioPage';
@@ -22,14 +22,30 @@ const EncarregadoDashboard: React.FC = () => {
   }, []);
 
   const loadData = async () => {
-    const [obrasData, usersData] = await Promise.all([
-      getObras(),
-      getUsers()
-    ]);
+    const obrasData = await getObras();
+    const usersData = await getUsers();
+    const allFormsData = await getAllForms();
     
     // Filtrar apenas obras atribuídas a este encarregado
     const minhasObras = obrasData.filter(o => o.encarregadoId === currentUser?.id);
-    setObras(minhasObras);
+    
+    // Verificar status das obras e atualizar se necessário
+    const obrasComStatusAtualizado = await Promise.all(
+      minhasObras.map(async (obra: Obra) => {
+        const formData = allFormsData.find(f => f.obraId === obra.id);
+        
+        // Se está como "novo" mas tem dados no formulário, atualizar para "em_preenchimento"
+        if (obra.status === 'novo' && formData && Object.keys(formData).length > 0) {
+          const obraAtualizada = { ...obra, status: 'em_preenchimento' as const };
+          await saveObra(obraAtualizada);
+          return obraAtualizada;
+        }
+        
+        return obra;
+      })
+    );
+    
+    setObras(obrasComStatusAtualizado);
     setUsers(usersData);
   };
 

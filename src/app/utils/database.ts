@@ -163,6 +163,19 @@ export const getFormByObraId = async (obraId: string): Promise<FormData | undefi
   });
 };
 
+// 🚀 PERFORMANCE: Batch loading - busca todos os formulários de uma vez
+export const getAllForms = async (): Promise<FormData[]> => {
+  const database = await initDB();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(['forms'], 'readonly');
+    const store = transaction.objectStore('forms');
+    const request = store.getAll();
+
+    request.onsuccess = () => resolve(request.result || []);
+    request.onerror = () => reject(request.error);
+  });
+};
+
 export const saveForm = async (form: FormData): Promise<void> => {
   const database = await initDB();
   return new Promise((resolve, reject) => {

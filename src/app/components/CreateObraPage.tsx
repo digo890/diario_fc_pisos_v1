@@ -162,8 +162,11 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
             obraId: response.data.id,
           });
           
-          if (!emailResult.success) {
-            // Silently fail - email is not critical
+          if (emailResult.success) {
+            console.log('✅ Email enviado para encarregado');
+          } else {
+            console.warn('⚠️ Falha ao enviar email:', emailResult.error);
+            // Não bloqueia a criação da obra se falhar o envio do email
           }
         }
         

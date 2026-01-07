@@ -1,7 +1,7 @@
 // Service Worker para PWA - FC Pisos Diário de Obras
 // 🚀 ESTRATÉGIAS DE CACHE POR TIPO DE RECURSO
 
-const CACHE_VERSION = '2.0.0';
+const CACHE_VERSION = '1.1.0';
 const CACHE_NAME = `fc-pisos-v${CACHE_VERSION}`;
 const RUNTIME_CACHE = `fc-pisos-runtime-v${CACHE_VERSION}`;
 const IMAGE_CACHE = `fc-pisos-images-v${CACHE_VERSION}`;

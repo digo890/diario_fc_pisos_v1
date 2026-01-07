@@ -1,14 +1,23 @@
 import { Resend } from 'npm:resend@4.0.0';
 
-const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+const apiKey = Deno.env.get('RESEND_API_KEY');
+
+// Validar se a API key existe
+if (!apiKey) {
+  console.error('❌ RESEND_API_KEY não configurada!');
+}
+
+console.log('🔑 RESEND_API_KEY configurada:', apiKey ? `${apiKey.substring(0, 10)}...` : 'NÃO CONFIGURADA');
+
+const resend = new Resend(apiKey);
 
 // Configure aqui o domínio do seu email
 // Se você não verificou domínio ainda, use: 'onboarding@resend.dev'
-const FROM_EMAIL = 'onboarding@resend.dev'; // Altere para 'FC Pisos <noreply@seudominio.com.br>' depois
+const FROM_EMAIL = 'FC Pisos <administrativo@fcpisos.com.br>'; // Domínio verificado em fcpisos.com.br
 
-// Email para desenvolvimento/testes (variável de ambiente)
-// Configure DEV_TEST_EMAIL nas variáveis de ambiente do Supabase se precisar redirecionar emails em dev
-const DEV_TEST_EMAIL = Deno.env.get('DEV_TEST_EMAIL');
+// Email para desenvolvimento/testes
+// No modo de teste do Resend, só é possível enviar para o email do proprietário da conta
+const DEV_TEST_EMAIL = 'digoo890@gmail.com'; // Email verificado no Resend
 
 // Detecta se estamos em modo de desenvolvimento (sem domínio verificado)
 const isDevelopmentMode = FROM_EMAIL === 'onboarding@resend.dev';
@@ -21,14 +30,29 @@ interface SendEmailParams {
 
 export async function sendEmail({ to, subject, html }: SendEmailParams) {
   try {
-    // Em modo de desenvolvimento, só redireciona se DEV_TEST_EMAIL estiver configurado
-    const actualTo = (isDevelopmentMode && DEV_TEST_EMAIL) ? DEV_TEST_EMAIL : to;
-    const actualSubject = (isDevelopmentMode && DEV_TEST_EMAIL)
-      ? `[TESTE - Destinatário: ${to}] ${subject}`
+    // Verificar se a API key está configurada
+    if (!apiKey) {
+      console.error('❌ RESEND_API_KEY não está configurada nas variáveis de ambiente');
+      return { 
+        success: false, 
+        error: 'RESEND_API_KEY não configurada. Por favor, configure a chave da API do Resend.' 
+      };
+    }
+
+    // Em modo de desenvolvimento com Resend em teste, redirecionar todos os emails
+    const actualTo = isDevelopmentMode ? DEV_TEST_EMAIL : to;
+    const actualSubject = isDevelopmentMode
+      ? `[DEV - Para: ${to}] ${subject}`
       : subject;
     
+    if (isDevelopmentMode) {
+      console.log('⚠️  MODO DE DESENVOLVIMENTO ATIVO');
+      console.log('📧 O Resend está em modo de teste e só permite enviar para:', DEV_TEST_EMAIL);
+      console.log('💡 Para enviar para outros emails, verifique um domínio em https://resend.com/domains');
+    }
+    
     console.log('📧 Enviando email...');
-    console.log('📍 Modo:', isDevelopmentMode ? 'DESENVOLVIMENTO' : 'PRODUÇÃO');
+    console.log('📍 Modo:', isDevelopmentMode ? 'DESENVOLVIMENTO (Resend em teste)' : 'PRODUÇÃO');
     console.log('👤 Destinatário original:', to);
     console.log('📬 Destinatário real:', actualTo);
     console.log('📝 Assunto:', actualSubject);
@@ -41,15 +65,27 @@ export async function sendEmail({ to, subject, html }: SendEmailParams) {
     });
 
     if (error) {
-      console.error('❌ Erro ao enviar email:', error);
-      return { success: false, error: error.message };
+      console.error('❌ Erro do Resend:', error);
+      
+      // Mensagem mais específica para token inválido
+      if (error.message?.includes('Invalid') || error.message?.includes('invalid')) {
+        return { 
+          success: false, 
+          error: 'Token do Resend inválido ou expirado. Por favor, atualize o RESEND_API_KEY com uma chave válida.' 
+        };
+      }
+      
+      return { success: false, error: error.message || 'Erro desconhecido ao enviar email' };
     }
 
     console.log('✅ Email enviado com sucesso:', data);
     return { success: true, data };
   } catch (error: any) {
-    console.error('❌ Erro ao enviar email:', error);
-    return { success: false, error: error.message };
+    console.error('❌ Exceção ao enviar email:', error);
+    return { 
+      success: false, 
+      error: error.message || 'Erro inesperado ao enviar email'
+    };
   }
 }
 

@@ -3,7 +3,7 @@ import { Plus, Edit2, Trash2, FileText, Moon, Sun, LogOut, Download, Building2, 
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { getObras, getUsers, deleteObra as deleteObraLocal, deleteUser as deleteUserLocal, getFormByObraId, saveObra, saveUser } from '../utils/database';
+import { getObras, getUsers, saveObra, deleteObra, saveUser, deleteUser, getAllForms, getFormByObraId } from '../utils/database';
 import { obraApi, userApi } from '../utils/api';
 import { getStatusDisplay } from '../utils/diarioHelpers';
 import type { Obra, User, UserRole, FormData } from '../types';
@@ -15,6 +15,7 @@ import ViewRespostasModal from './ViewRespostasModal';
 import ConfirmModal from './ConfirmModal';
 import ResultadosDashboard from './ResultadosDashboard';
 import NotificationDrawer, { Notification } from './NotificationDrawer';
+import FilterModal from './FilterModal';
 import FcLogo from '../../imports/FcLogo';
 import { useToast } from './Toast';
 
@@ -58,6 +59,8 @@ const AdminDashboard: React.FC = () => {
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid'); // Para desktop apenas
+  const [searchObra, setSearchObra] = useState('');
+  const [searchUser, setSearchUser] = useState('');
   
   const [showCreateObra, setShowCreateObra] = useState(false);
   const [showCreateUser, setShowCreateUser] = useState(false);
@@ -89,7 +92,7 @@ const AdminDashboard: React.FC = () => {
 
   const loadData = async () => {
     try {
-      // Primeiro, tentar buscar dados do backend (online)
+      // Tentar buscar do backend primeiro (se online)
       if (navigator.onLine) {
         try {
           // Buscar usuários e obras do backend
@@ -130,13 +133,32 @@ const AdminDashboard: React.FC = () => {
               createdBy: obraBackend.created_by
             } as Obra));
             
-            // Salvar cada obra no IndexedDB
-            await Promise.all(
-              obrasData.map((obra: Obra) => 
-                saveObra(obra)
-              )
+            // Filtrar obras válidas (remover dados corrompidos/incompletos)
+            const obrasValidas = obrasData.filter((obra: Obra) => 
+              obra.id && obra.cliente && obra.obra && obra.cidade && obra.encarregadoId
             );
-            setObras(obrasData);
+            
+            // Verificar se há formulários em andamento e atualizar status
+            const obrasComStatusAtualizado = await Promise.all(
+              obrasValidas.map(async (obra: Obra) => {
+                // Verificar se há dados de formulário
+                const formData = await getFormByObraId(obra.id);
+                
+                // Se a obra está como "novo" mas tem dados de formulário, mudar para "em_preenchimento"
+                if (obra.status === 'novo' && formData && Object.keys(formData).length > 0) {
+                  const obraAtualizada = { ...obra, status: 'em_preenchimento' as const };
+                  // Salvar no IndexedDB
+                  await saveObra(obraAtualizada);
+                  return obraAtualizada;
+                }
+                
+                // Salvar obra no IndexedDB
+                await saveObra(obra);
+                return obra;
+              })
+            );
+            
+            setObras(obrasComStatusAtualizado);
           }
 
           return; // Sucesso, não precisa continuar
@@ -147,11 +169,46 @@ const AdminDashboard: React.FC = () => {
       }
 
       // Fallback: buscar dados locais do IndexedDB (offline ou erro na API)
-      const [obrasData, usersData] = await Promise.all([
-        getObras(),
-        getUsers()
-      ]);
-      setObras(obrasData);
+      const obrasData = await getObras();
+      const usersData = await getUsers();
+      
+      // Filtrar obras válidas e remover inválidas do IndexedDB
+      const obrasValidas = obrasData.filter((obra: Obra) => 
+        obra.id && obra.cliente && obra.obra && obra.cidade && obra.encarregadoId
+      );
+      
+      // Remover obras inválidas do IndexedDB
+      const obrasInvalidas = obrasData.filter((obra: Obra) => 
+        !obra.id || !obra.cliente || !obra.obra || !obra.cidade || !obra.encarregadoId
+      );
+      
+      if (obrasInvalidas.length > 0) {
+        console.warn(`⚠️ Removendo ${obrasInvalidas.length} obra(s) corrompida(s) do cache local`);
+        await Promise.all(
+          obrasInvalidas.map(async (obra: Obra) => {
+            if (obra.id) {
+              await deleteObra(obra.id);
+            }
+          })
+        );
+      }
+      
+      // Verificar status das obras locais também
+      const obrasComStatusAtualizado = await Promise.all(
+        obrasValidas.map(async (obra: Obra) => {
+          const formData = await getFormByObraId(obra.id);
+          
+          if (obra.status === 'novo' && formData && Object.keys(formData).length > 0) {
+            const obraAtualizada = { ...obra, status: 'em_preenchimento' as const };
+            await saveObra(obraAtualizada);
+            return obraAtualizada;
+          }
+          
+          return obra;
+        })
+      );
+      
+      setObras(obrasComStatusAtualizado);
       setUsers(usersData);
     } catch (error) {
       console.error('❌ Erro ao carregar dados:', error);
@@ -242,7 +299,7 @@ const AdminDashboard: React.FC = () => {
       
       if (response.success) {
         // Deletar também do IndexedDB local
-        await deleteObraLocal(id);
+        await deleteObra(id);
         await loadData();
         setDeletingObra(null);
         showToast('Obra excluída com sucesso!', 'success');
@@ -262,7 +319,7 @@ const AdminDashboard: React.FC = () => {
       
       if (response.success) {
         // Deletar também do IndexedDB local
-        await deleteUserLocal(id);
+        await deleteUser(id);
         await loadData();
         setDeletingUser(null);
         showToast('Usuário excluído com sucesso!', 'success');
@@ -289,6 +346,7 @@ const AdminDashboard: React.FC = () => {
       if (obraFilter === 'concluidas') return obra.status === 'enviado_admin' || obra.status === 'concluido';
       return true;
     })
+    .filter(obra => obra.cliente.toLowerCase().includes(searchObra.toLowerCase()) || obra.obra.toLowerCase().includes(searchObra.toLowerCase()))
     .sort((a, b) => b.createdAt - a.createdAt);
 
   const filteredUsers = users
@@ -296,6 +354,7 @@ const AdminDashboard: React.FC = () => {
       if (userFilter === 'todos') return true;
       return user.tipo === userFilter;
     })
+    .filter(user => user.nome.toLowerCase().includes(searchUser.toLowerCase()))
     .sort((a, b) => a.nome.localeCompare(b.nome));
 
   const getUserName = (id: string) => {
@@ -438,7 +497,7 @@ const AdminDashboard: React.FC = () => {
                     className="w-12 h-12 rounded-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-center shadow-md relative"
                   >
                     <Filter className="w-5 h-5" />
-                    {obraFilter !== 'todas' && (
+                    {(obraFilter !== 'todas' || searchObra.trim() !== '') && (
                       <span className="absolute -top-1 -right-1 w-3 h-3 bg-[#FD5521] rounded-full"></span>
                     )}
                   </button>
@@ -549,20 +608,46 @@ const AdminDashboard: React.FC = () => {
                 })}
 
                 {filteredObras.length === 0 && (
-                  <button
-                    onClick={() => setShowCreateObra(true)}
-                    className="w-full text-center py-12 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl transition-colors group"
-                  >
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="w-16 h-16 rounded-full bg-[#FD5521]/10 flex items-center justify-center group-hover:bg-[#FD5521]/20 transition-colors">
-                        <Plus className="w-8 h-8 text-[#FD5521]" />
+                  obras.length === 0 ? (
+                    <button
+                      onClick={() => setShowCreateObra(true)}
+                      className="w-full text-center py-12 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl transition-colors group"
+                    >
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-16 h-16 rounded-full bg-[#FD5521]/10 flex items-center justify-center group-hover:bg-[#FD5521]/20 transition-colors">
+                          <Plus className="w-8 h-8 text-[#FD5521]" />
+                        </div>
+                        <div>
+                          <p className="text-gray-900 dark:text-white font-medium mb-1">Nenhuma obra cadastrada</p>
+                          <p className="text-sm text-[#FD5521] group-hover:underline">Clique aqui para cadastrar a primeira obra</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-gray-900 dark:text-white font-medium mb-1">Nenhuma obra encontrada</p>
-                        <p className="text-sm text-[#FD5521] group-hover:underline">Clique aqui para cadastrar a primeira obra</p>
+                    </button>
+                  ) : (
+                    <div className="w-full bg-[#f1f3ea] dark:bg-gray-900/50 rounded-[10px] pt-[48px] pb-[48px]">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-16 h-16 rounded-full bg-[#e6e8dc] dark:bg-gray-800 flex items-center justify-center">
+                          <FolderOpen className="w-8 h-8 text-[#C6CCC2] dark:text-gray-600" strokeWidth={2} />
+                        </div>
+                        <div className="flex flex-col gap-1 items-center">
+                          <p className="text-[#101828] dark:text-white font-normal text-base leading-6">
+                            Nenhuma obra {
+                              obraFilter === 'novo' ? 'nova' :
+                              obraFilter === 'em_andamento' ? 'em andamento' :
+                              obraFilter === 'conferencia' ? 'em conferência' :
+                              obraFilter === 'concluidas' ? 'concluída' : ''
+                            }
+                          </p>
+                          <p className="text-[#6a7282] dark:text-gray-400 text-sm leading-5">
+                            {obraFilter === 'todas' 
+                              ? 'Nenhuma obra encontrada'
+                              : 'Altere o filtro para ver outras obras'
+                            }
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </button>
+                  )
                 )}
               </div>
 
@@ -649,20 +734,46 @@ const AdminDashboard: React.FC = () => {
                     );
                   })
                 ) : (
-                  <button
-                    onClick={() => setShowCreateObra(true)}
-                    className="w-full text-center py-12 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
-                  >
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="w-16 h-16 rounded-full bg-[#FD5521]/10 flex items-center justify-center group-hover:bg-[#FD5521]/20 transition-colors">
-                        <Plus className="w-8 h-8 text-[#FD5521]" />
+                  obras.length === 0 ? (
+                    <button
+                      onClick={() => setShowCreateObra(true)}
+                      className="w-full text-center py-12 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
+                    >
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-16 h-16 rounded-full bg-[#FD5521]/10 flex items-center justify-center group-hover:bg-[#FD5521]/20 transition-colors">
+                          <Plus className="w-8 h-8 text-[#FD5521]" />
+                        </div>
+                        <div>
+                          <p className="text-gray-900 dark:text-white font-medium mb-1">Nenhuma obra cadastrada</p>
+                          <p className="text-sm text-[#FD5521] group-hover:underline">Clique aqui para cadastrar a primeira obra</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-gray-900 dark:text-white font-medium mb-1">Nenhuma obra encontrada</p>
-                        <p className="text-sm text-[#FD5521] group-hover:underline">Clique aqui para cadastrar a primeira obra</p>
+                    </button>
+                  ) : (
+                    <div className="w-full bg-[#f1f3ea] dark:bg-gray-900/50 rounded-[10px] pt-[48px] pb-[48px]">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-16 h-16 rounded-full bg-[#e6e8dc] dark:bg-gray-800 flex items-center justify-center">
+                          <FolderOpen className="w-8 h-8 text-[#C6CCC2] dark:text-gray-600" strokeWidth={2} />
+                        </div>
+                        <div className="flex flex-col gap-1 items-center">
+                          <p className="text-[#101828] dark:text-white font-normal text-base leading-6">
+                            Nenhuma obra {
+                              obraFilter === 'novo' ? 'nova' :
+                              obraFilter === 'em_andamento' ? 'em andamento' :
+                              obraFilter === 'conferencia' ? 'em conferência' :
+                              obraFilter === 'concluidas' ? 'concluída' : ''
+                            }
+                          </p>
+                          <p className="text-[#6a7282] dark:text-gray-400 text-sm leading-5">
+                            {obraFilter === 'todas' 
+                              ? 'Nenhuma obra encontrada'
+                              : 'Altere o filtro para ver outras obras'
+                            }
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </button>
+                  )
                 )}
               </div>
             </motion.div>
@@ -683,7 +794,7 @@ const AdminDashboard: React.FC = () => {
                     className="w-12 h-12 rounded-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-center shadow-md relative"
                   >
                     <Filter className="w-5 h-5" />
-                    {userFilter !== 'todos' && (
+                    {(userFilter !== 'todos' || searchUser.trim() !== '') && (
                       <span className="absolute -top-1 -right-1 w-3 h-3 bg-[#FD5521] rounded-full"></span>
                     )}
                   </button>
@@ -841,140 +952,28 @@ const AdminDashboard: React.FC = () => {
         />
       )}
 
-      {/* Bottom Drawer de Filtros */}
-      {showFilterDrawer && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-50 flex items-end"
-          onClick={() => setShowFilterDrawer(false)}
-        >
-          <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            onClick={(e) => e.stopPropagation()}
-            className="w-full bg-white dark:bg-gray-900 rounded-t-3xl p-6 pb-8"
-          >
-            <div className="w-12 h-1 bg-gray-300 dark:bg-gray-700 rounded-full mx-auto mb-6"></div>
-            
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-              Filtrar {activeTab === 'obras' ? 'Obras' : 'Usuários'}
-            </h3>
-
-            {activeTab === 'obras' ? (
-              <div className="space-y-2">
-                <button
-                  onClick={() => {
-                    setObraFilter('todas');
-                    setShowFilterDrawer(false);
-                  }}
-                  className={`w-full px-4 py-3 rounded-lg text-left font-medium transition-colors ${
-                    obraFilter === 'todas'
-                      ? 'bg-[#FD5521] text-white'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  Todas
-                </button>
-                <button
-                  onClick={() => {
-                    setObraFilter('novo');
-                    setShowFilterDrawer(false);
-                  }}
-                  className={`w-full px-4 py-3 rounded-lg text-left font-medium transition-colors ${
-                    obraFilter === 'novo'
-                      ? 'bg-[#FD5521] text-white'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  Novo
-                </button>
-                <button
-                  onClick={() => {
-                    setObraFilter('em_andamento');
-                    setShowFilterDrawer(false);
-                  }}
-                  className={`w-full px-4 py-3 rounded-lg text-left font-medium transition-colors ${
-                    obraFilter === 'em_andamento'
-                      ? 'bg-[#FD5521] text-white'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  Em andamento
-                </button>
-                <button
-                  onClick={() => {
-                    setObraFilter('conferencia');
-                    setShowFilterDrawer(false);
-                  }}
-                  className={`w-full px-4 py-3 rounded-lg text-left font-medium transition-colors ${
-                    obraFilter === 'conferencia'
-                      ? 'bg-[#FD5521] text-white'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  Conferência
-                </button>
-                <button
-                  onClick={() => {
-                    setObraFilter('concluidas');
-                    setShowFilterDrawer(false);
-                  }}
-                  className={`w-full px-4 py-3 rounded-lg text-left font-medium transition-colors ${
-                    obraFilter === 'concluidas'
-                      ? 'bg-[#FD5521] text-white'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  Concluídas
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <button
-                  onClick={() => {
-                    setUserFilter('todos');
-                    setShowFilterDrawer(false);
-                  }}
-                  className={`w-full px-4 py-3 rounded-lg text-left font-medium transition-colors ${
-                    userFilter === 'todos'
-                      ? 'bg-[#FD5521] text-white'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  Todos
-                </button>
-                <button
-                  onClick={() => {
-                    setUserFilter('Encarregado');
-                    setShowFilterDrawer(false);
-                  }}
-                  className={`w-full px-4 py-3 rounded-lg text-left font-medium transition-colors ${
-                    userFilter === 'Encarregado'
-                      ? 'bg-[#FD5521] text-white'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  Encarregados
-                </button>
-                <button
-                  onClick={() => {
-                    setUserFilter('Administrador');
-                    setShowFilterDrawer(false);
-                  }}
-                  className={`w-full px-4 py-3 rounded-lg text-left font-medium transition-colors ${
-                    userFilter === 'Administrador'
-                      ? 'bg-[#FD5521] text-white'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  Administradores
-                </button>
-              </div>
-            )}
-          </motion.div>
-        </div>
-      )}
+      {/* Modal de Filtros */}
+      <FilterModal
+        isOpen={showFilterDrawer}
+        onClose={() => setShowFilterDrawer(false)}
+        type={activeTab === 'obras' ? 'obras' : 'usuarios'}
+        currentFilter={activeTab === 'obras' ? obraFilter : userFilter}
+        onFilterChange={(filter) => {
+          if (activeTab === 'obras') {
+            setObraFilter(filter as ObraFilter);
+          } else {
+            setUserFilter(filter as UserFilter);
+          }
+        }}
+        onSearchChange={(search) => {
+          if (activeTab === 'obras') {
+            setSearchObra(search);
+          } else {
+            setSearchUser(search);
+          }
+        }}
+        searchValue={activeTab === 'obras' ? searchObra : searchUser}
+      />
       
       {/* Notification Drawer */}
       <NotificationDrawer

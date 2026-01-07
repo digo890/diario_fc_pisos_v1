@@ -19,7 +19,7 @@ const PrepostoValidationPage = lazy(() => import('./components/PrepostoValidatio
 /**
  * Diário de Obras - FC Pisos
  * Sistema PWA mobile-first para gestão de obras
- * Versão: 2.0.0
+ * Versão: 1.1.0
  */
 
 // Componente principal que decide qual rota renderizar
