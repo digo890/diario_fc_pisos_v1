@@ -50,10 +50,13 @@ const AppContent: React.FC = () => {
 
   // Verificar se é rota de validação pública
   const path = window.location.pathname;
-  const isValidationRoute = path.startsWith('/validar/');
+  const isValidationRoute = path.startsWith('/validar/') || path.startsWith('/conferencia/');
   
   if (isValidationRoute) {
-    const token = path.split('/validar/')[1];
+    // Suportar ambas as rotas: /validar/ e /conferencia/
+    const token = path.startsWith('/validar/') 
+      ? path.split('/validar/')[1] 
+      : path.split('/conferencia/')[1];
     return (
       <Suspense fallback={
         <div className="min-h-screen bg-white dark:bg-gray-950 flex items-center justify-center">

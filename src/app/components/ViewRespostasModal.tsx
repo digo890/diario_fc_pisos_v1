@@ -143,7 +143,7 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
   const handleShareLink = async () => {
     if (!obra.validationToken) return;
     
-    const link = `${window.location.origin}/validar/${obra.validationToken}`;
+    const link = `${window.location.origin}/conferencia/${obra.validationToken}`;
     const success = await copyToClipboard(link);
     
     if (success) {

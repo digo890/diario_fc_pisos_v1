@@ -1,6 +1,7 @@
 /**
- * Gerador de PDF completo para formulários do Diário de Obras
- * Versão simplificada - Formato A4 vertical seguindo layout do modal
+ * Gerador de PDF COMPLETO para formulários do Diário de Obras
+ * Versão 1.1.0 - Mostra TODOS os dados preenchidos
+ * Layout simples e organizado - Documento de garantia da obra
  */
 
 import jsPDF from 'jspdf';
@@ -18,14 +19,14 @@ const BORDER_GRAY = '#E5E7EB';
 const TEXT_GRAY = '#6B7280';
 
 /**
- * Gera PDF completo do formulário
+ * Gera PDF completo do formulário com TODOS os dados
  */
 export async function generateFormPDF(
   obra: Obra,
   formData: FormData,
   users: User[]
 ): Promise<void> {
-  const pdf = new jsPDF('p', 'mm', 'a4'); // portrait, milímetros, A4
+  const pdf = new jsPDF('p', 'mm', 'a4');
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
   const margin = 15;
@@ -34,36 +35,35 @@ export async function generateFormPDF(
   let yPos = margin;
 
   // ============================================
-  // CABEÇALHO LARANJA
+  // CABEÇALHO
   // ============================================
   pdf.setFillColor(ORANGE);
   pdf.rect(0, 0, pageWidth, 45, 'F');
   
   pdf.setTextColor(WHITE);
-  pdf.setFontSize(20);
+  pdf.setFontSize(22);
   pdf.setFont('helvetica', 'bold');
-  pdf.text('Diário de Obras - FC PISOS', pageWidth / 2, 15, { align: 'center' });
+  pdf.text('DIÁRIO DE OBRAS', pageWidth / 2, 15, { align: 'center' });
   
-  pdf.setFontSize(12);
+  pdf.setFontSize(14);
   pdf.setFont('helvetica', 'normal');
-  pdf.text('Pisos e Revestimentos Industriais Ltda.', pageWidth / 2, 25, { align: 'center' });
+  pdf.text('FC Pisos - Pisos e Revestimentos Industriais Ltda.', pageWidth / 2, 25, { align: 'center' });
   
-  // Data de preenchimento
   const dataPreenchimento = formData.condicoesTrabalho?.data 
     ? format(new Date(formData.condicoesTrabalho.data), 'dd/MM/yyyy')
     : format(new Date(obra.createdAt), 'dd/MM/yyyy');
-  pdf.setFontSize(10);
-  pdf.text(`Preenchimento: ${dataPreenchimento}`, pageWidth / 2, 35, { align: 'center' });
+  pdf.setFontSize(11);
+  pdf.text(`Data: ${dataPreenchimento}`, pageWidth / 2, 37, { align: 'center' });
   
   yPos = 55;
 
   // ============================================
-  // INFORMAÇÕES DA OBRA
+  // DADOS DA OBRA
   // ============================================
-  pdf.setFontSize(14);
+  pdf.setFontSize(16);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(BLACK);
-  pdf.text('Dados da Obra', margin, yPos);
+  pdf.text('DADOS DA OBRA', margin, yPos);
   yPos += 8;
 
   const encarregado = users.find(u => u.id === obra.encarregadoId);
@@ -72,6 +72,7 @@ export async function generateFormPDF(
     ['Cliente', obra.cliente],
     ['Obra', obra.obra],
     ['Cidade', obra.cidade || 'N/A'],
+    ['Data', obra.data || 'N/A'],
     ['Encarregado', encarregado?.nome || 'N/A'],
     ['Preposto', obra.prepostoNome || obra.prepostoEmail || 'N/A'],
     ['ID da Obra', `#${obra.id.substring(0, 8)}`],
@@ -79,70 +80,81 @@ export async function generateFormPDF(
 
   autoTable(pdf, {
     startY: yPos,
-    head: [],
     body: obraInfo,
     theme: 'grid',
     styles: {
-      fontSize: 9,
+      fontSize: 10,
       cellPadding: 3,
     },
     columnStyles: {
       0: { 
         fontStyle: 'bold', 
         fillColor: [249, 250, 251],
-        cellWidth: 45,
-      },
-      1: { 
-        textColor: [0, 0, 0],
+        cellWidth: 50,
       },
     },
     margin: { left: margin, right: margin },
   });
 
-  yPos = (pdf as any).lastAutoTable.finalY + 10;
+  yPos = (pdf as any).lastAutoTable.finalY + 12;
 
   // ============================================
   // CONDIÇÕES AMBIENTAIS
   // ============================================
   if (formData.condicoesTrabalho) {
-    yPos = checkPageBreak(pdf, yPos, 40, margin);
+    yPos = checkPageBreak(pdf, yPos, 50, margin);
     
-    pdf.setFontSize(14);
+    pdf.setFontSize(16);
     pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(BLACK);
-    pdf.text('Condições Ambientais', margin, yPos);
+    pdf.text('CONDIÇÕES AMBIENTAIS E DE TRABALHO', margin, yPos);
     yPos += 8;
 
-    const climaData = [
-      ['Manhã', getClimaLabel(formData.condicoesTrabalho.climaManha)],
-      ['Tarde', getClimaLabel(formData.condicoesTrabalho.climaTarde)],
-      ['Noite', getClimaLabel(formData.condicoesTrabalho.climaNoite)],
-    ];
+    const condicoesData = [];
+    
+    // Clima
+    if (formData.condicoesTrabalho.climaManha) {
+      condicoesData.push(['Clima - Manhã', getClimaLabel(formData.condicoesTrabalho.climaManha)]);
+    }
+    if (formData.condicoesTrabalho.climaTarde) {
+      condicoesData.push(['Clima - Tarde', getClimaLabel(formData.condicoesTrabalho.climaTarde)]);
+    }
+    if (formData.condicoesTrabalho.climaNoite) {
+      condicoesData.push(['Clima - Noite', getClimaLabel(formData.condicoesTrabalho.climaNoite)]);
+    }
+    
+    // Temperatura e Umidade
+    if (formData.condicoesTrabalho.temperaturaAmbiente) {
+      condicoesData.push(['Temperatura Ambiente', formData.condicoesTrabalho.temperaturaAmbiente + ' °C']);
+    }
+    if (formData.condicoesTrabalho.umidadeRelativa) {
+      condicoesData.push(['Umidade Relativa do Ar', formData.condicoesTrabalho.umidadeRelativa + ' %']);
+    }
 
-    autoTable(pdf, {
-      startY: yPos,
-      head: [],
-      body: climaData,
-      theme: 'grid',
-      styles: {
-        fontSize: 9,
-        cellPadding: 3,
-      },
-      columnStyles: {
-        0: { 
-          fontStyle: 'bold', 
-          fillColor: [249, 250, 251],
-          cellWidth: 45,
+    if (condicoesData.length > 0) {
+      autoTable(pdf, {
+        startY: yPos,
+        body: condicoesData,
+        theme: 'grid',
+        styles: {
+          fontSize: 10,
+          cellPadding: 3,
         },
-      },
-      margin: { left: margin, right: margin },
-    });
+        columnStyles: {
+          0: { 
+            fontStyle: 'bold', 
+            fillColor: [249, 250, 251],
+            cellWidth: 70,
+          },
+        },
+        margin: { left: margin, right: margin },
+      });
 
-    yPos = (pdf as any).lastAutoTable.finalY + 10;
+      yPos = (pdf as any).lastAutoTable.finalY + 12;
+    }
   }
 
   // ============================================
-  // SERVIÇOS
+  // SERVIÇOS EXECUTADOS (até 3 serviços)
   // ============================================
   const servicosKeys = ['servico1', 'servico2', 'servico3'] as const;
   
@@ -153,55 +165,179 @@ export async function generateFormPDF(
       return;
     }
 
-    yPos = checkPageBreak(pdf, yPos, 40, margin);
+    yPos = checkPageBreak(pdf, yPos, 50, margin);
 
-    pdf.setFontSize(14);
+    pdf.setFontSize(16);
     pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(ORANGE);
+    pdf.text(`SERVIÇO ${index + 1}`, margin, yPos);
     pdf.setTextColor(BLACK);
-    pdf.text(`Serviço ${index + 1}`, margin, yPos);
     yPos += 8;
 
-    const servicoData = getServiceTableData(servico);
+    const servicoData = [];
+
+    // Horário e Local
+    if (servico.horario) {
+      servicoData.push(['Horário de Execução', servico.horario]);
+    }
+    if (servico.local) {
+      servicoData.push(['Local de Execução', servico.local]);
+    }
+
+    // TODAS AS 37 ETAPAS POSSÍVEIS
+    if (servico.etapas) {
+      const todasEtapas = [
+        { key: 'temperaturaAmbiente', label: '1. Temperatura Ambiente', unit: ' °C' },
+        { key: 'umidadeRelativa', label: '2. Umidade Relativa do Ar', unit: ' %' },
+        { key: 'temperaturaSubstrato', label: '3. Temperatura do Substrato', unit: ' °C' },
+        { key: 'umidadeSubstrato', label: '4. Umidade Superficial do Substrato', unit: ' %' },
+        { key: 'temperaturaMistura', label: '5. Temperatura da Mistura', unit: ' °C' },
+        { key: 'tempoMistura', label: '6. Tempo de Mistura', unit: ' Minutos' },
+        { key: 'loteParte1', label: '7. Nº dos Lotes da Parte 1', unit: '' },
+        { key: 'loteParte2', label: '8. Nº dos Lotes da Parte 2', unit: '' },
+        { key: 'loteParte3', label: '9. Nº dos Lotes da Parte 3', unit: '' },
+        { key: 'kitsGastos', label: '10. Nº de Kits Gastos', unit: '' },
+        { key: 'consumoObtido', label: '11. Consumo Médio Obtido', unit: ' m²/Kit' },
+        { key: 'consumoEspecificado', label: '12. Consumo Médio Especificado', unit: ' m²/Kit' },
+        { key: 'preparoSubstrato', label: '13. Preparo de Substrato', unit: ' m²/ml' },
+        { key: 'aplicacaoPrimer', label: '14. Aplicação de Primer ou TC-302', unit: ' m²/ml' },
+        { key: 'aplicacaoUretano', label: '15. Aplicação de Uretano', unit: ' m²', isComplex: true },
+        { key: 'uretanoMuretas', label: '16. Aplicação de Uretano WR em Muretas', unit: ' ml', isComplex: true },
+        { key: 'rodapes', label: '17. Aplicação Rodapés', unit: ' ml', isComplex: true },
+        { key: 'uretanoParedes', label: '18. Aplicação de Uretano WR em Paredes', unit: ' ml', isComplex: true },
+        { key: 'muretasUretano', label: '19. Aplicação de uretano em muretas', unit: '', isComplex: true },
+        { key: 'pintura', label: '20. Serviços de pintura', unit: ' m²', isComplex: true },
+        { key: 'pinturaLayout', label: '21. Serviços de pintura de layout', unit: ' ml', isComplex: true },
+        { key: 'epoxi', label: '22. Aplicação de Epóxi', unit: ' m²' },
+        { key: 'juntas', label: '23. Corte / Selamento Juntas de Piso', unit: ' ml' },
+        { key: 'juntasMuretas', label: '24. Corte / Selamento Juntas em Muretas', unit: ' ml' },
+        { key: 'juntasRodapes', label: '25. Corte / Selamento Juntas em Rodapés', unit: ' ml' },
+        { key: 'remocaoSubstrato', label: '26. Remoção de Substrato Fraco', unit: ' m² / Espessura' },
+        { key: 'desbaste', label: '27. Desbaste de Substrato', unit: ' m² / Espessura' },
+        { key: 'grauteamento', label: '28. Grauteamento', unit: ' m² / Espessura' },
+        { key: 'remocaoReparo', label: '29. Remoção e Reparo de Sub-Base', unit: ' m² / Espessura' },
+        { key: 'reparoUretanico', label: '30. Reparo com Concreto Uretânico', unit: ' m² / Espessura' },
+        { key: 'tratamentoTrincas', label: '31. Tratamento de Trincas', unit: ' ml' },
+        { key: 'labiosPolimericos', label: '32. Execução de Lábios Poliméricos', unit: ' ml' },
+        { key: 'secagemSubstrato', label: '33. Secagem de Substrato', unit: ' m²' },
+        { key: 'remocaoRevestimento', label: '34. Remoção de Revestimento Antigo', unit: ' m²' },
+        { key: 'polimentoMecanico', label: '35. Polimento Mecânico de Substrato', unit: ' m²' },
+        { key: 'reparoPiso', label: '36. Reparo de Revestimento em Piso', unit: ' m² / Espessura' },
+        { key: 'reparoMuretas', label: '37. Reparo de Revestimento em Muretas', unit: ' ml' },
+        { key: 'reparoRodape', label: '38. Reparo de Revestimento em Rodapé', unit: ' ml' },
+      ];
+      
+      todasEtapas.forEach(({ key, label, unit, isComplex }) => {
+        const value = servico.etapas[key];
+        if (value !== null && value !== undefined && value !== '') {
+          if (isComplex) {
+            // Campos complexos (objetos ou arrays)
+            if (Array.isArray(value)) {
+              value.forEach((item: any, idx: number) => {
+                if (item.tipo && item.area) {
+                  const itemLabel = idx === 0 ? label : `   ${item.tipo}`;
+                  servicoData.push([itemLabel, `${item.area}${unit} (${item.tipo})`]);
+                } else if (item.tipo && item.valor) {
+                  const itemLabel = idx === 0 ? label : `   ${item.tipo}`;
+                  servicoData.push([itemLabel, `${item.valor}${unit} (${item.tipo})`]);
+                }
+              });
+            } else if (typeof value === 'object') {
+              if (value.tipo && value.valor) {
+                servicoData.push([label, `${value.valor}${unit} (${value.tipo})`]);
+              } else if (value.metragem && value.altura) {
+                servicoData.push([label, `${value.metragem} ml × ${value.altura} m`]);
+              } else if (value.area) {
+                servicoData.push([label, `${value.area}${unit}`]);
+              } else {
+                servicoData.push([label, JSON.stringify(value)]);
+              }
+            }
+          } else {
+            // Campos simples
+            servicoData.push([label, `${value}${unit}`]);
+          }
+        }
+      });
+    }
 
     if (servicoData.length > 0) {
       autoTable(pdf, {
         startY: yPos,
-        head: [['Item', 'Valor']],
         body: servicoData,
         theme: 'striped',
         styles: {
-          fontSize: 8,
-          cellPadding: 2.5,
-        },
-        headStyles: {
-          fillColor: [253, 85, 33], // ORANGE
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
           fontSize: 9,
+          cellPadding: 2.5,
         },
         columnStyles: {
           0: { 
-            cellWidth: 85,
-            fontStyle: 'normal',
+            cellWidth: 100,
+            fontStyle: 'bold',
           },
         },
         margin: { left: margin, right: margin },
       });
 
-      yPos = (pdf as any).lastAutoTable.finalY + 10;
+      yPos = (pdf as any).lastAutoTable.finalY + 12;
+    }
+
+    // REGISTROS IMPORTANTES DO SERVIÇO
+    if (servico.registros && Object.keys(servico.registros).length > 0) {
+      yPos = checkPageBreak(pdf, yPos, 40, margin);
+      
+      pdf.setFontSize(13);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(`Registros Importantes - Serviço ${index + 1}`, margin, yPos);
+      yPos += 6;
+
+      const registrosServicoData = [];
+      Object.entries(servico.registros).forEach(([key, item]: [string, any]) => {
+        if (item.ativo && item.texto) {
+          let resposta = item.texto;
+          if (item.resposta !== undefined) {
+            resposta += ` - ${item.resposta ? 'Sim' : 'Não'}`;
+          }
+          if (item.comentario) {
+            resposta += ` (${item.comentario})`;
+          }
+          registrosServicoData.push([key, resposta]);
+        }
+      });
+
+      if (registrosServicoData.length > 0) {
+        autoTable(pdf, {
+          startY: yPos,
+          body: registrosServicoData,
+          theme: 'grid',
+          styles: {
+            fontSize: 9,
+            cellPadding: 2.5,
+          },
+          columnStyles: {
+            0: { 
+              cellWidth: 40,
+              fontStyle: 'bold',
+              fillColor: [249, 250, 251],
+            },
+          },
+          margin: { left: margin, right: margin },
+        });
+
+        yPos = (pdf as any).lastAutoTable.finalY + 12;
+      }
     }
   });
 
   // ============================================
-  // REGISTROS IMPORTANTES
+  // REGISTROS IMPORTANTES - ESTADO DO SUBSTRATO
   // ============================================
   if (formData.registros && Object.keys(formData.registros).length > 0) {
-    yPos = checkPageBreak(pdf, yPos, 40, margin);
+    yPos = checkPageBreak(pdf, yPos, 50, margin);
 
-    pdf.setFontSize(14);
+    pdf.setFontSize(16);
     pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(BLACK);
-    pdf.text('Registros Importantes - Estado do Substrato', margin, yPos);
+    pdf.text('REGISTROS IMPORTANTES - ESTADO DO SUBSTRATO', margin, yPos);
     yPos += 8;
 
     const registrosData = getRegistrosTableData(formData.registros);
@@ -209,85 +345,111 @@ export async function generateFormPDF(
     if (registrosData.length > 0) {
       autoTable(pdf, {
         startY: yPos,
-        head: [['Pergunta', 'Resposta']],
         body: registrosData,
         theme: 'striped',
         styles: {
-          fontSize: 8,
-          cellPadding: 2.5,
-        },
-        headStyles: {
-          fillColor: [253, 85, 33],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
           fontSize: 9,
+          cellPadding: 2.5,
         },
         columnStyles: {
           0: { 
             cellWidth: 100,
+            fontStyle: 'bold',
           },
         },
         margin: { left: margin, right: margin },
       });
 
-      yPos = (pdf as any).lastAutoTable.finalY + 10;
+      yPos = (pdf as any).lastAutoTable.finalY + 12;
     }
   }
 
   // ============================================
-  // OBSERVAÇÕES
+  // OBSERVAÇÕES GERAIS
   // ============================================
   if (formData.observacoes?.observacoes) {
-    yPos = checkPageBreak(pdf, yPos, 30, margin);
+    yPos = checkPageBreak(pdf, yPos, 35, margin);
 
-    pdf.setFontSize(14);
+    pdf.setFontSize(16);
     pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(BLACK);
-    pdf.text('Observações Gerais', margin, yPos);
+    pdf.text('OBSERVAÇÕES GERAIS', margin, yPos);
     yPos += 8;
 
-    pdf.setFontSize(9);
+    pdf.setFontSize(10);
     pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(TEXT_GRAY);
+    pdf.setTextColor(BLACK);
     
     const splitText = pdf.splitTextToSize(formData.observacoes.observacoes, contentWidth);
     pdf.text(splitText, margin, yPos);
-    yPos += splitText.length * 5 + 10;
+    yPos += splitText.length * 5 + 12;
+  }
+
+  // ============================================
+  // ASSINATURA DO ENCARREGADO
+  // ============================================
+  if (formData.assinaturaEncarregado) {
+    yPos = checkPageBreak(pdf, yPos, 50, margin);
+
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('ASSINATURA DO ENCARREGADO', margin, yPos);
+    yPos += 8;
+
+    try {
+      const imgWidth = 60;
+      const imgHeight = 30;
+      pdf.addImage(formData.assinaturaEncarregado, 'PNG', margin, yPos, imgWidth, imgHeight);
+      
+      yPos += imgHeight + 3;
+      
+      pdf.setDrawColor(BORDER_GRAY);
+      pdf.setLineWidth(0.5);
+      pdf.line(margin, yPos, margin + imgWidth, yPos);
+      
+      pdf.setFontSize(9);
+      pdf.setTextColor(TEXT_GRAY);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(encarregado?.nome || 'Encarregado', margin, yPos + 4);
+      
+      yPos += 12;
+    } catch (error) {
+      console.error('Erro ao adicionar assinatura do encarregado:', error);
+    }
   }
 
   // ============================================
   // VALIDAÇÃO DO PREPOSTO
   // ============================================
   if (formData.assinaturaPreposto) {
-    yPos = checkPageBreak(pdf, yPos, 70, margin);
+    yPos = checkPageBreak(pdf, yPos, 75, margin);
 
-    pdf.setFontSize(14);
+    pdf.setFontSize(16);
     pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(BLACK);
-    pdf.text('Validação do Preposto', margin, yPos);
+    pdf.text('VALIDAÇÃO DO PREPOSTO', margin, yPos);
     yPos += 8;
 
-    const status = formData.prepostoConfirmado ? 'APROVADO ✓' : 'REPROVADO ✗';
+    const status = formData.prepostoConfirmado ? '✓ APROVADO' : '✗ REPROVADO';
     const statusColor = formData.prepostoConfirmado ? '#22C55E' : '#EF4444';
     
-    pdf.setFontSize(12);
+    pdf.setFontSize(14);
     pdf.setFont('helvetica', 'bold');
     pdf.setTextColor(statusColor);
     pdf.text(status, margin, yPos);
-    yPos += 8;
+    pdf.setTextColor(BLACK);
+    yPos += 10;
 
     if (formData.prepostoComentario) {
-      pdf.setFontSize(9);
+      pdf.setFontSize(10);
       pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(BLACK);
       pdf.text('Comentário:', margin, yPos);
-      yPos += 5;
+      yPos += 6;
       
       pdf.setFont('helvetica', 'normal');
       pdf.setTextColor(TEXT_GRAY);
       const splitComment = pdf.splitTextToSize(formData.prepostoComentario, contentWidth);
       pdf.text(splitComment, margin, yPos);
-      yPos += splitComment.length * 5 + 5;
+      yPos += splitComment.length * 5 + 6;
+      pdf.setTextColor(BLACK);
     }
 
     // Assinatura
@@ -302,18 +464,18 @@ export async function generateFormPDF(
       pdf.setLineWidth(0.5);
       pdf.line(margin, yPos, margin + imgWidth, yPos);
       
-      pdf.setFontSize(8);
+      pdf.setFontSize(9);
       pdf.setTextColor(TEXT_GRAY);
       pdf.setFont('helvetica', 'normal');
-      pdf.text('Assinatura do Preposto', margin, yPos + 4);
+      pdf.text(obra.prepostoNome || 'Preposto', margin, yPos + 4);
       
       yPos += 8;
     } catch (error) {
-      console.error('Erro ao adicionar assinatura:', error);
+      console.error('Erro ao adicionar assinatura do preposto:', error);
     }
 
     if (formData.validadoPrepostoAt) {
-      pdf.setFontSize(8);
+      pdf.setFontSize(9);
       pdf.setTextColor(TEXT_GRAY);
       pdf.text(
         `Assinado em: ${format(new Date(formData.validadoPrepostoAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`,
@@ -338,13 +500,13 @@ export async function generateFormPDF(
     pdf.setFont('helvetica', 'normal');
     
     pdf.text(
-      `FC Pisos - Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm")}`,
+      `FC Pisos - Documento gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm")}`,
       margin,
       footerY
     );
     
     pdf.text(
-      `Página ${i} de ${totalPages}`,
+      `Pág. ${i} de ${totalPages}`,
       pageWidth - margin,
       footerY,
       { align: 'right' }
@@ -395,98 +557,9 @@ function hasServiceContent(servico: any): boolean {
     (servico.etapas && Object.keys(servico.etapas).some(key => {
       const value = servico.etapas[key];
       return value !== null && value !== undefined && value !== '';
-    }))
+    })) ||
+    (servico.registros && Object.keys(servico.registros).length > 0)
   );
-}
-
-function getServiceTableData(servico: any): [string, string][] {
-  const data: [string, string][] = [];
-  
-  // Horário de execução
-  if (servico.horario) {
-    data.push(['Horário de execução', servico.horario]);
-  }
-  
-  // Local de execução
-  if (servico.local) {
-    data.push(['Local de execução', servico.local]);
-  }
-  
-  // Etapas
-  if (servico.etapas) {
-    const etapas = [
-      { key: 'temperaturaAmbiente', label: '1. Temperatura Ambiente', unit: '°C' },
-      { key: 'umidadeRelativa', label: '2. Umidade Relativa do Ar', unit: '%' },
-      { key: 'temperaturaSubstrato', label: '3. Temperatura do Substrato', unit: '°C' },
-      { key: 'umidadeSubstrato', label: '4. Umidade Superficial do Substrato', unit: '%' },
-      { key: 'temperaturaMistura', label: '5. Temperatura da Mistura', unit: '°C' },
-      { key: 'tempoMistura', label: '6. Tempo de Mistura', unit: ' minutos' },
-      { key: 'loteParte1', label: '7. Nº dos Lotes da Parte 1', unit: '' },
-      { key: 'loteParte2', label: '8. Nº dos Lotes da Parte 2', unit: '' },
-      { key: 'loteParte3', label: '9. Nº dos Lotes da Parte 3', unit: '' },
-      { key: 'kitsGastos', label: '10. Nº de Kits Gastos', unit: '' },
-      { key: 'consumoObtido', label: '11. Consumo Médio Obtido', unit: ' m²/Kit' },
-      { key: 'consumoEspecificado', label: '12. Consumo Médio Especificado', unit: ' m²/Kit' },
-      { key: 'preparoSubstrato', label: '13. Preparo de Substrato', unit: ' m²' },
-      { key: 'aplicacaoPrimer', label: '14. Aplicação de Primer ou TC-302', unit: ' m²' },
-    ];
-    
-    etapas.forEach(({ key, label, unit }) => {
-      const value = servico.etapas[key];
-      if (value !== null && value !== undefined && value !== '') {
-        data.push([label, `${value}${unit}`]);
-      }
-    });
-    
-    // 15. Aplicação de Uretano
-    if (servico.etapas.aplicacaoUretano) {
-      const uretano = servico.etapas.aplicacaoUretano;
-      
-      if (Array.isArray(uretano) && uretano.length > 0) {
-        uretano.forEach((item: any, idx: number) => {
-          if (item.tipo && item.area) {
-            const label = idx === 0 ? '15. Aplicação de Uretano' : `    > ${item.tipo}`;
-            data.push([label, `${item.area} m² (${item.tipo})`]);
-          }
-        });
-      } else if (typeof uretano === 'object' && uretano.area) {
-        data.push(['15. Aplicação de Uretano', `${uretano.area} m²`]);
-      }
-    }
-    
-    // 16 a 23
-    const outrosServicos = [
-      { key: 'uretanoMuretas', label: '16. Aplicação de Uretano WR em Muretas' },
-      { key: 'rodapes', label: '17. Aplicação Rodapés' },
-      { key: 'uretanoParedes', label: '18. Aplicação de Uretano WR em Paredes' },
-      { key: 'muretasUretano', label: '19. Aplicação de uretano em muretas' },
-      { key: 'pintura', label: '20. Serviços de pintura' },
-      { key: 'pinturaLayout', label: '21. Serviços de pintura de layout' },
-      { key: 'epoxi', label: '22. Aplicação de Epóxi' },
-      { key: 'juntas', label: '23. Corte / Selamento Juntas de Piso' },
-    ];
-    
-    outrosServicos.forEach(({ key, label }) => {
-      const value = servico.etapas[key];
-      if (value !== null && value !== undefined && value !== '') {
-        if (typeof value === 'object') {
-          if (value.tipo && value.valor) {
-            data.push([label, `${value.tipo}: ${value.valor}`]);
-          } else if (value.metragem && value.altura) {
-            data.push([label, `${value.metragem} ml × ${value.altura} m`]);
-          } else if (value.area) {
-            data.push([label, `${value.area} m²`]);
-          } else {
-            data.push([label, JSON.stringify(value)]);
-          }
-        } else {
-          data.push([label, String(value)]);
-        }
-      }
-    });
-  }
-  
-  return data;
 }
 
 function getRegistrosTableData(registros: any): [string, string][] {
@@ -528,6 +601,11 @@ function getRegistrosTableData(registros: any): [string, string][] {
           }
         } else if (registro.texto) {
           answer = registro.texto;
+        } else if (registro.ativo) {
+          answer = 'Sim';
+          if (registro.comentario) {
+            answer += ` - ${registro.comentario}`;
+          }
         }
       } else {
         answer = String(registro);

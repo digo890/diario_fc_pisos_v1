@@ -127,6 +127,9 @@ const AdminDashboard: React.FC = () => {
               prepostoEmail: obraBackend.preposto_email,
               prepostoWhatsapp: obraBackend.preposto_whatsapp,
               validationToken: obraBackend.token_validacao,
+              validationTokenExpiry: obraBackend.token_validacao_expiry ? new Date(obraBackend.token_validacao_expiry).getTime() : undefined,
+              // ✅ AUDITORIA: token_validacao_last_access é registrado automaticamente no backend
+              // Não precisa ser mapeado pois não é usado no frontend
               status: obraBackend.status,
               progress: obraBackend.progress || 0,
               createdAt: obraBackend.created_at ? new Date(obraBackend.created_at).getTime() : Date.now(),
@@ -144,7 +147,8 @@ const AdminDashboard: React.FC = () => {
                 // Verificar se há dados de formulário
                 const formData = await getFormByObraId(obra.id);
                 
-                // Se a obra está como "novo" mas tem dados de formulário, mudar para "em_preenchimento"
+                // IMPORTANTE: Só atualizar status se for 'novo' → 'em_preenchimento'
+                // NÃO sobrescrever status de obras já enviadas (enviado_preposto, aprovado_preposto, etc)
                 if (obra.status === 'novo' && formData && Object.keys(formData).length > 0) {
                   const obraAtualizada = { ...obra, status: 'em_preenchimento' as const };
                   // Salvar no IndexedDB
@@ -198,6 +202,8 @@ const AdminDashboard: React.FC = () => {
         obrasValidas.map(async (obra: Obra) => {
           const formData = await getFormByObraId(obra.id);
           
+          // IMPORTANTE: Só atualizar status se for 'novo' → 'em_preenchimento'
+          // NÃO sobrescrever status de obras já enviadas (enviado_preposto, aprovado_preposto, etc)
           if (obra.status === 'novo' && formData && Object.keys(formData).length > 0) {
             const obraAtualizada = { ...obra, status: 'em_preenchimento' as const };
             await saveObra(obraAtualizada);
@@ -584,10 +590,26 @@ const AdminDashboard: React.FC = () => {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
+                              // Bloquear edição se obra estiver concluída ou aguardando conferência
+                              if (obra.status === 'concluido' || obra.status === 'enviado_preposto') {
+                                showToast(
+                                  `Obras ${obra.status === 'concluido' ? 'concluídas' : 'aguardando conferência'} não podem ser editadas`,
+                                  'error'
+                                );
+                                return;
+                              }
                               setEditingObra(obra);
                             }}
-                            className="p-2 rounded-[10px] hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 transition-colors"
-                            title="Editar"
+                            className={`p-2 rounded-[10px] transition-colors ${
+                              obra.status === 'concluido' || obra.status === 'enviado_preposto'
+                                ? 'opacity-40 cursor-not-allowed text-gray-400 dark:text-gray-600'
+                                : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
+                            }`}
+                            title={
+                              obra.status === 'concluido' || obra.status === 'enviado_preposto'
+                                ? `Obras ${obra.status === 'concluido' ? 'concluídas' : 'aguardando conferência'} não podem ser editadas`
+                                : 'Editar'
+                            }
                           >
                             <Edit2 className="w-5 h-5" />
                           </button>
@@ -707,10 +729,26 @@ const AdminDashboard: React.FC = () => {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  // Bloquear edição se obra estiver concluída ou aguardando conferência
+                                  if (obra.status === 'concluido' || obra.status === 'enviado_preposto') {
+                                    showToast(
+                                      `Obras ${obra.status === 'concluido' ? 'concluídas' : 'aguardando conferência'} não podem ser editadas`,
+                                      'error'
+                                    );
+                                    return;
+                                  }
                                   setEditingObra(obra);
                                 }}
-                                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
-                                title="Editar"
+                                className={`p-2 rounded-lg transition-colors ${
+                                  obra.status === 'concluido' || obra.status === 'enviado_preposto'
+                                    ? 'opacity-40 cursor-not-allowed text-gray-400 dark:text-gray-600'
+                                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
+                                }`}
+                                title={
+                                  obra.status === 'concluido' || obra.status === 'enviado_preposto'
+                                    ? `Obras ${obra.status === 'concluido' ? 'concluídas' : 'aguardando conferência'} não podem ser editadas`
+                                    : 'Editar'
+                                }
                               >
                                 <Edit2 className="w-4 h-4" />
                               </button>

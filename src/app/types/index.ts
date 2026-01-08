@@ -31,6 +31,10 @@ export interface Obra {
   createdBy: string;
   // Token único para acesso do preposto
   validationToken?: string;
+  // Data de expiração do token (30 dias após criação)
+  validationTokenExpiry?: number;
+  // Timestamp do último acesso ao link de validação (auditoria)
+  validationTokenLastAccess?: number;
 }
 
 export type ClimaType = 'sol' | 'nublado' | 'chuva' | 'lua';

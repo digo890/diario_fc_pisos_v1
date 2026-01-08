@@ -142,6 +142,7 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
           prepostoEmail: response.data.preposto_email,
           prepostoWhatsapp: response.data.preposto_whatsapp,
           validationToken: response.data.token_validacao,
+          validationTokenExpiry: response.data.token_validacao_expiry ? new Date(response.data.token_validacao_expiry).getTime() : undefined,
           status: response.data.status,
           progress: response.data.progress || 0,
           createdAt: new Date(response.data.created_at).getTime(),

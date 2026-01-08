@@ -542,6 +542,7 @@ app.post("/make-server-1ff231a2/obras", requireAuth, async (c) => {
       id: obraId,
       ...validationResult.sanitized,
       token_validacao: crypto.randomUUID(),
+      token_validacao_expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 dias
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -655,11 +656,76 @@ app.get("/make-server-1ff231a2/formularios/:id", requireAuth, async (c) => {
 app.get("/make-server-1ff231a2/formularios/token/:token", async (c) => {
   try {
     const token = c.req.param("token");
-    const formularios = await kv.getByPrefix("formulario:");
-    const formulario = formularios.find((f: any) => f.token_validacao === token);
-    if (!formulario) {
-      return c.json({ success: false, error: "Formulário não encontrado" }, 404);
+    
+    // 🔒 RATE LIMITING: Proteger contra brute force
+    const clientIp = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
+    const rateLimitKey = `ratelimit:token:${clientIp}`;
+    
+    // Buscar dados do rate limit (timestamp + contador)
+    const rateLimitData = await kv.get(rateLimitKey) || { attempts: 0, firstAttempt: Date.now() };
+    
+    // Resetar contador se passaram 15 minutos desde a primeira tentativa
+    const fifteenMinutes = 15 * 60 * 1000;
+    if (Date.now() - rateLimitData.firstAttempt > fifteenMinutes) {
+      rateLimitData.attempts = 0;
+      rateLimitData.firstAttempt = Date.now();
     }
+    
+    // Permitir máximo 10 tentativas por 15 minutos
+    if (rateLimitData.attempts > 10) {
+      const timeRemaining = Math.ceil((fifteenMinutes - (Date.now() - rateLimitData.firstAttempt)) / 60000);
+      console.warn(`⚠️ Rate limit excedido para IP: ${clientIp}`);
+      return c.json({ 
+        success: false, 
+        error: `Muitas tentativas. Aguarde ${timeRemaining} minuto(s) e tente novamente.` 
+      }, 429);
+    }
+    
+    // Incrementar contador
+    rateLimitData.attempts += 1;
+    await kv.set(rateLimitKey, rateLimitData);
+    
+    // 🔍 Buscar obra pelo token para validar expiração
+    const obras = await kv.getByPrefix("obra:");
+    const obra = obras.find((o: any) => o.token_validacao === token);
+    
+    if (!obra) {
+      console.log(`❌ Obra não encontrada para token: ${token.substring(0, 8)}...`);
+      return c.json({ success: false, error: "Link inválido ou expirado" }, 404);
+    }
+    
+    // ✅ SEGURANÇA: Validar expiração do token no backend
+    if (obra.token_validacao_expiry) {
+      const expiryDate = new Date(obra.token_validacao_expiry);
+      const now = new Date();
+      
+      if (expiryDate < now) {
+        console.warn(`⚠️ Token expirado para obra: ${obra.id}`);
+        return c.json({ 
+          success: false, 
+          error: 'Link expirado. Este link só é válido por 30 dias após a criação da obra.' 
+        }, 410); // 410 Gone
+      }
+    }
+    
+    // 🔍 Buscar formulário
+    const formularios = await kv.getByPrefix("formulario:");
+    const formulario = formularios.find((f: any) => f.obra_id === obra.id);
+    
+    if (!formulario) {
+      console.log(`❌ Formulário não encontrado para obra: ${obra.id}`);
+      return c.json({ success: false, error: "Formulário não encontrado ou ainda não foi preenchido" }, 404);
+    }
+    
+    // 🔒 AUDITORIA: Registrar último acesso ao link no backend
+    const obraAtualizada = {
+      ...obra,
+      token_validacao_last_access: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    await kv.set(`obra:${obra.id}`, obraAtualizada);
+    
+    console.log(`✅ Formulário encontrado e acesso registrado para token: ${token.substring(0, 8)}...`);
     return c.json({ success: true, data: formulario });
   } catch (error) {
     console.error("Erro ao buscar formulário por token:", error);

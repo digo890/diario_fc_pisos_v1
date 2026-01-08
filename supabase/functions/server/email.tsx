@@ -104,29 +104,52 @@ export function getPrepostoConferenciaEmail(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Conferência de Formulário - FC Pisos</title>
+  <!--[if mso]>
+  <style type="text/css">
+    body, table, td {font-family: Arial, sans-serif !important;}
+  </style>
+  <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #EDEFE4;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #EDEFE4; padding: 40px 20px;">
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #EDEFE4; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;">
+  <!-- Preheader (texto invisível que aparece no preview) -->
+  <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all;">
+    Formulário da obra ${obraNome} aguarda sua conferência e assinatura digital.
+  </div>
+  
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background-color: #EDEFE4; padding: 40px 20px;">
     <tr>
       <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-          <!-- Header -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden;">
+          <!-- Header com fallback para Outlook -->
           <tr>
-            <td style="background: linear-gradient(135deg, #FD5521 0%, #E54A1D 100%); padding: 40px 30px; text-align: center;">
-              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">
-                FC Pisos
-              </h1>
-              <p style="margin: 10px 0 0 0; color: rgba(255, 255, 255, 0.9); font-size: 16px;">
-                Diário de Obras
-              </p>
+            <td style="background-color: #FD5521; background-image: linear-gradient(135deg, #FD5521 0%, #E54A1D 100%); padding: 40px 30px; text-align: center;">
+              <!--[if gte mso 9]>
+              <v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:600px;height:120px;">
+                <v:fill type="gradient" color="#FD5521" color2="#E54A1D" angle="135" />
+                <v:textbox inset="0,0,0,0">
+              <![endif]-->
+              <div>
+                <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700; line-height: 1.2;">
+                  FC Pisos
+                </h1>
+                <p style="margin: 10px 0 0 0; color: #ffffff; font-size: 16px; opacity: 0.95;">
+                  Diário de Obras
+                </p>
+              </div>
+              <!--[if gte mso 9]>
+                </v:textbox>
+              </v:rect>
+              <![endif]-->
             </td>
           </tr>
           
           <!-- Corpo -->
           <tr>
             <td style="padding: 40px 30px;">
-              <h2 style="margin: 0 0 20px 0; color: #1F2937; font-size: 24px; font-weight: 600;">
+              <h2 style="margin: 0 0 20px 0; color: #1F2937; font-size: 24px; font-weight: 600; line-height: 1.3;">
                 Olá ${prepostoNome},
               </h2>
               
@@ -135,45 +158,67 @@ export function getPrepostoConferenciaEmail(
               </p>
               
               <!-- Card com informações da obra -->
-              <div style="background-color: #F9FAFB; border-left: 4px solid #FD5521; padding: 20px; margin: 25px 0; border-radius: 8px;">
-                <p style="margin: 0 0 8px 0; color: #6B7280; font-size: 14px; font-weight: 500;">
-                  DETALHES DA OBRA
-                </p>
-                <p style="margin: 8px 0; color: #1F2937; font-size: 15px;">
-                  <strong>Cliente:</strong> ${cliente}
-                </p>
-                <p style="margin: 8px 0; color: #1F2937; font-size: 15px;">
-                  <strong>Obra:</strong> ${obraNome}
-                </p>
-                <p style="margin: 8px 0; color: #1F2937; font-size: 15px;">
-                  <strong>Cidade:</strong> ${cidade}
-                </p>
-                <p style="margin: 8px 0; color: #1F2937; font-size: 15px;">
-                  <strong>Encarregado:</strong> ${encarregadoNome}
-                </p>
-              </div>
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background-color: #F9FAFB; border-left: 4px solid #FD5521; margin: 25px 0; border-radius: 8px;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <p style="margin: 0 0 12px 0; color: #6B7280; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+                      Detalhes da Obra
+                    </p>
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
+                      <tr>
+                        <td style="padding: 6px 0; color: #1F2937; font-size: 15px; line-height: 1.5;">
+                          <strong>Cliente:</strong> ${cliente}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; color: #1F2937; font-size: 15px; line-height: 1.5;">
+                          <strong>Obra:</strong> ${obraNome}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; color: #1F2937; font-size: 15px; line-height: 1.5;">
+                          <strong>Cidade:</strong> ${cidade}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; color: #1F2937; font-size: 15px; line-height: 1.5;">
+                          <strong>Encarregado:</strong> ${encarregadoNome}
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
               
               <p style="margin: 25px 0 30px 0; color: #4B5563; font-size: 16px; line-height: 1.6;">
                 Clique no botão abaixo para acessar o formulário, conferir as informações e assinar digitalmente:
               </p>
               
-              <!-- Botão -->
-              <table width="100%" cellpadding="0" cellspacing="0">
+              <!-- Botão com fallback para Outlook -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
                 <tr>
                   <td align="center" style="padding: 10px 0;">
+                    <!--[if mso]>
+                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${linkConferencia}" style="height:52px;v-text-anchor:middle;width:220px;" arcsize="23%" strokecolor="#FD5521" fillcolor="#FD5521">
+                      <w:anchorlock/>
+                      <center style="color:#ffffff;font-family:sans-serif;font-size:16px;font-weight:bold;">Acessar Formulário</center>
+                    </v:roundrect>
+                    <![endif]-->
+                    <!--[if !mso]><!-->
                     <a href="${linkConferencia}" 
-                       style="display: inline-block; background-color: #FD5521; color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 12px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 6px rgba(253, 85, 33, 0.3);">
+                       style="display: inline-block; background-color: #FD5521; color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 12px; font-size: 16px; font-weight: 600; text-align: center; mso-hide: all;">
                       Acessar Formulário
                     </a>
+                    <!--<![endif]-->
                   </td>
                 </tr>
               </table>
               
-              <p style="margin: 30px 0 0 0; color: #6B7280; font-size: 14px; line-height: 1.6;">
+              <p style="margin: 30px 0 8px 0; color: #6B7280; font-size: 14px; line-height: 1.5;">
                 Ou copie e cole o link abaixo no seu navegador:
               </p>
-              <p style="margin: 8px 0 0 0; color: #FD5521; font-size: 13px; word-break: break-all;">
-                ${linkConferencia}
+              <p style="margin: 0; padding: 12px; background-color: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 6px; color: #FD5521; font-size: 13px; word-wrap: break-word; overflow-wrap: break-word;">
+                <a href="${linkConferencia}" style="color: #FD5521; text-decoration: none;">${linkConferencia}</a>
               </p>
             </td>
           </tr>
@@ -181,11 +226,11 @@ export function getPrepostoConferenciaEmail(
           <!-- Footer -->
           <tr>
             <td style="background-color: #F9FAFB; padding: 30px; text-align: center; border-top: 1px solid #E5E7EB;">
-              <p style="margin: 0 0 8px 0; color: #6B7280; font-size: 14px;">
+              <p style="margin: 0 0 8px 0; color: #6B7280; font-size: 14px; line-height: 1.5;">
                 Atenciosamente,<br>
                 <strong style="color: #1F2937;">Equipe FC Pisos</strong>
               </p>
-              <p style="margin: 20px 0 0 0; color: #9CA3AF; font-size: 12px;">
+              <p style="margin: 20px 0 0 0; color: #9CA3AF; font-size: 12px; line-height: 1.4;">
                 Este é um email automático, por favor não responda.
               </p>
             </td>
@@ -217,61 +262,106 @@ export function getAdminNotificacaoAssinaturaEmail(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Formulário ${statusText.charAt(0).toUpperCase() + statusText.slice(1)} - FC Pisos</title>
+  <!--[if mso]>
+  <style type="text/css">
+    body, table, td {font-family: Arial, sans-serif !important;}
+  </style>
+  <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #EDEFE4;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #EDEFE4; padding: 40px 20px;">
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #EDEFE4; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;">
+  <!-- Preheader -->
+  <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all;">
+    Preposto ${prepostoNome} ${statusText} o formulário da obra ${obraNome}
+  </div>
+  
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background-color: #EDEFE4; padding: 40px 20px;">
     <tr>
       <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-          <!-- Header -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden;">
+          <!-- Header com fallback para Outlook -->
           <tr>
-            <td style="background: linear-gradient(135deg, #FD5521 0%, #E54A1D 100%); padding: 40px 30px; text-align: center;">
-              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">
-                FC Pisos
-              </h1>
-              <p style="margin: 10px 0 0 0; color: rgba(255, 255, 255, 0.9); font-size: 16px;">
-                Diário de Obras
-              </p>
+            <td style="background-color: #FD5521; background-image: linear-gradient(135deg, #FD5521 0%, #E54A1D 100%); padding: 40px 30px; text-align: center;">
+              <!--[if gte mso 9]>
+              <v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:600px;height:120px;">
+                <v:fill type="gradient" color="#FD5521" color2="#E54A1D" angle="135" />
+                <v:textbox inset="0,0,0,0">
+              <![endif]-->
+              <div>
+                <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700; line-height: 1.2;">
+                  FC Pisos
+                </h1>
+                <p style="margin: 10px 0 0 0; color: #ffffff; font-size: 16px; opacity: 0.95;">
+                  Diário de Obras
+                </p>
+              </div>
+              <!--[if gte mso 9]>
+                </v:textbox>
+              </v:rect>
+              <![endif]-->
             </td>
           </tr>
           
           <!-- Corpo -->
           <tr>
             <td style="padding: 40px 30px;">
-              <h2 style="margin: 0 0 20px 0; color: #1F2937; font-size: 24px; font-weight: 600;">
+              <h2 style="margin: 0 0 20px 0; color: #1F2937; font-size: 24px; font-weight: 600; line-height: 1.3;">
                 Olá ${adminNome},
               </h2>
               
               <!-- Badge de status -->
-              <div style="text-align: center; margin: 25px 0;">
-                <span style="display: inline-block; background-color: ${statusColor}; color: #ffffff; padding: 12px 24px; border-radius: 20px; font-size: 18px; font-weight: 600;">
-                  ${emoji} Formulário ${statusText.charAt(0).toUpperCase() + statusText.slice(1)}
-                </span>
-              </div>
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin: 25px 0;">
+                <tr>
+                  <td align="center">
+                    <table cellpadding="0" cellspacing="0" border="0" role="presentation" style="background-color: ${statusColor}; border-radius: 20px; display: inline-block;">
+                      <tr>
+                        <td style="padding: 12px 24px; color: #ffffff; font-size: 18px; font-weight: 600; text-align: center;">
+                          ${emoji} Formulário ${statusText.charAt(0).toUpperCase() + statusText.slice(1)}
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
               
               <p style="margin: 20px 0; color: #4B5563; font-size: 16px; line-height: 1.6; text-align: center;">
                 O preposto <strong style="color: #1F2937;">${prepostoNome}</strong> ${statusText} o formulário da obra <strong style="color: #1F2937;">${obraNome}</strong>.
               </p>
               
               <!-- Card com informações da obra -->
-              <div style="background-color: #F9FAFB; border-left: 4px solid ${statusColor}; padding: 20px; margin: 25px 0; border-radius: 8px;">
-                <p style="margin: 0 0 8px 0; color: #6B7280; font-size: 14px; font-weight: 500;">
-                  DETALHES DA OBRA
-                </p>
-                <p style="margin: 8px 0; color: #1F2937; font-size: 15px;">
-                  <strong>Cliente:</strong> ${cliente}
-                </p>
-                <p style="margin: 8px 0; color: #1F2937; font-size: 15px;">
-                  <strong>Obra:</strong> ${obraNome}
-                </p>
-                <p style="margin: 8px 0; color: #1F2937; font-size: 15px;">
-                  <strong>Preposto:</strong> ${prepostoNome}
-                </p>
-                <p style="margin: 8px 0; color: #1F2937; font-size: 15px;">
-                  <strong>Status:</strong> <span style="color: ${statusColor};">${statusText.charAt(0).toUpperCase() + statusText.slice(1)}</span>
-                </p>
-              </div>
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background-color: #F9FAFB; border-left: 4px solid ${statusColor}; margin: 25px 0; border-radius: 8px;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <p style="margin: 0 0 12px 0; color: #6B7280; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+                      Detalhes da Obra
+                    </p>
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
+                      <tr>
+                        <td style="padding: 6px 0; color: #1F2937; font-size: 15px; line-height: 1.5;">
+                          <strong>Cliente:</strong> ${cliente}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; color: #1F2937; font-size: 15px; line-height: 1.5;">
+                          <strong>Obra:</strong> ${obraNome}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; color: #1F2937; font-size: 15px; line-height: 1.5;">
+                          <strong>Preposto:</strong> ${prepostoNome}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; font-size: 15px; line-height: 1.5;">
+                          <strong style="color: #1F2937;">Status:</strong> <span style="color: ${statusColor}; font-weight: 600;">${statusText.charAt(0).toUpperCase() + statusText.slice(1)}</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
               
               <p style="margin: 25px 0 0 0; color: #4B5563; font-size: 16px; line-height: 1.6; text-align: center;">
                 Acesse o sistema para visualizar os detalhes completos.
@@ -282,11 +372,11 @@ export function getAdminNotificacaoAssinaturaEmail(
           <!-- Footer -->
           <tr>
             <td style="background-color: #F9FAFB; padding: 30px; text-align: center; border-top: 1px solid #E5E7EB;">
-              <p style="margin: 0 0 8px 0; color: #6B7280; font-size: 14px;">
+              <p style="margin: 0 0 8px 0; color: #6B7280; font-size: 14px; line-height: 1.5;">
                 Atenciosamente,<br>
-                <strong style="color: #1F2937;">Sistema FC Pisos</strong>
+                <strong style="color: #1F2937;">Equipe FC Pisos</strong>
               </p>
-              <p style="margin: 20px 0 0 0; color: #9CA3AF; font-size: 12px;">
+              <p style="margin: 20px 0 0 0; color: #9CA3AF; font-size: 12px; line-height: 1.4;">
                 Este é um email automático, por favor não responda.
               </p>
             </td>
@@ -318,29 +408,52 @@ export function getEncarregadoNovaObraEmail(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Nova Obra Atribuída - FC Pisos</title>
+  <!--[if mso]>
+  <style type="text/css">
+    body, table, td {font-family: Arial, sans-serif !important;}
+  </style>
+  <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #EDEFE4;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #EDEFE4; padding: 40px 20px;">
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #EDEFE4; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;">
+  <!-- Preheader -->
+  <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all;">
+    Nova obra atribuída: ${obraNome} - ${cliente}
+  </div>
+  
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background-color: #EDEFE4; padding: 40px 20px;">
     <tr>
       <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-          <!-- Header -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden;">
+          <!-- Header com fallback para Outlook -->
           <tr>
-            <td style="background: linear-gradient(135deg, #FD5521 0%, #E54A1D 100%); padding: 40px 30px; text-align: center;">
-              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">
-                FC Pisos
-              </h1>
-              <p style="margin: 10px 0 0 0; color: rgba(255, 255, 255, 0.9); font-size: 16px;">
-                Diário de Obras
-              </p>
+            <td style="background-color: #FD5521; background-image: linear-gradient(135deg, #FD5521 0%, #E54A1D 100%); padding: 40px 30px; text-align: center;">
+              <!--[if gte mso 9]>
+              <v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:600px;height:120px;">
+                <v:fill type="gradient" color="#FD5521" color2="#E54A1D" angle="135" />
+                <v:textbox inset="0,0,0,0">
+              <![endif]-->
+              <div>
+                <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700; line-height: 1.2;">
+                  FC Pisos
+                </h1>
+                <p style="margin: 10px 0 0 0; color: #ffffff; font-size: 16px; opacity: 0.95;">
+                  Diário de Obras
+                </p>
+              </div>
+              <!--[if gte mso 9]>
+                </v:textbox>
+              </v:rect>
+              <![endif]-->
             </td>
           </tr>
           
           <!-- Corpo -->
           <tr>
             <td style="padding: 40px 30px;">
-              <h2 style="margin: 0 0 20px 0; color: #1F2937; font-size: 24px; font-weight: 600;">
+              <h2 style="margin: 0 0 20px 0; color: #1F2937; font-size: 24px; font-weight: 600; line-height: 1.3;">
                 Olá ${encarregadoNome},
               </h2>
               
@@ -349,49 +462,72 @@ export function getEncarregadoNovaObraEmail(
               </p>
               
               <!-- Card com informações da obra -->
-              <div style="background-color: #F9FAFB; border-left: 4px solid #FD5521; padding: 20px; margin: 25px 0; border-radius: 8px;">
-                <p style="margin: 0 0 8px 0; color: #6B7280; font-size: 14px; font-weight: 500;">
-                  DETALHES DA OBRA
-                </p>
-                <p style="margin: 8px 0; color: #1F2937; font-size: 15px;">
-                  <strong>Cliente:</strong> ${cliente}
-                </p>
-                <p style="margin: 8px 0; color: #1F2937; font-size: 15px;">
-                  <strong>Obra:</strong> ${obraNome}
-                </p>
-                <p style="margin: 8px 0; color: #1F2937; font-size: 15px;">
-                  <strong>Cidade:</strong> ${cidade}
-                </p>
-                <p style="margin: 8px 0; color: #1F2937; font-size: 15px;">
-                  <strong>Preposto:</strong> ${prepostoNome}
-                </p>
-              </div>
-              
-              <!-- Botão de ação -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background-color: #F9FAFB; border-left: 4px solid #FD5521; margin: 25px 0; border-radius: 8px;">
                 <tr>
-                  <td align="center">
-                    <a href="${appLink}" style="display: inline-block; background: linear-gradient(135deg, #FD5521 0%, #E54A1D 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 6px rgba(253, 85, 33, 0.3);">
-                      Acessar Sistema
-                    </a>
+                  <td style="padding: 20px;">
+                    <p style="margin: 0 0 12px 0; color: #6B7280; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+                      Detalhes da Obra
+                    </p>
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
+                      <tr>
+                        <td style="padding: 6px 0; color: #1F2937; font-size: 15px; line-height: 1.5;">
+                          <strong>Cliente:</strong> ${cliente}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; color: #1F2937; font-size: 15px; line-height: 1.5;">
+                          <strong>Obra:</strong> ${obraNome}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; color: #1F2937; font-size: 15px; line-height: 1.5;">
+                          <strong>Cidade:</strong> ${cidade}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; color: #1F2937; font-size: 15px; line-height: 1.5;">
+                          <strong>Preposto:</strong> ${prepostoNome}
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
               </table>
               
-              <p style="margin: 25px 0 0 0; color: #4B5563; font-size: 16px; line-height: 1.6;">
-                Clique no botão acima para acessar o sistema. A nova obra estará disponível na sua lista de obras.
+              <p style="margin: 25px 0 30px 0; color: #4B5563; font-size: 16px; line-height: 1.6;">
+                Clique no botão abaixo para acessar o sistema. A nova obra estará disponível na sua lista:
               </p>
+              
+              <!-- Botão com fallback para Outlook -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
+                <tr>
+                  <td align="center" style="padding: 10px 0;">
+                    <!--[if mso]>
+                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${appLink}" style="height:50px;v-text-anchor:middle;width:200px;" arcsize="20%" strokecolor="#FD5521" fillcolor="#FD5521">
+                      <w:anchorlock/>
+                      <center style="color:#ffffff;font-family:sans-serif;font-size:16px;font-weight:bold;">Acessar Sistema</center>
+                    </v:roundrect>
+                    <![endif]-->
+                    <!--[if !mso]><!-->
+                    <a href="${appLink}" 
+                       style="display: inline-block; background-color: #FD5521; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-size: 16px; font-weight: 600; text-align: center; mso-hide: all;">
+                      Acessar Sistema
+                    </a>
+                    <!--<![endif]-->
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
           
           <!-- Footer -->
           <tr>
             <td style="background-color: #F9FAFB; padding: 30px; text-align: center; border-top: 1px solid #E5E7EB;">
-              <p style="margin: 0 0 8px 0; color: #6B7280; font-size: 14px;">
+              <p style="margin: 0 0 8px 0; color: #6B7280; font-size: 14px; line-height: 1.5;">
                 Atenciosamente,<br>
                 <strong style="color: #1F2937;">Equipe FC Pisos</strong>
               </p>
-              <p style="margin: 20px 0 0 0; color: #9CA3AF; font-size: 12px;">
+              <p style="margin: 20px 0 0 0; color: #9CA3AF; font-size: 12px; line-height: 1.4;">
                 Este é um email automático, por favor não responda.
               </p>
             </td>

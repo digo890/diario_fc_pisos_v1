@@ -34,7 +34,8 @@ const EncarregadoDashboard: React.FC = () => {
       minhasObras.map(async (obra: Obra) => {
         const formData = allFormsData.find(f => f.obraId === obra.id);
         
-        // Se está como "novo" mas tem dados no formulário, atualizar para "em_preenchimento"
+        // IMPORTANTE: Só atualizar status se for 'novo' → 'em_preenchimento'
+        // NÃO sobrescrever status de obras já enviadas (enviado_preposto, aprovado_preposto, etc)
         if (obra.status === 'novo' && formData && Object.keys(formData).length > 0) {
           const obraAtualizada = { ...obra, status: 'em_preenchimento' as const };
           await saveObra(obraAtualizada);

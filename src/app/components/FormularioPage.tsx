@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Save, Send, Share2, Copy, Check, MessageCircle, Mail, X } from 'lucide-react';
 import { getFormByObraId, saveForm, saveObra } from '../utils/database';
+import { obraApi } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import { copyToClipboard } from '../utils/clipboard';
 import { sendPrepostoConferenciaEmail } from '../utils/emailApi';
@@ -98,20 +99,26 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
       };
       await saveForm(updatedForm);
       
-      // Atualizar progresso da obra e mudar status se necessário
+      // Atualizar progresso da obra
       const progress = calculateProgress(updatedForm);
       
-      // Se a obra está como 'novo' e há QUALQUER dado preenchido, mudar para 'em_preenchimento'
+      // IMPORTANTE: Só alterar o status se estiver em 'novo' ou 'em_preenchimento'
+      // Não sobrescrever status de formulários já enviados (enviado_preposto, aprovado_preposto, etc)
       let newStatus = obra.status;
+      
       if (obra.status === 'novo' && hasAnyDataFilled(updatedForm)) {
         newStatus = 'em_preenchimento';
       }
       
-      await saveObra({
-        ...obra,
-        progress,
-        status: newStatus
-      });
+      // Só salvar a obra se o status ainda for 'novo' ou 'em_preenchimento'
+      // Evita sobrescrever status de formulários enviados
+      if (obra.status === 'novo' || obra.status === 'em_preenchimento') {
+        await saveObra({
+          ...obra,
+          progress,
+          status: newStatus
+        });
+      }
     } catch (error) {
       console.error('Erro ao salvar:', error);
     }
@@ -203,11 +210,37 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
           updatedAt: Date.now()
         };
 
+        // Salvar no IndexedDB local
         await saveForm(updatedForm);
-        await saveObra({
+        
+        const updatedObra = {
           ...obra,
-          status: 'enviado_preposto'
-        });
+          status: 'enviado_preposto' as const
+        };
+        
+        await saveObra(updatedObra);
+
+        // IMPORTANTE: Sincronizar com o backend para garantir que o status persista
+        try {
+          if (navigator.onLine) {
+            await obraApi.update(obra.id, {
+              cliente: obra.cliente,
+              obra: obra.obra,
+              cidade: obra.cidade,
+              data: obra.data,
+              encarregado_id: obra.encarregadoId,
+              preposto_nome: obra.prepostoNome,
+              preposto_email: obra.prepostoEmail,
+              preposto_whatsapp: obra.prepostoWhatsapp,
+              status: 'enviado_preposto',
+              progress: obra.progress
+            });
+            console.log('✅ Status sincronizado com backend: enviado_preposto');
+          }
+        } catch (syncError) {
+          console.warn('⚠️ Erro ao sincronizar status com backend:', syncError);
+          // Não bloquear o fluxo se falhar a sincronização
+        }
 
         // Enviar email ao preposto se houver email cadastrado
         if (obra.prepostoEmail) {
@@ -469,12 +502,12 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
                 <input
                   type="text"
                   readOnly
-                  value={`${window.location.origin}/validar/${obra.validationToken}`}
+                  value={`${window.location.origin}/conferencia/${obra.validationToken}`}
                   className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
                 />
                 <button
                   onClick={async () => {
-                    const success = await copyToClipboard(`${window.location.origin}/validar/${obra.validationToken}`);
+                    const success = await copyToClipboard(`${window.location.origin}/conferencia/${obra.validationToken}`);
                     if (success) {
                       setLinkCopied(true);
                       setTimeout(() => setLinkCopied(false), 2000);
@@ -494,7 +527,7 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
             <div className="space-y-2">
               {obra.prepostoWhatsapp && (
                 <a
-                  href={`https://wa.me/55${obra.prepostoWhatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá! Segue o link para conferência do formulário da obra ${obra.cliente} - ${obra.obra}:\n\n${window.location.origin}/validar/${obra.validationToken}`)}`}
+                  href={`https://wa.me/55${obra.prepostoWhatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá! Segue o link para conferência do formulário da obra ${obra.cliente} - ${obra.obra}:\n\n${window.location.origin}/conferencia/${obra.validationToken}`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors"
@@ -506,7 +539,7 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
 
               {obra.prepostoEmail && (
                 <a
-                  href={`mailto:${obra.prepostoEmail}?subject=${encodeURIComponent(`Conferência de Formulário - ${obra.cliente}`)}&body=${encodeURIComponent(`Olá!\n\nSegue o link para conferência do formulário da obra ${obra.cliente} - ${obra.obra}:\n\n${window.location.origin}/validar/${obra.validationToken}\n\nAtenciosamente,\nFC Pisos`)}`}
+                  href={`mailto:${obra.prepostoEmail}?subject=${encodeURIComponent(`Conferência de Formulário - ${obra.cliente}`)}&body=${encodeURIComponent(`Olá!\n\nSegue o link para conferência do formulário da obra ${obra.cliente} - ${obra.obra}:\n\n${window.location.origin}/conferencia/${obra.validationToken}\n\nAtenciosamente,\nFC Pisos`)}`}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
                 >
                   <Mail className="w-5 h-5" />

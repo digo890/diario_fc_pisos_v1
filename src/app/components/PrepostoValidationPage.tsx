@@ -39,6 +39,21 @@ const PrepostoValidationPage: React.FC<Props> = ({ token }) => {
         return;
       }
 
+      // ✅ SEGURANÇA: Verificar expiração do token (30 dias)
+      if (obraEncontrada.validationTokenExpiry) {
+        const expiryDate = new Date(obraEncontrada.validationTokenExpiry);
+        const now = new Date();
+        
+        if (expiryDate < now) {
+          setError('Link expirado. Este link só é válido por 30 dias após a criação da obra. Entre em contato com a FC Pisos.');
+          setLoading(false);
+          return;
+        }
+      }
+
+      // ✅ AUDITORIA: O registro de acesso agora é feito automaticamente pelo backend
+      // quando a rota /formularios/token/:token é chamada. Não é necessário salvar localmente.
+
       setObra(obraEncontrada);
 
       const form = await getFormByObraId(obraEncontrada.id);
@@ -50,13 +65,22 @@ const PrepostoValidationPage: React.FC<Props> = ({ token }) => {
 
       setFormData(form);
 
-      // Verificar se já foi validado (aprovado ou reprovado)
+      // ✅ SEGURANÇA: Verificar se já foi validado (impedir re-assinatura)
+      if (form.prepostoConfirmado) {
+        setError('Este formulário já foi assinado anteriormente. Não é possível assinar novamente.');
+        setValidated(true);
+        setLoading(false);
+        return;
+      }
+
+      // Verificar se já foi validado (aprovado ou reprovado) - legado
       if (form.status === 'enviado_admin' || form.status === 'reprovado_preposto') {
         setValidated(true);
       }
 
       setLoading(false);
     } catch (err) {
+      console.error('❌ Erro ao carregar dados:', err);
       setError('Erro ao carregar os dados');
       setLoading(false);
     }
