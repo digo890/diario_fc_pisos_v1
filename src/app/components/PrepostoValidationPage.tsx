@@ -4,7 +4,7 @@ import { motion } from 'motion/react';
 import { getObras, getFormByObraId, saveForm, saveObra, getUsers } from '../utils/database';
 import { sendAdminNotificacaoEmail } from '../utils/emailApi';
 import { validationApi } from '../utils/api';
-import { retryNetworkOperation } from '../utils/retryHelper';
+import { retryWithBackoff } from '../utils/retryHelper';
 import { safeLog, safeError } from '../utils/logSanitizer';
 import type { Obra, FormData } from '../types';
 import SignatureCanvas from 'react-signature-canvas';
@@ -37,9 +37,10 @@ const PrepostoValidationPage: React.FC<Props> = ({ token }) => {
       
       // ✅ CORREÇÃO: Validar token no backend primeiro
       safeLog('🔍 Validando token no backend...');
-      const validationResponse = await retryNetworkOperation(
+      const validationResponse = await retryWithBackoff(
         () => validationApi.getObraByToken(token),
-        'Validação de token'
+        3, // maxAttempts
+        1000 // delayMs
       );
       
       if (!validationResponse.success) {
