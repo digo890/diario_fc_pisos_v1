@@ -225,25 +225,9 @@ export const saveConfig = async (key: string, value: any): Promise<void> => {
 export const seedInitialData = async (): Promise<void> => {
   const users = await getUsers();
   
+  // ✅ REMOVIDO: Não criar mais usuários de exemplo automaticamente
+  // Os usuários devem ser criados via interface de administração
   if (users.length === 0) {
-    // Criar admin padrão
-    await saveUser({
-      id: 'admin-1',
-      nome: 'Administrador',
-      tipo: 'Administrador',
-      email: 'admin@fcpisos.com.br',
-      telefone: '',
-      createdAt: Date.now()
-    });
-
-    // Criar encarregado de exemplo
-    await saveUser({
-      id: 'enc-1',
-      nome: 'João Silva',
-      tipo: 'Encarregado',
-      email: 'joao@fcpisos.com.br',
-      telefone: '(11) 98765-4321',
-      createdAt: Date.now()
-    });
+    console.log('ℹ️ Nenhum usuário encontrado. Use a interface de administração para criar usuários.');
   }
 };

@@ -125,26 +125,10 @@ CREATE TRIGGER update_formularios_updated_at BEFORE UPDATE ON formularios
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- =====================================================
--- DADOS INICIAIS: Usuário Admin Padrão
+-- SEED DATA (apenas para desenvolvimento/testes)
 -- =====================================================
-INSERT INTO users (id, nome, tipo, email, senha) 
-VALUES (
-  'a0000000-0000-0000-0000-000000000001',
-  'Administrador FC Pisos',
-  'Administrador',
-  'admin@fcpisos.com.br',
-  'admin123'
-) ON CONFLICT (email) DO NOTHING;
-
-INSERT INTO users (id, nome, tipo, email, telefone, senha) 
-VALUES (
-  'e0000000-0000-0000-0000-000000000001',
-  'João Silva',
-  'Encarregado',
-  'joao@fcpisos.com.br',
-  '(11) 98765-4321',
-  'encarregado123'
-) ON CONFLICT (email) DO NOTHING;
+-- ✅ REMOVIDO: Dados de exemplo não são mais criados automaticamente
+-- Os usuários devem ser criados via Supabase Auth no backend
 
 -- =====================================================
 -- ROW LEVEL SECURITY (RLS)

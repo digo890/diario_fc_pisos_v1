@@ -275,7 +275,5 @@ CREATE POLICY "Usuários autenticados podem inserir fotos"
 -- ============================================
 -- SEED DATA: Usuários Iniciais
 -- ============================================
-INSERT INTO users (id, nome, tipo, email, telefone) VALUES
-  ('11111111-1111-1111-1111-111111111111', 'Administrador', 'Administrador', 'admin@fcpisos.com.br', ''),
-  ('22222222-2222-2222-2222-222222222222', 'João Silva', 'Encarregado', 'joao@fcpisos.com.br', '(11) 98765-4321')
-ON CONFLICT (id) DO NOTHING;
+-- ✅ REMOVIDO: Dados de exemplo não são mais criados automaticamente
+-- Os usuários devem ser criados via Supabase Auth no backend

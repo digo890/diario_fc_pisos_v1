@@ -56,4 +56,18 @@ export default defineConfig({
       '/utils': fileURLToPath(new URL('./utils', import.meta.url)),
     },
   },
+  build: {
+    // Otimizações para produção
+    target: 'es2020',
+    minify: 'esbuild',
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+          'motion-vendor': ['motion'],
+        },
+      },
+    },
+  },
 })
