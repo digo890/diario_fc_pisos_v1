@@ -9,6 +9,7 @@ import LoadingSpinner from './components/LoadingSpinner';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { OnlineStatus } from './components/OnlineStatus';
 import { SyncStatus } from './components/SyncStatus';
+import ServiceWorkerStatus from './components/ServiceWorkerStatus';
 
 // 🚀 LAZY LOADING: Code splitting para reduzir bundle inicial
 const Login = lazy(() => import('./components/Login'));
@@ -102,6 +103,7 @@ const AppContent: React.FC = () => {
       <PWAInstallPrompt />
       <OnlineStatus />
       <SyncStatus />
+      <ServiceWorkerStatus />
     </Suspense>
   );
 };

@@ -17,6 +17,10 @@ interface Props {
 
 const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
   const { showToast, ToastComponent } = useToast();
+  
+  // Guardar ID original do encarregado para detectar mudanças
+  const originalEncarregadoId = obra.encarregadoId;
+  
   const [formData, setFormData] = useState({
     cliente: obra.cliente,
     obra: obra.obra,
@@ -66,6 +70,9 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // 🔒 BLOQUEIO LÓGICO: Prevenir múltiplos cliques/submits
+    if (isSaving) return;
+
     // Validação dos campos
     const newErrors = {
       cliente: !formData.cliente.trim(),
@@ -96,8 +103,10 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
 
       if (response.success) {
         // Atualizar também localmente (com conversão de campos)
+        // ✅ CORREÇÃO #1: Preservar validationToken e outros campos críticos
         const obraAtualizada: Obra = {
-          ...obra,
+          ...obra, // ✅ Preserva TODOS os campos originais, incluindo tokens
+          // Sobrescrever apenas campos editáveis:
           cliente: formData.cliente,
           obra: formData.obra,
           cidade: formData.cidade,
@@ -106,28 +115,26 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
           prepostoNome: formData.prepostoNome || undefined,
           prepostoEmail: formData.prepostoEmail || undefined,
           prepostoWhatsapp: formData.prepostoWhatsapp || undefined
+          // ✅ validationToken, validationTokenExpiry, status, progress são preservados
         };
 
         await saveObra(obraAtualizada);
         
-        // Verificar se o encarregado mudou e enviar email para o novo
-        const encarregadoMudou = obra.encarregadoId !== formData.encarregadoId;
-        if (encarregadoMudou && selectedEncarregado && selectedEncarregado.email) {
+        // ✅ NOTIFICAÇÃO: Enviar email ao novo encarregado se mudou
+        if (originalEncarregadoId !== formData.encarregadoId && response.data.encarregado_email) {
           const emailResult = await sendEncarregadoNovaObraEmail({
-            encarregadoEmail: selectedEncarregado.email,
-            encarregadoNome: selectedEncarregado.nome,
-            obraNome: formData.obra,
-            cliente: formData.cliente,
-            cidade: formData.cidade,
-            prepostoNome: formData.prepostoNome || 'A definir',
-            obraId: obra.id,
+            encarregadoEmail: response.data.encarregado_email,
+            encarregadoNome: response.data.encarregado_nome || 'Encarregado',
+            obraNome: response.data.obra,
+            cliente: response.data.cliente,
+            cidade: response.data.cidade,
+            prepostoNome: response.data.preposto_nome || 'Cliente',
+            obraId: response.data.id,
           });
           
-          if (emailResult.success) {
-            console.log('✅ Email enviado para o novo encarregado');
-          } else {
-            console.warn('⚠️ Falha ao enviar email:', emailResult.error);
+          if (!emailResult.success) {
             // Não bloqueia a atualização da obra se falhar o envio do email
+            showToast('⚠️ Obra atualizada mas houve erro ao enviar email ao encarregado', 'warning');
           }
         }
         
@@ -197,7 +204,7 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
               className={`w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
                        border border-gray-200 dark:border-gray-800
-                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                        ${errors.cliente ? 'ring-2 ring-red-500' : ''}`}
             />
@@ -215,7 +222,7 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
               className={`w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
                        border border-gray-200 dark:border-gray-800
-                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                        ${errors.obra ? 'ring-2 ring-red-500' : ''}`}
             />
@@ -233,7 +240,7 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
               className={`w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
                        border border-gray-200 dark:border-gray-800
-                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                        ${errors.cidade ? 'ring-2 ring-red-500' : ''}`}
             />
@@ -285,7 +292,7 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
               className="w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
                        border border-gray-200 dark:border-gray-800
-                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
             />
           </div>
@@ -301,7 +308,7 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
               className="w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
                        border border-gray-200 dark:border-gray-800
-                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
             />
           </div>
@@ -317,7 +324,7 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
               className="w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
                        border border-gray-200 dark:border-gray-800
-                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
             />
           </div>

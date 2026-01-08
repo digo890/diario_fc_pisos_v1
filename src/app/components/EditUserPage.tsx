@@ -163,7 +163,7 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
               className="w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
                        border border-gray-200 dark:border-gray-800
-                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
               placeholder="Nome completo *"
             />
@@ -213,7 +213,7 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
               className="w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
                        border border-gray-200 dark:border-gray-800
-                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
               placeholder="Email *"
             />
@@ -229,7 +229,7 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
               className="w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
                        border border-gray-200 dark:border-gray-800
-                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
               placeholder="Telefone"
             />
@@ -245,7 +245,7 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
               className="w-full pl-12 pr-12 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
                        border border-gray-200 dark:border-gray-800
-                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
               placeholder="Nova senha (deixe em branco para manter)"
             />
@@ -269,7 +269,7 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
               className={`w-full pl-12 pr-12 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
                        border border-gray-200 dark:border-gray-800
-                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                        ${errors.senhas ? 'ring-2 ring-red-500' : ''}`}
               placeholder="Confirmar nova senha"

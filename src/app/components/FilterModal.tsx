@@ -119,7 +119,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
                 onKeyDown={handleKeyDown}
                 className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 
                          bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                         placeholder:text-gray-500 dark:placeholder:text-gray-400
+                         placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                          focus:outline-none focus:ring-2 focus:ring-[#FD5521] focus:border-transparent
                          transition-all"
               />

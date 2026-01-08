@@ -3,6 +3,9 @@ import { CheckCircle, XCircle, FileText, Building2, Calendar, MapPin, UserRound,
 import { motion } from 'motion/react';
 import { getObras, getFormByObraId, saveForm, saveObra, getUsers } from '../utils/database';
 import { sendAdminNotificacaoEmail } from '../utils/emailApi';
+import { validationApi } from '../utils/api';
+import { retryNetworkOperation } from '../utils/retryHelper';
+import { safeLog, safeError } from '../utils/logSanitizer';
 import type { Obra, FormData } from '../types';
 import SignatureCanvas from 'react-signature-canvas';
 import { useToast } from './Toast';
@@ -22,6 +25,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token }) => {
   const [signatureRef, setSignatureRef] = useState<SignatureCanvas | null>(null);
   const [validationType, setValidationType] = useState<'aprovar' | 'reprovar' | null>(null);
   const [motivoReprovacao, setMotivoReprovacao] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false); // ✅ Estado para prevenir múltiplos submits
 
   useEffect(() => {
     loadData();
@@ -30,29 +34,49 @@ const PrepostoValidationPage: React.FC<Props> = ({ token }) => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const obras = await getObras();
-      const obraEncontrada = obras.find(o => o.validationToken === token);
-
-      if (!obraEncontrada) {
-        setError('Link inválido ou expirado');
+      
+      // ✅ CORREÇÃO: Validar token no backend primeiro
+      safeLog('🔍 Validando token no backend...');
+      const validationResponse = await retryNetworkOperation(
+        () => validationApi.getObraByToken(token),
+        'Validação de token'
+      );
+      
+      if (!validationResponse.success) {
+        setError(validationResponse.error || 'Link inválido ou expirado');
         setLoading(false);
         return;
       }
-
-      // ✅ SEGURANÇA: Verificar expiração do token (30 dias)
-      if (obraEncontrada.validationTokenExpiry) {
-        const expiryDate = new Date(obraEncontrada.validationTokenExpiry);
-        const now = new Date();
-        
-        if (expiryDate < now) {
-          setError('Link expirado. Este link só é válido por 30 dias após a criação da obra. Entre em contato com a FC Pisos.');
-          setLoading(false);
-          return;
-        }
+      
+      const obraBackend = validationResponse.data;
+      safeLog('✅ Token validado no backend');
+      
+      // Buscar obra local (sincronizar com backend se necessário)
+      const obras = await getObras();
+      let obraEncontrada = obras.find(o => o.id === obraBackend.id);
+      
+      // Se não existe localmente, criar a partir do backend
+      if (!obraEncontrada) {
+        safeLog('📥 Sincronizando obra do backend para local...', { obraId: obraBackend.id });
+        obraEncontrada = {
+          id: obraBackend.id,
+          cliente: obraBackend.cliente,
+          obra: obraBackend.obra,
+          cidade: obraBackend.cidade,
+          data: obraBackend.data,
+          encarregadoId: obraBackend.encarregado_id,
+          prepostoNome: obraBackend.preposto_nome,
+          prepostoEmail: obraBackend.preposto_email,
+          prepostoWhatsapp: obraBackend.preposto_whatsapp,
+          validationToken: obraBackend.token_validacao,
+          validationTokenExpiry: obraBackend.token_validacao_expiry ? new Date(obraBackend.token_validacao_expiry).getTime() : undefined,
+          status: obraBackend.status,
+          progress: obraBackend.progress || 0,
+          createdAt: new Date(obraBackend.created_at).getTime(),
+          createdBy: obraBackend.created_by || '',
+        };
+        await saveObra(obraEncontrada);
       }
-
-      // ✅ AUDITORIA: O registro de acesso agora é feito automaticamente pelo backend
-      // quando a rota /formularios/token/:token é chamada. Não é necessário salvar localmente.
 
       setObra(obraEncontrada);
 
@@ -80,7 +104,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token }) => {
 
       setLoading(false);
     } catch (err) {
-      console.error('❌ Erro ao carregar dados:', err);
+      safeError('❌ Erro ao carregar dados:', err);
       setError('Erro ao carregar os dados');
       setLoading(false);
     }
@@ -92,6 +116,9 @@ const PrepostoValidationPage: React.FC<Props> = ({ token }) => {
   };
 
   const handleConfirmValidation = async () => {
+    // 🔒 BLOQUEIO LÓGICO: Prevenir múltiplos cliques/submits
+    if (isSubmitting) return;
+    
     if (!signatureRef || signatureRef.isEmpty()) {
       showToast('Por favor, assine para confirmar', 'warning');
       return;
@@ -105,6 +132,8 @@ const PrepostoValidationPage: React.FC<Props> = ({ token }) => {
     if (!obra || !formData) return;
 
     try {
+      setIsSubmitting(true); // ✅ Bloquear múltiplos submits
+
       const assinatura = signatureRef.toDataURL();
 
       const formAtualizado: FormData = {
@@ -127,7 +156,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token }) => {
       await saveObra(obraAtualizada);
 
       // Enviar email para todos os admins
-      console.log('📧 Enviando email para administradores...');
+      safeLog('📧 Enviando email para administradores...');
       const users = await getUsers();
       const admins = users.filter(u => u.tipo === 'Administrador');
       
@@ -143,9 +172,9 @@ const PrepostoValidationPage: React.FC<Props> = ({ token }) => {
           });
           
           if (emailResult.success) {
-            console.log('✅ Email enviado para:', admin.email);
+            safeLog('✅ Email enviado para admin', { adminId: admin.id });
           } else {
-            console.warn('⚠️ Erro ao enviar email para:', admin.email, emailResult.error);
+            safeError('⚠️ Erro ao enviar email para admin:', emailResult.error);
           }
         }
       }
@@ -155,6 +184,8 @@ const PrepostoValidationPage: React.FC<Props> = ({ token }) => {
       showToast(validationType === 'aprovar' ? 'Formulário aprovado com sucesso! ✓' : 'Formulário reprovado', 'success');
     } catch (err) {
       showToast('Erro ao salvar validação. Tente novamente.', 'error');
+    } finally {
+      setIsSubmitting(false); // ✅ Liberar após o submit
     }
   };
 
@@ -404,7 +435,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token }) => {
                     value={motivoReprovacao}
                     onChange={(e) => setMotivoReprovacao(e.target.value)}
                     placeholder="Descreva o que precisa ser corrigido..."
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40 min-h-[100px] resize-none"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40 min-h-[100px] resize-none"
                   />
                 </div>
               )}
@@ -447,6 +478,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token }) => {
                       ? 'bg-[#FD5521] hover:bg-[#E54A1D]'
                       : 'bg-red-500 hover:bg-red-600'
                   }`}
+                  disabled={isSubmitting} // ✅ Desabilitar botão durante submit
                 >
                   Confirmar {validationType === 'aprovar' ? 'Aprovação' : 'Reprovação'}
                 </button>

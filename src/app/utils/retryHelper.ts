@@ -1,120 +1,37 @@
 /**
- * Utility para retry de operações assíncronas
- * Útil para requisições de rede que podem falhar temporariamente
+ * 🔄 Helper para retry automático com backoff exponencial
  */
-
-interface RetryOptions {
-  maxAttempts?: number;
-  delayMs?: number;
-  exponentialBackoff?: boolean;
-  onRetry?: (attempt: number, error: Error) => void;
-}
 
 /**
- * Executa uma função assíncrona com retry automático
- * @param fn Função a ser executada
- * @param options Opções de configuração do retry
- * @returns Resultado da função ou throw do último erro
+ * Executa uma função com retry automático
  */
-export async function withRetry<T>(
+export async function retryWithBackoff<T>(
   fn: () => Promise<T>,
-  options: RetryOptions = {}
+  maxAttempts: number = 3,
+  delayMs: number = 1000,
+  exponentialBackoff: boolean = true,
+  onRetry?: (attempt: number, error: any) => void
 ): Promise<T> {
-  const {
-    maxAttempts = 3,
-    delayMs = 1000,
-    exponentialBackoff = true,
-    onRetry,
-  } = options;
-
-  let lastError: Error | null = null;
-
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       return await fn();
     } catch (error) {
-      lastError = error as Error;
-
-      // Se foi a última tentativa, lançar o erro
+      // Se for o último attempt, lançar o erro
       if (attempt === maxAttempts) {
-        break;
+        throw error;
       }
 
-      // Calcular delay com backoff exponencial se habilitado
-      const currentDelay = exponentialBackoff
-        ? delayMs * Math.pow(2, attempt - 1)
-        : delayMs;
+      // Calcular delay (com ou sem backoff exponencial)
+      const delay = exponentialBackoff ? delayMs * Math.pow(2, attempt - 1) : delayMs;
 
-      // Callback de retry
       if (onRetry) {
-        onRetry(attempt, lastError);
+        onRetry(attempt, error);
       }
 
-      // Aguardar antes da próxima tentativa
-      await new Promise(resolve => setTimeout(resolve, currentDelay));
+      // Aguardar antes de tentar novamente
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
 
-  throw lastError;
-}
-
-/**
- * Verifica se um erro é temporário e pode ser retentado
- * @param error Erro a ser verificado
- * @returns true se o erro é temporário
- */
-export function isRetryableError(error: any): boolean {
-  // Erros de rede
-  if (error.name === 'NetworkError' || error.message?.includes('network')) {
-    return true;
-  }
-
-  // Timeout
-  if (error.name === 'TimeoutError' || error.message?.includes('timeout')) {
-    return true;
-  }
-
-  // HTTP 5xx (server errors)
-  if (error.status >= 500 && error.status < 600) {
-    return true;
-  }
-
-  // HTTP 429 (rate limit)
-  if (error.status === 429) {
-    return true;
-  }
-
-  // Offline
-  if (!navigator.onLine) {
-    return true;
-  }
-
-  return false;
-}
-
-/**
- * Wrapper para fetch com retry automático
- * @param url URL para fazer requisição
- * @param options Opções de fetch + retry
- * @returns Response ou throw
- */
-export async function fetchWithRetry(
-  url: string,
-  options: RequestInit & RetryOptions = {}
-): Promise<Response> {
-  const { maxAttempts, delayMs, exponentialBackoff, onRetry, ...fetchOptions } = options;
-
-  return withRetry(
-    async () => {
-      const response = await fetch(url, fetchOptions);
-
-      // Se o erro não for retryable, lançar imediatamente
-      if (!response.ok && !isRetryableError({ status: response.status })) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      return response;
-    },
-    { maxAttempts, delayMs, exponentialBackoff, onRetry }
-  );
+  throw new Error('Retry failed');
 }

@@ -262,6 +262,9 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
                   borderRadius: '8px',
                   color: '#fff'
                 }}
+                formatter={(value: number) => [value, '']}
+                labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: '4px' }}
+                itemStyle={{ color: '#fff', padding: 0 }}
               />
               <Bar dataKey="value" radius={[8, 8, 0, 0]}>
                 {formulariosChartData.map((entry, index) => (

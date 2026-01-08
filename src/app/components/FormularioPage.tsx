@@ -5,6 +5,8 @@ import { obraApi } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import { copyToClipboard } from '../utils/clipboard';
 import { sendPrepostoConferenciaEmail } from '../utils/emailApi';
+import { checkRateLimit } from '../utils/rateLimiter';
+import { safeLog, safeError } from '../utils/logSanitizer';
 import type { Obra, FormData, ServicoData } from '../types';
 import CondicoesAmbientaisSection from './form-sections/CondicoesAmbientaisSection';
 import ServicosSection from './form-sections/ServicosSection';
@@ -41,134 +43,106 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
   };
 
   useEffect(() => {
+    // ✅ CORREÇÃO #5: Adicionar cleanup para evitar memory leak
+    let cancelled = false;
+
+    const loadForm = async () => {
+      let form = await getFormByObraId(obra.id);
+      
+      if (!form) {
+        // Criar formulário inicial
+        form = {
+          obraId: obra.id,
+          clima: {},
+          temperaturaMin: '',
+          temperaturaMax: '',
+          umidade: '',
+          servicos: {},
+          ucrete: '',
+          horarioInicio: '',
+          horarioTermino: '',
+          area: '',
+          espessura: '',
+          rodape: '',
+          estadoSubstrato: '',
+          estadoSubstratoObs: '',
+          registros: {},
+          observacoes: '',
+          status: 'novo',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          createdBy: currentUser?.id || ''
+        };
+        await saveForm(form);
+      }
+      
+      // ✅ Só atualizar state se componente ainda estiver montado
+      if (!cancelled) {
+        setFormData(form);
+        setLoading(false);
+      }
+    };
+
     loadForm();
+
+    // ✅ Cleanup: marcar como cancelado ao desmontar
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // Auto-save a cada 3 segundos quando houver mudanças
+  // 🔥 NOVO: Auto-save com debounce
   useEffect(() => {
-    if (!formData || isReadOnly || saving) return;
+    // Previne auto-save durante salvamento manual (submit)
+    if (saving) {
+      return;
+    }
 
-    const timer = setTimeout(() => {
-      handleAutoSave();
-    }, 3000);
+    // Debounce: aguardar 2 segundos após última edição
+    const timeoutId = setTimeout(() => {
+      autoSaveRespostas();
+    }, 2000);
 
-    return () => clearTimeout(timer);
+    return () => clearTimeout(timeoutId);
   }, [formData, saving]);
 
-  const loadForm = async () => {
-    let form = await getFormByObraId(obra.id);
-    
-    if (!form) {
-      // Criar formulário inicial
-      form = {
-        obraId: obra.id,
-        clima: {},
-        temperaturaMin: '',
-        temperaturaMax: '',
-        umidade: '',
-        servicos: {},
-        ucrete: '',
-        horarioInicio: '',
-        horarioTermino: '',
-        area: '',
-        espessura: '',
-        rodape: '',
-        estadoSubstrato: '',
-        estadoSubstratoObs: '',
-        registros: {},
-        observacoes: '',
-        status: 'novo',
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        createdBy: currentUser?.id || ''
-      };
-      await saveForm(form);
-    }
-    
-    setFormData(form);
-    setLoading(false);
-  };
-
-  const handleAutoSave = async () => {
+  const autoSaveRespostas = async () => {
     if (!formData) return;
-
+    
     try {
+      // Atualizar timestamp de última modificação
       const updatedForm = {
         ...formData,
         updatedAt: Date.now()
       };
+      
+      // Salvar no IndexedDB
       await saveForm(updatedForm);
       
-      // Atualizar progresso da obra
-      const progress = calculateProgress(updatedForm);
-      
-      // IMPORTANTE: Só alterar o status se estiver em 'novo' ou 'em_preenchimento'
-      // Não sobrescrever status de formulários já enviados (enviado_preposto, aprovado_preposto, etc)
-      let newStatus = obra.status;
-      
-      if (obra.status === 'novo' && hasAnyDataFilled(updatedForm)) {
-        newStatus = 'em_preenchimento';
-      }
-      
-      // Só salvar a obra se o status ainda for 'novo' ou 'em_preenchimento'
-      // Evita sobrescrever status de formulários enviados
-      if (obra.status === 'novo' || obra.status === 'em_preenchimento') {
-        await saveObra({
-          ...obra,
-          progress,
-          status: newStatus
-        });
-      }
+      safeLog('💾 Auto-save: formulário salvo localmente');
     } catch (error) {
-      console.error('Erro ao salvar:', error);
+      safeError('❌ Erro no auto-save:', error);
     }
-  };
-
-  const hasAnyDataFilled = (form: FormData): boolean => {
-    // Verificar se há qualquer campo preenchido no formulário
-    return !!(
-      form.temperaturaMin ||
-      form.temperaturaMax ||
-      form.umidade ||
-      form.ucrete ||
-      form.horarioInicio ||
-      form.horarioTermino ||
-      form.area ||
-      form.espessura ||
-      form.rodape ||
-      form.estadoSubstrato ||
-      form.estadoSubstratoObs ||
-      form.observacoes ||
-      (form.clima && Object.keys(form.clima).length > 0) ||
-      (form.servicos && Object.keys(form.servicos).length > 0) ||
-      (form.registros && Object.keys(form.registros).length > 0)
-    );
-  };
-
-  const calculateProgress = (form: FormData): number => {
-    // Progresso baseado apenas nas tabs de serviços
-    // Tab 1 = 33%, Tab 2 = 66%, Tab 3 = 100%
-    let servicosPreenchidos = 0;
-
-    if (form.servicos.servico1 && Object.keys(form.servicos.servico1).length > 0) {
-      servicosPreenchidos++;
-    }
-    
-    if (form.servicos.servico2 && Object.keys(form.servicos.servico2).length > 0) {
-      servicosPreenchidos++;
-    }
-    
-    if (form.servicos.servico3 && Object.keys(form.servicos.servico3).length > 0) {
-      servicosPreenchidos++;
-    }
-
-    // Cada serviço representa 33.33% do total
-    return Math.round((servicosPreenchidos / 3) * 100);
   };
 
   const handleSubmit = async () => {
     if (!formData) return;
     
+    // 🔒 BLOQUEIO LÓGICO: Prevenir múltiplos cliques/submits
+    if (saving) return;
+    
+    // ✅ CORREÇÃO: Rate limiting - Evitar envios múltiplos acidentais
+    const rateLimitCheck = checkRateLimit({
+      key: `enviar-preposto-${obra.id}`,
+      limitMs: 60000 // 1 minuto
+    });
+
+    if (!rateLimitCheck.allowed) {
+      const remainingSeconds = Math.ceil(rateLimitCheck.remainingMs / 1000);
+      showToast(`Aguarde ${remainingSeconds}s para reenviar`, 'warning');
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -220,7 +194,7 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
         
         await saveObra(updatedObra);
 
-        // IMPORTANTE: Sincronizar com o backend para garantir que o status persista
+        // ✅ CORREÇÃO #4: Sincronização BLOQUEANTE - não continuar se falhar
         try {
           if (navigator.onLine) {
             await obraApi.update(obra.id, {
@@ -235,15 +209,34 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
               status: 'enviado_preposto',
               progress: obra.progress
             });
-            console.log('✅ Status sincronizado com backend: enviado_preposto');
+            safeLog('✅ Status sincronizado com backend: enviado_preposto');
+          } else {
+            // ❌ Sem conexão - alertar usuário e reverter
+            showToast('Sem conexão com a internet. Por favor, conecte-se e tente novamente.', 'error');
+            
+            // Reverter mudanças locais
+            await saveForm(formData);
+            await saveObra(obra);
+            
+            setSaving(false);
+            return; // ❌ NÃO continuar sem sincronizar
           }
         } catch (syncError) {
-          console.warn('⚠️ Erro ao sincronizar status com backend:', syncError);
-          // Não bloquear o fluxo se falhar a sincronização
+          safeError('❌ Erro crítico ao sincronizar com backend:', syncError);
+          
+          // ❌ Reverter mudanças locais
+          await saveForm(formData);
+          await saveObra(obra);
+          
+          showToast('Erro ao sincronizar com servidor. Tente novamente em alguns instantes.', 'error');
+          setSaving(false);
+          return; // ❌ NÃO enviar email nem continuar
         }
 
-        // Enviar email ao preposto se houver email cadastrado
+        // ✅ Só envia email se sincronização funcionou
+        let emailEnviado = false;
         if (obra.prepostoEmail) {
+          safeLog('📧 Iniciando envio de email para preposto...');
           const emailResult = await sendPrepostoConferenciaEmail({
             prepostoEmail: obra.prepostoEmail,
             prepostoNome: obra.prepostoNome || 'Preposto',
@@ -254,19 +247,26 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
             encarregadoNome: currentUser?.nome || 'Encarregado',
           });
           
-          if (!emailResult.success) {
-            // Silently handle email error - don't block form submission
+          if (emailResult.success) {
+            safeLog('✅ Email enviado com sucesso ao preposto');
+            emailEnviado = true;
+          } else {
+            safeError('⚠️ Erro ao enviar email ao preposto:', emailResult.error);
+            // ⚠️ Email falhou mas sync funcionou - avisar usuário
+            showToast('⚠️ Formulário enviado, mas houve erro ao enviar email. Por favor, envie o link manualmente.', 'warning');
           }
         }
 
         setSaving(false);
         
-        // Simular envio automático
-        const mensagem = obra.prepostoWhatsapp ? 'Link enviado via WhatsApp' : 
-                        obra.prepostoEmail ? 'Link enviado via Email' : 
-                        'Formulário enviado com sucesso';
-        
-        showToast(`${mensagem} ✓`, 'success');
+        // ✅ Mensagem baseada no que REALMENTE aconteceu
+        if (emailEnviado && obra.prepostoEmail) {
+          showToast('Formulário enviado e email enviado ao preposto ✓', 'success');
+        } else if (obra.prepostoWhatsapp) {
+          showToast('Formulário enviado! Envie o link via WhatsApp ao preposto.', 'success');
+        } else {
+          showToast('Formulário enviado! Compartilhe o link de validação com o preposto.', 'success');
+        }
         
         // Aguardar um pouco para o usuário ver o toast antes de voltar
         setTimeout(() => {
@@ -274,7 +274,7 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
         }, 1500);
       }
     } catch (error) {
-      console.error('Erro ao enviar formulário:', error);
+      safeError('❌ Erro ao enviar formulário:', error);
       showToast('Erro ao enviar formulário. Tente novamente.', 'error');
       setSaving(false);
     }
@@ -345,6 +345,26 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
     <div className="min-h-screen bg-background">
       {/* Toast Messages */}
       {ToastComponent}
+      
+      {/* ✅ CORREÇÃO #8: Overlay de bloqueio durante envio */}
+      {saving && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4 max-w-sm mx-4">
+            <svg className="animate-spin h-12 w-12 text-[#FD5521]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <div className="text-center">
+              <p className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                Enviando formulário...
+              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Por favor, aguarde
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Header */}
       <header className="bg-white dark:bg-gray-900">
@@ -454,10 +474,22 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
             <button
               onClick={handleSubmit}
               disabled={saving}
-              className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg \n                       bg-[#FD5521] text-white hover:bg-[#E54A1D] disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg \n                       bg-[#FD5521] text-white hover:bg-[#E54A1D] disabled:opacity-50 transition-all"
             >
-              <Send className="w-5 h-5" />
-              Enviar para Preposto
+              {saving ? (
+                <>
+                  <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Enviando...
+                </>
+              ) : (
+                <>
+                  <Send className="w-5 h-5" />
+                  Enviar para Preposto
+                </>
+              )}
             </button>
           )}
         </div>

@@ -90,7 +90,7 @@ const SearchableBottomSheet: React.FC<Props> = ({
                          bg-white dark:bg-gray-800 
                          border border-gray-200 dark:border-gray-700
                          text-gray-900 dark:text-white
-                         placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                         placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                          focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40 focus:border-transparent
                          transition-shadow"
                 autoFocus

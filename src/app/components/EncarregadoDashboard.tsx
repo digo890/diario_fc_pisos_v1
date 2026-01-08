@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Moon, Sun, LogOut, ChevronRight, FolderOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
@@ -6,8 +6,11 @@ import { useTheme } from '../contexts/ThemeContext';
 import { getObras, getUsers, getAllForms, saveObra } from '../utils/database';
 import { getStatusDisplay } from '../utils/diarioHelpers';
 import type { Obra, User } from '../types';
-import FormularioPage from './FormularioPage';
 import FcLogo from '../../imports/FcLogo';
+import LoadingSpinner from './LoadingSpinner';
+
+// 🚀 LAZY LOADING: FormularioPage carregado sob demanda
+const FormularioPage = lazy(() => import('./FormularioPage'));
 
 const EncarregadoDashboard: React.FC = () => {
   const { currentUser, logout } = useAuth();
@@ -84,14 +87,16 @@ const EncarregadoDashboard: React.FC = () => {
           exit={{ opacity: 0, x: 20 }}
           transition={{ duration: 0.3, ease: 'easeInOut' }}
         >
-          <FormularioPage
-            obra={selectedObra}
-            isReadOnly={selectedObra.status !== 'novo' && selectedObra.status !== 'em_preenchimento'}
-            onBack={() => {
-              setSelectedObra(null);
-              loadData();
-            }}
-          />
+          <Suspense fallback={<LoadingSpinner />}>
+            <FormularioPage
+              obra={selectedObra}
+              isReadOnly={selectedObra.status !== 'novo' && selectedObra.status !== 'em_preenchimento'}
+              onBack={() => {
+                setSelectedObra(null);
+                loadData();
+              }}
+            />
+          </Suspense>
         </motion.div>
       ) : (
         <motion.div

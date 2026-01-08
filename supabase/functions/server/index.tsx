@@ -5,6 +5,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2.49.8";
 import * as kv from "./kv_store.tsx";
 import * as emailService from "./email.tsx";
 import * as validation from "./validation.tsx";
+import { safeLog, safeError, safeWarn } from "./logSanitizer.ts";
 const app = new Hono();
 
 // Supabase client with service role (for admin operations)
@@ -37,15 +38,15 @@ const requireAuth = async (c: any, next: any) => {
   }
   
   if (!accessToken) {
-    console.error('❌ [AUTH] Token de autenticação não fornecido');
-    console.error('Headers recebidos:', {
+    safeError('❌ [AUTH] Token de autenticação não fornecido');
+    safeError('Headers recebidos:', {
       'X-User-Token': c.req.header('X-User-Token') ? 'presente' : 'ausente',
       'Authorization': c.req.header('Authorization') ? 'presente (mascarado)' : 'ausente',
     });
     return c.json({ success: false, error: 'Token de autenticação não fornecido' }, 401);
   }
   
-  console.log('🔐 [AUTH] Validando token...');
+  safeLog('🔐 [AUTH] Validando token...');
   
   const supabase = getSupabaseAdmin();
   
@@ -53,16 +54,16 @@ const requireAuth = async (c: any, next: any) => {
     const { data: { user }, error } = await supabase.auth.getUser(accessToken);
     
     if (error) {
-      console.error('❌ [AUTH] Erro ao validar token:', error.message);
+      safeError('❌ [AUTH] Erro ao validar token:', error.message);
       return c.json({ success: false, error: 'Token inválido ou expirado' }, 401);
     }
     
     if (!user) {
-      console.error('❌ [AUTH] Usuário não encontrado para o token fornecido');
+      safeError('❌ [AUTH] Usuário não encontrado para o token fornecido');
       return c.json({ success: false, error: 'Token inválido ou expirado' }, 401);
     }
     
-    console.log('✅ [AUTH] Token válido para usuário:', user.email);
+    safeLog('✅ [AUTH] Token válido para usuário:', user.email);
     
     // Attach user to context
     c.set('userId', user.id);
@@ -70,7 +71,7 @@ const requireAuth = async (c: any, next: any) => {
     
     await next();
   } catch (error: any) {
-    console.error('❌ [AUTH] Erro inesperado ao validar token:', error.message);
+    safeError('❌ [AUTH] Erro inesperado ao validar token:', error.message);
     return c.json({ success: false, error: 'Erro ao validar autenticação' }, 500);
   }
 };
@@ -197,7 +198,7 @@ app.post("/make-server-1ff231a2/auth/create-master", async (c) => {
     });
 
     if (authError) {
-      console.error('❌ Erro ao criar usuário master:', authError.message);
+      safeError('❌ Erro ao criar usuário master:', authError.message);
       return c.json({ success: false, error: authError.message }, 500);
     }
 
@@ -220,7 +221,7 @@ app.post("/make-server-1ff231a2/auth/create-master", async (c) => {
       data: user 
     });
   } catch (error) {
-    console.error('❌ Erro ao criar usuário master:', error);
+    safeError('❌ Erro ao criar usuário master:', error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });
@@ -231,13 +232,13 @@ app.get("/make-server-1ff231a2/auth/me", requireAuth, async (c) => {
     const userId = c.get('userId');
     const userEmail = c.get('userEmail');
     
-    console.log('🔍 Buscando dados do usuário:', userId);
+    safeLog('🔍 Buscando dados do usuário:', userId);
     
     let user = await kv.get(`user:${userId}`);
     
     // Se o usuário não existe no KV store, criar entrada baseada nos dados do Auth
     if (!user) {
-      console.log('⚠️ Usuário não encontrado no KV store, criando entrada...');
+      safeLog('⚠️ Usuário não encontrado no KV store, criando entrada...');
       
       const supabase = getSupabaseAdmin();
       const { data: authUser } = await supabase.auth.admin.getUserById(userId);
@@ -254,7 +255,7 @@ app.get("/make-server-1ff231a2/auth/me", requireAuth, async (c) => {
         };
         
         await kv.set(`user:${userId}`, user);
-        console.log('✅ Usuário criado no KV store:', user);
+        safeLog('✅ Usuário criado no KV store:', user);
       } else {
         return c.json({ success: false, error: 'Usuário não encontrado no Auth' }, 404);
       }
@@ -262,7 +263,7 @@ app.get("/make-server-1ff231a2/auth/me", requireAuth, async (c) => {
 
     return c.json({ success: true, data: user });
   } catch (error) {
-    console.error('Erro ao buscar dados do usuário:', error);
+    safeError('Erro ao buscar dados do usuário:', error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });
@@ -277,7 +278,7 @@ app.get("/make-server-1ff231a2/users", requireAuth, async (c) => {
     const users = await kv.getByPrefix("user:");
     return c.json({ success: true, data: users });
   } catch (error) {
-    console.error("Erro ao listar usuários:", error);
+    safeError("Erro ao listar usuários:", error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });
@@ -288,7 +289,7 @@ app.post("/make-server-1ff231a2/users", requireAuth, async (c) => {
     const body = await c.req.json();
     const { nome, email, senha, tipo, telefone } = body;
     
-    console.log('👤 Criando usuário:', { nome, email, tipo, telefone });
+    safeLog('👤 Criando usuário:', { nome, email, tipo, telefone });
     
     // VALIDAÇÃO: Validar dados do usuário
     const validationResult = validation.validateUserData({
@@ -300,7 +301,7 @@ app.post("/make-server-1ff231a2/users", requireAuth, async (c) => {
     }, false);
     
     if (!validationResult.isValid) {
-      console.error('❌ Dados inválidos:', validationResult.errors);
+      safeError('❌ Dados inválidos:', validationResult.errors);
       return c.json({ 
         success: false, 
         error: validationResult.errors.join(', ') 
@@ -334,7 +335,7 @@ app.post("/make-server-1ff231a2/users", requireAuth, async (c) => {
     });
 
     if (authError) {
-      console.error('Erro ao criar usuário no Supabase Auth:', authError);
+      safeError('Erro ao criar usuário no Supabase Auth:', authError);
       return c.json({ success: false, error: authError.message }, 500);
     }
 
@@ -352,10 +353,10 @@ app.post("/make-server-1ff231a2/users", requireAuth, async (c) => {
     
     await kv.set(`user:${authData.user.id}`, user);
     
-    console.log('✅ Usuário criado com sucesso');
+    safeLog('✅ Usuário criado com sucesso');
     return c.json({ success: true, data: user });
   } catch (error) {
-    console.error("Erro ao criar usuário:", error);
+    safeError("Erro ao criar usuário:", error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });
@@ -364,13 +365,20 @@ app.post("/make-server-1ff231a2/users", requireAuth, async (c) => {
 app.get("/make-server-1ff231a2/users/:id", requireAuth, async (c) => {
   try {
     const id = c.req.param("id");
+    
+    // Validar formato do ID
+    if (!validation.isValidUUID(id)) {
+      safeWarn(`⚠️ Tentativa de buscar usuário com ID inválido: ${id}`);
+      return c.json({ success: false, error: 'ID de usuário inválido' }, 400);
+    }
+    
     const user = await kv.get(`user:${id}`);
     if (!user) {
       return c.json({ success: false, error: "Usuário não encontrado" }, 404);
     }
     return c.json({ success: true, data: user });
   } catch (error) {
-    console.error("Erro ao buscar usuário:", error);
+    safeError("Erro ao buscar usuário:", error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });
@@ -381,52 +389,52 @@ app.put("/make-server-1ff231a2/users/:id", requireAuth, async (c) => {
     const id = c.req.param("id");
     const body = await c.req.json();
     
-    console.log('🔄 Atualizando usuário:', id);
-    console.log('📤 Dados recebidos:', body);
+    safeLog('🔄 Atualizando usuário:', id);
+    safeLog('📤 Dados recebidos:', body); // Sanitizado - não mostra senha
     
     const user = await kv.get(`user:${id}`);
     if (!user) {
-      console.error('❌ Usuário não encontrado no KV store:', id);
+      safeError('❌ Usuário não encontrado no KV store:', id);
       return c.json({ success: false, error: "Usuário não encontrado" }, 404);
     }
     
-    console.log('✅ Usuário encontrado no KV:', user);
+    safeLog('✅ Usuário encontrado no KV:', user);
     
     const supabase = getSupabaseAdmin();
     
     // Se houver senha, atualizar no Supabase Auth
     if (body.senha) {
-      console.log('🔑 Atualizando senha no Supabase Auth...');
+      safeLog('🔑 Atualizando senha no Supabase Auth...');
       const { error: authError } = await supabase.auth.admin.updateUserById(
         id,
         { password: body.senha }
       );
       
       if (authError) {
-        console.error('❌ Erro ao atualizar senha:', authError);
+        safeError('❌ Erro ao atualizar senha:', authError);
         return c.json({ success: false, error: authError.message }, 500);
       }
-      console.log('✅ Senha atualizada com sucesso');
+      safeLog('✅ Senha atualizada com sucesso');
     }
     
     // Se houver email, atualizar no Supabase Auth
     if (body.email && body.email !== user.email) {
-      console.log('📧 Atualizando email no Supabase Auth...');
+      safeLog('📧 Atualizando email no Supabase Auth...');
       const { error: authError } = await supabase.auth.admin.updateUserById(
         id,
         { email: body.email }
       );
       
       if (authError) {
-        console.error('❌ Erro ao atualizar email:', authError);
+        safeError('❌ Erro ao atualizar email:', authError);
         return c.json({ success: false, error: authError.message }, 500);
       }
-      console.log('✅ Email atualizado com sucesso');
+      safeLog('✅ Email atualizado com sucesso');
     }
     
     // Atualizar user_metadata se nome ou tipo mudaram
     if (body.nome || body.tipo || body.telefone) {
-      console.log('👤 Atualizando metadados do usuário...');
+      safeLog('👤 Atualizando metadados do usuário...');
       const { error: authError } = await supabase.auth.admin.updateUserById(
         id,
         {
@@ -439,10 +447,10 @@ app.put("/make-server-1ff231a2/users/:id", requireAuth, async (c) => {
       );
       
       if (authError) {
-        console.error('❌ Erro ao atualizar metadados:', authError);
+        safeError('❌ Erro ao atualizar metadados:', authError);
         return c.json({ success: false, error: authError.message }, 500);
       }
-      console.log('✅ Metadados atualizados com sucesso');
+      safeLog('✅ Metadados atualizados com sucesso');
     }
     
     // Atualizar no KV store (sem a senha)
@@ -455,13 +463,13 @@ app.put("/make-server-1ff231a2/users/:id", requireAuth, async (c) => {
       updated_at: new Date().toISOString(),
     };
     
-    console.log('💾 Salvando no KV store:', updatedUser);
+    safeLog('💾 Salvando no KV store:', updatedUser);
     await kv.set(`user:${id}`, updatedUser);
     
-    console.log('✅ Usuário atualizado com sucesso');
+    safeLog('✅ Usuário atualizado com sucesso');
     return c.json({ success: true, data: updatedUser });
   } catch (error) {
-    console.error("❌ Erro ao atualizar usuário:", error);
+    safeError("❌ Erro ao atualizar usuário:", error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });
@@ -471,29 +479,45 @@ app.delete("/make-server-1ff231a2/users/:id", requireAuth, async (c) => {
   try {
     const id = c.req.param("id");
     
-    console.log('🗑️ Deletando usuário:', id);
+    safeLog('🗑️ Deletando usuário:', id);
+    
+    // Validar se é um UUID válido
+    const isUUID = validation.isValidUUID(id);
+    
+    if (!isUUID) {
+      safeWarn(` ID não é UUID válido (usuário legado): ${id}`);
+      // Para usuários legados (enc-1, adm-1, etc.), apenas deletar do KV
+      await kv.del(`user:${id}`);
+      safeLog('✅ Usuário legado deletado do KV store');
+      return c.json({ success: true });
+    }
     
     const supabase = getSupabaseAdmin();
     
     // Deletar do Supabase Auth
-    console.log('🔥 Deletando do Supabase Auth...');
+    safeLog('🔥 Deletando do Supabase Auth...');
     const { error: authError } = await supabase.auth.admin.deleteUser(id);
     
     if (authError) {
-      console.error('❌ Erro ao deletar do Auth:', authError);
-      return c.json({ success: false, error: authError.message }, 500);
+      safeError('❌ Erro ao deletar do Auth:', authError);
+      // Extrair mensagem de erro adequada
+      const errorMessage = typeof authError === 'object' && authError !== null
+        ? (authError as any).message || JSON.stringify(authError)
+        : String(authError);
+      return c.json({ success: false, error: errorMessage }, 500);
     }
     
-    console.log('✅ Deletado do Auth');
+    safeLog('✅ Deletado do Auth');
     
     // Deletar do KV store
     await kv.del(`user:${id}`);
     
-    console.log('✅ Usuário deletado com sucesso');
+    safeLog('✅ Usuário deletado com sucesso');
     return c.json({ success: true });
   } catch (error) {
-    console.error("Erro ao deletar usuário:", error);
-    return c.json({ success: false, error: error.message }, 500);
+    safeError("❌ Erro ao deletar usuário:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return c.json({ success: false, error: errorMessage }, 500);
   }
 });
 
@@ -547,7 +571,18 @@ app.post("/make-server-1ff231a2/obras", requireAuth, async (c) => {
       updated_at: new Date().toISOString(),
     };
     await kv.set(`obra:${obraId}`, obra);
-    return c.json({ success: true, data: obra });
+    
+    // ✅ CORREÇÃO: Buscar dados do encarregado para retornar ao frontend
+    const encarregado = await kv.get(`user:${obra.encarregado_id}`);
+    
+    return c.json({ 
+      success: true, 
+      data: {
+        ...obra,
+        encarregado_email: encarregado?.email,
+        encarregado_nome: encarregado?.nome
+      }
+    });
   } catch (error) {
     console.error("Erro ao criar obra:", error);
     return c.json({ success: false, error: error.message }, 500);
@@ -558,6 +593,13 @@ app.post("/make-server-1ff231a2/obras", requireAuth, async (c) => {
 app.get("/make-server-1ff231a2/obras/:id", requireAuth, async (c) => {
   try {
     const id = c.req.param("id");
+    
+    // ✅ CORREÇÃO #3: Validar UUID para prevenir ataques
+    if (!validation.isValidUUID(id)) {
+      safeWarn(`⚠️ Tentativa de buscar obra com ID inválido: ${id}`);
+      return c.json({ success: false, error: 'ID de obra inválido' }, 400);
+    }
+    
     const obra = await kv.get(`obra:${id}`);
     if (!obra) {
       return c.json({ success: false, error: "Obra não encontrada" }, 404);
@@ -573,18 +615,77 @@ app.get("/make-server-1ff231a2/obras/:id", requireAuth, async (c) => {
 app.put("/make-server-1ff231a2/obras/:id", requireAuth, async (c) => {
   try {
     const id = c.req.param("id");
+    
+    // ✅ CORREÇÃO #3: Validar UUID para prevenir ataques
+    if (!validation.isValidUUID(id)) {
+      safeWarn(`⚠️ Tentativa de atualizar obra com ID inválido: ${id}`);
+      return c.json({ success: false, error: 'ID de obra inválido' }, 400);
+    }
+    
     const body = await c.req.json();
     const obra = await kv.get(`obra:${id}`);
     if (!obra) {
       return c.json({ success: false, error: "Obra não encontrada" }, 404);
     }
+    
+    // 🔒 VALIDAÇÃO DE ESTADO: Verificar se a obra pode ser editada
+    const userId = c.get('userId');
+    const user = await kv.get(`user:${userId}`);
+    
+    if (!user) {
+      safeError('❌ Usuário não encontrado:', userId);
+      return c.json({ success: false, error: 'Usuário não autorizado' }, 403);
+    }
+    
+    // 🔒 REGRA DE NEGÓCIO: Só Administrador pode editar obras
+    if (user.tipo !== 'Administrador') {
+      safeWarn(`⚠️ Tentativa de edição de obra por usuário não-admin: ${userId}`);
+      return c.json({ 
+        success: false, 
+        error: 'Apenas administradores podem editar obras' 
+      }, 403);
+    }
+    
+    // 🔒 VALIDAÇÃO DE TRANSIÇÃO DE ESTADO: Regras de mudança de status
+    if (body.status && body.status !== obra.status) {
+      const validTransitions: Record<string, string[]> = {
+        'novo': ['em_andamento'],
+        'em_andamento': ['enviado_preposto', 'novo'],
+        'enviado_preposto': ['enviado_admin', 'reprovado_preposto'],
+        'reprovado_preposto': ['em_andamento'],
+        'enviado_admin': ['concluida'],
+        'concluida': [] // Estado final, não pode mudar
+      };
+      
+      const allowedNextStates = validTransitions[obra.status] || [];
+      
+      if (!allowedNextStates.includes(body.status)) {
+        safeWarn(`⚠️ Transição de estado inválida: ${obra.status} → ${body.status}`);
+        return c.json({ 
+          success: false, 
+          error: `Não é possível mudar status de "${obra.status}" para "${body.status}"` 
+        }, 400);
+      }
+    }
+    
     const updatedObra = {
       ...obra,
       ...body,
       updated_at: new Date().toISOString(),
     };
     await kv.set(`obra:${id}`, updatedObra);
-    return c.json({ success: true, data: updatedObra });
+    
+    // ✅ CORREÇÃO: Buscar dados do encarregado para retornar ao frontend
+    const encarregado = await kv.get(`user:${updatedObra.encarregado_id}`);
+    
+    return c.json({ 
+      success: true, 
+      data: {
+        ...updatedObra,
+        encarregado_email: encarregado?.email,
+        encarregado_nome: encarregado?.nome
+      }
+    });
   } catch (error) {
     console.error("Erro ao atualizar obra:", error);
     return c.json({ success: false, error: error.message }, 500);
@@ -595,6 +696,13 @@ app.put("/make-server-1ff231a2/obras/:id", requireAuth, async (c) => {
 app.delete("/make-server-1ff231a2/obras/:id", requireAuth, async (c) => {
   try {
     const id = c.req.param("id");
+    
+    // ✅ CORREÇÃO #3: Validar UUID para prevenir ataques
+    if (!validation.isValidUUID(id)) {
+      safeWarn(`⚠️ Tentativa de deletar obra com ID inválido: ${id}`);
+      return c.json({ success: false, error: 'ID de obra inválido' }, 400);
+    }
+    
     await kv.del(`obra:${id}`);
     return c.json({ success: true });
   } catch (error) {
@@ -641,6 +749,13 @@ app.post("/make-server-1ff231a2/formularios", requireAuth, async (c) => {
 app.get("/make-server-1ff231a2/formularios/:id", requireAuth, async (c) => {
   try {
     const id = c.req.param("id");
+    
+    // ✅ CORREÇÃO: Validar UUID para prevenir ataques
+    if (!validation.isValidUUID(id)) {
+      safeWarn(`⚠️ Tentativa de buscar formulário com ID inválido: ${id}`);
+      return c.json({ success: false, error: 'ID de formulário inválido' }, 400);
+    }
+    
     const formulario = await kv.get(`formulario:${id}`);
     if (!formulario) {
       return c.json({ success: false, error: "Formulário não encontrado" }, 404);
@@ -737,11 +852,74 @@ app.get("/make-server-1ff231a2/formularios/token/:token", async (c) => {
 app.put("/make-server-1ff231a2/formularios/:id", requireAuth, async (c) => {
   try {
     const id = c.req.param("id");
+    
+    // ✅ CORREÇÃO: Validar UUID para prevenir ataques
+    if (!validation.isValidUUID(id)) {
+      safeWarn(`⚠️ Tentativa de atualizar formulário com ID inválido: ${id}`);
+      return c.json({ success: false, error: 'ID de formulário inválido' }, 400);
+    }
+    
     const body = await c.req.json();
     const formulario = await kv.get(`formulario:${id}`);
     if (!formulario) {
       return c.json({ success: false, error: "Formulário não encontrado" }, 404);
     }
+    
+    // 🔒 VALIDAÇÃO DE ESTADO: Verificar permissões e estado do formulário
+    const userId = c.get('userId');
+    const user = await kv.get(`user:${userId}`);
+    
+    if (!user) {
+      safeError('❌ Usuário não encontrado:', userId);
+      return c.json({ success: false, error: 'Usuário não autorizado' }, 403);
+    }
+    
+    // 🔒 REGRA 1: Formulário já validado pelo preposto não pode ser editado
+    if (formulario.preposto_confirmado === true) {
+      safeWarn(`⚠️ Tentativa de editar formulário já validado: ${id}`);
+      return c.json({ 
+        success: false, 
+        error: 'Este formulário já foi validado pelo preposto e não pode mais ser editado' 
+      }, 403);
+    }
+    
+    // 🔒 REGRA 2: Apenas encarregado atribuído ou admin podem editar
+    const obra = await kv.get(`obra:${formulario.obra_id}`);
+    if (obra) {
+      const isEncarregadoAtribuido = user.tipo === 'Encarregado' && obra.encarregado_id === userId;
+      const isAdmin = user.tipo === 'Administrador';
+      
+      if (!isEncarregadoAtribuido && !isAdmin) {
+        safeWarn(`⚠️ Tentativa de editar formulário sem permissão: userId=${userId}, encarregadoId=${obra.encarregado_id}`);
+        return c.json({ 
+          success: false, 
+          error: 'Você não tem permissão para editar este formulário' 
+        }, 403);
+      }
+    }
+    
+    // 🔒 REGRA 3: Validar transições de status do formulário
+    if (body.status && body.status !== formulario.status) {
+      const validFormTransitions: Record<string, string[]> = {
+        'rascunho': ['enviado_preposto'],
+        'enviado_preposto': ['enviado_admin', 'reprovado_preposto'],
+        'reprovado_preposto': ['rascunho', 'enviado_preposto'],
+        'enviado_admin': ['concluido'],
+        'concluido': [] // Estado final
+      };
+      
+      const currentStatus = formulario.status || 'rascunho';
+      const allowedNextStates = validFormTransitions[currentStatus] || [];
+      
+      if (!allowedNextStates.includes(body.status)) {
+        safeWarn(`⚠️ Transição de status inválida no formulário: ${currentStatus} → ${body.status}`);
+        return c.json({ 
+          success: false, 
+          error: `Não é possível mudar status do formulário de "${currentStatus}" para "${body.status}"` 
+        }, 400);
+      }
+    }
+    
     const updatedFormulario = {
       ...formulario,
       ...body,
@@ -759,6 +937,13 @@ app.put("/make-server-1ff231a2/formularios/:id", requireAuth, async (c) => {
 app.delete("/make-server-1ff231a2/formularios/:id", requireAuth, async (c) => {
   try {
     const id = c.req.param("id");
+    
+    // ✅ CORREÇÃO: Validar UUID para prevenir ataques
+    if (!validation.isValidUUID(id)) {
+      safeWarn(`⚠️ Tentativa de deletar formulário com ID inválido: ${id}`);
+      return c.json({ success: false, error: 'ID de formulário inválido' }, 400);
+    }
+    
     await kv.del(`formulario:${id}`);
     return c.json({ success: true });
   } catch (error) {
@@ -956,6 +1141,63 @@ app.post("/make-server-1ff231a2/emails/send-encarregado-nova-obra", requireAuth,
   } catch (error: any) {
     console.error('❌ Erro ao enviar email:', error);
     return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// ============================================
+// VALIDAÇÃO DE TOKEN DO PREPOSTO (PÚBLICO)
+// ============================================
+
+// Validar token do preposto e retornar dados da obra
+app.get("/make-server-1ff231a2/validation/:token", async (c) => {
+  try {
+    const token = c.req.param("token");
+    
+    console.log('🔍 Validando token do preposto:', token?.substring(0, 10) + '...');
+    
+    // Buscar obra pelo token usando getByPrefix
+    const obras = await kv.getByPrefix('obra:');
+    const obraEncontrada = obras.find((o: any) => o.token_validacao === token);
+    
+    if (!obraEncontrada) {
+      console.warn('⚠️ Token não encontrado');
+      return c.json({ 
+        success: false, 
+        error: 'Link inválido ou expirado' 
+      }, 404);
+    }
+    
+    // Verificar expiração do token (30 dias)
+    if (obraEncontrada.token_validacao_expiry) {
+      const expiryDate = new Date(obraEncontrada.token_validacao_expiry);
+      const now = new Date();
+      
+      if (expiryDate < now) {
+        console.warn('⚠️ Token expirado para obra:', obraEncontrada.id);
+        return c.json({ 
+          success: false, 
+          error: 'Link expirado. Este link é válido por apenas 30 dias.' 
+        }, 410);
+      }
+    }
+    
+    // ✅ AUDITORIA: Registrar acesso ao token
+    const now = new Date().toISOString();
+    obraEncontrada.token_validacao_last_access = now;
+    await kv.set(`obra:${obraEncontrada.id}`, obraEncontrada);
+    
+    console.log('✅ Token validado com sucesso. Acesso registrado.');
+    
+    return c.json({ 
+      success: true, 
+      data: obraEncontrada 
+    });
+  } catch (error: any) {
+    console.error('❌ Erro ao validar token:', error);
+    return c.json({ 
+      success: false, 
+      error: 'Erro ao validar token' 
+    }, 500);
   }
 });
 

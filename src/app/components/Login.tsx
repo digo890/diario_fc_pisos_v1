@@ -61,7 +61,7 @@ const Login: React.FC = () => {
                 className="w-full pl-11 pr-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-800
                          bg-white dark:bg-gray-900 text-gray-900 dark:text-white
                          focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40 focus:border-[#FD5521]
-                         placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                         placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                          transition-all [&:-webkit-autofill]:!bg-white [&:-webkit-autofill]:[-webkit-box-shadow:0_0_0_1000px_white_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:rgb(17_24_39)] dark:[&:-webkit-autofill]:!bg-gray-900 dark:[&:-webkit-autofill]:[-webkit-box-shadow:0_0_0_1000px_rgb(17_24_39)_inset] dark:[&:-webkit-autofill]:[-webkit-text-fill-color:white] [&:-webkit-autofill:hover]:[-webkit-box-shadow:0_0_0_1000px_white_inset] dark:[&:-webkit-autofill:hover]:[-webkit-box-shadow:0_0_0_1000px_rgb(17_24_39)_inset] [&:-webkit-autofill:focus]:[-webkit-box-shadow:0_0_0_1000px_white_inset] dark:[&:-webkit-autofill:focus]:[-webkit-box-shadow:0_0_0_1000px_rgb(17_24_39)_inset]"
                 placeholder="seu@email.com"
               />
@@ -84,7 +84,7 @@ const Login: React.FC = () => {
                 className="w-full pl-11 pr-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-800
                          bg-white dark:bg-gray-900 text-gray-900 dark:text-white
                          focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40 focus:border-[#FD5521]
-                         placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                         placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                          transition-all [&:-webkit-autofill]:!bg-white [&:-webkit-autofill]:[-webkit-box-shadow:0_0_0_1000px_white_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:rgb(17_24_39)] dark:[&:-webkit-autofill]:!bg-gray-900 dark:[&:-webkit-autofill]:[-webkit-box-shadow:0_0_0_1000px_rgb(17_24_39)_inset] dark:[&:-webkit-autofill]:[-webkit-text-fill-color:white] [&:-webkit-autofill:hover]:[-webkit-box-shadow:0_0_0_1000px_white_inset] dark:[&:-webkit-autofill:hover]:[-webkit-box-shadow:0_0_0_1000px_rgb(17_24_39)_inset] [&:-webkit-autofill:focus]:[-webkit-box-shadow:0_0_0_1000px_white_inset] dark:[&:-webkit-autofill:focus]:[-webkit-box-shadow:0_0_0_1000px_rgb(17_24_39)_inset]"
                 placeholder="••••••••"
               />

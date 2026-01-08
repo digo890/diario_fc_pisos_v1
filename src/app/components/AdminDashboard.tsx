@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Plus, Edit2, Trash2, FileText, Moon, Sun, LogOut, Download, Building2, Users, BarChart3, Bell, Filter, LayoutGrid, LayoutList, FolderOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
@@ -6,18 +6,26 @@ import { useTheme } from '../contexts/ThemeContext';
 import { getObras, getUsers, saveObra, deleteObra, saveUser, deleteUser, getAllForms, getFormByObraId } from '../utils/database';
 import { obraApi, userApi } from '../utils/api';
 import { getStatusDisplay } from '../utils/diarioHelpers';
+import { mergeObras, mergeUsers } from '../utils/dataSync';
+import { safeLog, safeError, safeWarn } from '../utils/logSanitizer';
 import type { Obra, User, UserRole, FormData } from '../types';
-import CreateObraPage from './CreateObraPage';
-import CreateUserPage from './CreateUserPage';
-import EditObraPage from './EditObraPage';
-import EditUserPage from './EditUserPage';
-import ViewRespostasModal from './ViewRespostasModal';
 import ConfirmModal from './ConfirmModal';
-import ResultadosDashboard from './ResultadosDashboard';
-import NotificationDrawer, { Notification } from './NotificationDrawer';
-import FilterModal from './FilterModal';
 import FcLogo from '../../imports/FcLogo';
 import { useToast } from './Toast';
+import LoadingSpinner from './LoadingSpinner';
+import type { Notification } from './NotificationDrawer';
+import { Pagination, usePagination } from './Pagination';
+import { SyncStatusIndicator } from './SyncStatusIndicator';
+
+// 🚀 LAZY LOADING: Componentes pesados carregados sob demanda
+const CreateObraPage = lazy(() => import('./CreateObraPage'));
+const CreateUserPage = lazy(() => import('./CreateUserPage'));
+const EditObraPage = lazy(() => import('./EditObraPage'));
+const EditUserPage = lazy(() => import('./EditUserPage'));
+const ViewRespostasModal = lazy(() => import('./ViewRespostasModal'));
+const ResultadosDashboard = lazy(() => import('./ResultadosDashboard'));
+const NotificationDrawer = lazy(() => import('./NotificationDrawer'));
+const FilterModal = lazy(() => import('./FilterModal'));
 
 type TabType = 'resultados' | 'obras' | 'usuarios';
 type ObraFilter = 'todas' | 'novo' | 'em_andamento' | 'conferencia' | 'concluidas';
@@ -92,102 +100,69 @@ const AdminDashboard: React.FC = () => {
 
   const loadData = async () => {
     try {
-      // Tentar buscar do backend primeiro (se online)
+      // ✅ CORREÇÃO: Buscar dados local e remote simultaneamente
+      const [localObras, localUsers] = await Promise.all([
+        getObras(),
+        getUsers()
+      ]);
+
+      // Tentar buscar do backend (se online)
       if (navigator.onLine) {
         try {
+          safeLog('🔄 Buscando dados do backend...');
+          
           // Buscar usuários e obras do backend
           const [usersResponse, obrasResponse] = await Promise.all([
             userApi.list(),
             obraApi.list()
           ]);
 
-          // Salvar usuários no IndexedDB local (cache)
+          // ✅ CORREÇÃO: Merge inteligente de usuários
           if (usersResponse.success && usersResponse.data) {
-            const usersData = usersResponse.data;
-            // Salvar cada usuário no IndexedDB
-            await Promise.all(
-              usersData.map((user: User) => 
-                saveUser(user)
-              )
-            );
-            setUsers(usersData);
+            const remoteUsers = usersResponse.data;
+            const mergedUsers = await mergeUsers(localUsers, remoteUsers);
+            setUsers(mergedUsers);
+            safeLog(`✅ ${mergedUsers.length} usuários sincronizados (merge)`);
           }
 
-          // Salvar obras no IndexedDB local (cache)
+          // ✅ CORREÇÃO: Merge inteligente de obras
           if (obrasResponse.success && obrasResponse.data) {
-            // Converter dados do backend (snake_case) para frontend (camelCase)
-            const obrasData = obrasResponse.data.map((obraBackend: any) => ({
-              id: obraBackend.id,
-              cliente: obraBackend.cliente,
-              obra: obraBackend.obra,
-              cidade: obraBackend.cidade,
-              data: obraBackend.data,
-              encarregadoId: obraBackend.encarregado_id,
-              prepostoNome: obraBackend.preposto_nome,
-              prepostoEmail: obraBackend.preposto_email,
-              prepostoWhatsapp: obraBackend.preposto_whatsapp,
-              validationToken: obraBackend.token_validacao,
-              validationTokenExpiry: obraBackend.token_validacao_expiry ? new Date(obraBackend.token_validacao_expiry).getTime() : undefined,
-              // ✅ AUDITORIA: token_validacao_last_access é registrado automaticamente no backend
-              // Não precisa ser mapeado pois não é usado no frontend
-              status: obraBackend.status,
-              progress: obraBackend.progress || 0,
-              createdAt: obraBackend.created_at ? new Date(obraBackend.created_at).getTime() : Date.now(),
-              createdBy: obraBackend.created_by
-            } as Obra));
+            const remoteObras = obrasResponse.data;
+            const mergedObras = await mergeObras(localObras, remoteObras);
             
-            // Filtrar obras válidas (remover dados corrompidos/incompletos)
-            const obrasValidas = obrasData.filter((obra: Obra) => 
-              obra.id && obra.cliente && obra.obra && obra.cidade && obra.encarregadoId
-            );
-            
-            // Verificar se há formulários em andamento e atualizar status
-            const obrasComStatusAtualizado = await Promise.all(
-              obrasValidas.map(async (obra: Obra) => {
-                // Verificar se há dados de formulário
-                const formData = await getFormByObraId(obra.id);
-                
-                // IMPORTANTE: Só atualizar status se for 'novo' → 'em_preenchimento'
-                // NÃO sobrescrever status de obras já enviadas (enviado_preposto, aprovado_preposto, etc)
-                if (obra.status === 'novo' && formData && Object.keys(formData).length > 0) {
-                  const obraAtualizada = { ...obra, status: 'em_preenchimento' as const };
-                  // Salvar no IndexedDB
-                  await saveObra(obraAtualizada);
-                  return obraAtualizada;
-                }
-                
-                // Salvar obra no IndexedDB
-                await saveObra(obra);
-                return obra;
-              })
-            );
-            
-            setObras(obrasComStatusAtualizado);
+            // ✅ CORREÇÃO: Usar status do backend diretamente - NÃO sobrescrever
+            // O backend é a fonte da verdade para o status da obra
+            setObras(mergedObras);
+            safeLog(`✅ ${mergedObras.length} obras sincronizadas (merge)`);
           }
 
-          return; // Sucesso, não precisa continuar
+          return; // Sucesso
         } catch (apiError) {
-          console.warn('⚠️ Erro ao buscar dados do backend, usando cache local:', apiError);
-          // Continua para buscar do IndexedDB como fallback
+          safeWarn('⚠️ Erro ao buscar dados do backend, usando cache local:', apiError);
+          // ✅ FEEDBACK VISUAL: Avisar usuário que está offline/sem sincronizar
+          showToast('⚠️ Sem conexão com servidor. Exibindo dados locais (podem estar desatualizados).', 'warning');
+          // Continua para usar dados locais
         }
+      } else {
+        // ✅ FEEDBACK VISUAL: Avisar que está offline
+        showToast('📡 Modo offline. Exibindo dados locais.', 'warning');
       }
 
-      // Fallback: buscar dados locais do IndexedDB (offline ou erro na API)
-      const obrasData = await getObras();
-      const usersData = await getUsers();
+      // Fallback: usar dados locais (offline ou erro na API)
+      safeLog('📂 Usando dados locais do IndexedDB');
       
-      // Filtrar obras válidas e remover inválidas do IndexedDB
-      const obrasValidas = obrasData.filter((obra: Obra) => 
+      // Filtrar obras válidas
+      const obrasValidas = localObras.filter((obra: Obra) => 
         obra.id && obra.cliente && obra.obra && obra.cidade && obra.encarregadoId
       );
       
       // Remover obras inválidas do IndexedDB
-      const obrasInvalidas = obrasData.filter((obra: Obra) => 
+      const obrasInvalidas = localObras.filter((obra: Obra) => 
         !obra.id || !obra.cliente || !obra.obra || !obra.cidade || !obra.encarregadoId
       );
       
       if (obrasInvalidas.length > 0) {
-        console.warn(`⚠️ Removendo ${obrasInvalidas.length} obra(s) corrompida(s) do cache local`);
+        safeWarn(`⚠️ Removendo ${obrasInvalidas.length} obra(s) corrompida(s)`);
         await Promise.all(
           obrasInvalidas.map(async (obra: Obra) => {
             if (obra.id) {
@@ -197,13 +172,11 @@ const AdminDashboard: React.FC = () => {
         );
       }
       
-      // Verificar status das obras locais também
+      // Verificar status das obras locais
       const obrasComStatusAtualizado = await Promise.all(
         obrasValidas.map(async (obra: Obra) => {
           const formData = await getFormByObraId(obra.id);
           
-          // IMPORTANTE: Só atualizar status se for 'novo' → 'em_preenchimento'
-          // NÃO sobrescrever status de obras já enviadas (enviado_preposto, aprovado_preposto, etc)
           if (obra.status === 'novo' && formData && Object.keys(formData).length > 0) {
             const obraAtualizada = { ...obra, status: 'em_preenchimento' as const };
             await saveObra(obraAtualizada);
@@ -215,10 +188,9 @@ const AdminDashboard: React.FC = () => {
       );
       
       setObras(obrasComStatusAtualizado);
-      setUsers(usersData);
+      setUsers(localUsers);
     } catch (error) {
-      console.error('❌ Erro ao carregar dados:', error);
-      // Em caso de erro total, mostrar arrays vazios
+      safeError('❌ Erro ao carregar dados:', error);
       setObras([]);
       setUsers([]);
     }
@@ -233,7 +205,13 @@ const AdminDashboard: React.FC = () => {
     const newNotifications: Notification[] = [];
     const storedReadIds = JSON.parse(localStorage.getItem('readNotifications') || '[]') as string[];
     
-    for (const obra of obras) {
+    // ✅ CORREÇÃO #6: Filtrar apenas obras com status relevante ANTES de buscar formulários
+    // Evita chamadas desnecessárias ao IndexedDB
+    const obrasComNotificacao = obras.filter(o => 
+      ['enviado_preposto', 'aprovado_preposto', 'reprovado_preposto', 'enviado_admin', 'concluido'].includes(o.status)
+    );
+    
+    for (const obra of obrasComNotificacao) {
       // Notificação quando encarregado responde o formulário
       if (obra.status === 'enviado_preposto' || obra.status === 'aprovado_preposto' || 
           obra.status === 'reprovado_preposto' || obra.status === 'enviado_admin' || obra.status === 'concluido') {
@@ -271,8 +249,6 @@ const AdminDashboard: React.FC = () => {
       }
     }
     
-    // Sort by timestamp (newest first)
-    newNotifications.sort((a, b) => b.timestamp - a.timestamp);
     setNotifications(newNotifications);
   };
   
@@ -313,7 +289,7 @@ const AdminDashboard: React.FC = () => {
         showToast(`Erro ao excluir obra: ${response.error}`, 'error');
       }
     } catch (error: any) {
-      console.error('❌ Erro ao excluir obra:', error);
+      safeError('❌ Erro ao excluir obra:', error);
       showToast(`Erro ao excluir obra: ${error.message}`, 'error');
     }
   };
@@ -330,11 +306,16 @@ const AdminDashboard: React.FC = () => {
         setDeletingUser(null);
         showToast('Usuário excluído com sucesso!', 'success');
       } else {
-        showToast(`Erro ao excluir usuário: ${response.error}`, 'error');
+        // Extrair mensagem de erro adequada
+        const errorMessage = typeof response.error === 'string' 
+          ? response.error 
+          : (response.error as any)?.message || JSON.stringify(response.error) || 'Erro desconhecido';
+        showToast(`Erro ao excluir usuário: ${errorMessage}`, 'error');
       }
     } catch (error: any) {
-      console.error('❌ Erro ao excluir usuário:', error);
-      showToast(`Erro ao excluir usuário: ${error.message}`, 'error');
+      safeError('❌ Erro ao excluir usuário:', error);
+      const errorMessage = error?.message || String(error) || 'Erro desconhecido';
+      showToast(`Erro ao excluir usuário: ${errorMessage}`, 'error');
     }
   };
 
@@ -363,6 +344,10 @@ const AdminDashboard: React.FC = () => {
     .filter(user => user.nome.toLowerCase().includes(searchUser.toLowerCase()))
     .sort((a, b) => a.nome.localeCompare(b.nome));
 
+  // 🚀 PAGINAÇÃO: Limita renderização a 10 itens por página
+  const obrasPagination = usePagination(filteredObras, 10);
+  const usersPagination = usePagination(filteredUsers, 10);
+
   const getUserName = (id: string) => {
     const user = users.find(u => u.id === id);
     return user?.nome || 'N/A';
@@ -388,6 +373,9 @@ const AdminDashboard: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {/* Sync Status Indicator */}
+              <SyncStatusIndicator />
+              
               <button
                 onClick={toggleTheme}
                 className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 
@@ -476,7 +464,9 @@ const AdminDashboard: React.FC = () => {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3, ease: "easeInOut" }}
             >
-              <ResultadosDashboard obras={obras} />
+              <Suspense fallback={<LoadingSpinner />}>
+                <ResultadosDashboard obras={obras} />
+              </Suspense>
             </motion.div>
           ) : activeTab === 'obras' ? (
             <motion.div
@@ -519,7 +509,7 @@ const AdminDashboard: React.FC = () => {
               {/* Lista de Obras */}
               {/* Visualização em Cards - Sempre no mobile, opcional no desktop */}
               <div className={`space-y-3 ${viewMode === 'list' ? 'md:hidden' : ''}`}>
-                {filteredObras.map(obra => {
+                {obrasPagination.paginatedItems.map(obra => {
                   const status = getStatusDisplay(obra);
                   
                   return (
@@ -673,10 +663,24 @@ const AdminDashboard: React.FC = () => {
                 )}
               </div>
 
+              {/* 🚀 PAGINAÇÃO - Cards View */}
+              {filteredObras.length > 0 && (
+                <div className={viewMode === 'list' ? 'md:hidden' : ''}>
+                  <Pagination
+                    currentPage={obrasPagination.currentPage}
+                    totalPages={obrasPagination.totalPages}
+                    onPageChange={obrasPagination.setCurrentPage}
+                    totalItems={obrasPagination.totalItems}
+                    itemsPerPage={obrasPagination.itemsPerPage}
+                  />
+                </div>
+              )}
+
               {/* Visualização em Lista - Desktop apenas */}
               <div className={`bg-white dark:bg-gray-900 rounded-lg overflow-hidden ${viewMode === 'list' ? 'hidden md:block' : 'hidden'}`}>
                 {filteredObras.length > 0 ? (
-                  filteredObras.map((obra, index) => {
+                  <>
+                    {obrasPagination.paginatedItems.map((obra, index) => {
                     const status = getStatusDisplay(obra);
                     
                     return (
@@ -765,12 +769,24 @@ const AdminDashboard: React.FC = () => {
                             </div>
                           </div>
                         </div>
-                        {index < filteredObras.length - 1 && (
+                        {index < obrasPagination.paginatedItems.length - 1 && (
                           <div className="mx-5 border-b border-[#EDEFE4] dark:border-gray-800"></div>
                         )}
                       </div>
                     );
-                  })
+                  })}
+                  
+                  {/* 🚀 PAGINAÇÃO - List View */}
+                  <div className="p-4 border-t border-gray-200 dark:border-gray-800">
+                    <Pagination
+                      currentPage={obrasPagination.currentPage}
+                      totalPages={obrasPagination.totalPages}
+                      onPageChange={obrasPagination.setCurrentPage}
+                      totalItems={obrasPagination.totalItems}
+                      itemsPerPage={obrasPagination.itemsPerPage}
+                    />
+                  </div>
+                  </>
                 ) : (
                   obras.length === 0 ? (
                     <button
@@ -847,8 +863,9 @@ const AdminDashboard: React.FC = () => {
 
               {/* Lista de Usuários */}
               {filteredUsers.length > 0 ? (
-                <div className="bg-white dark:bg-gray-900 rounded-lg overflow-hidden">
-                  {filteredUsers.map((user, index) => (
+                <>
+                  <div className="bg-white dark:bg-gray-900 rounded-lg overflow-hidden">
+                    {usersPagination.paginatedItems.map((user, index) => (
                     <div key={user.id}>
                       <div className="px-5 py-4 flex items-center justify-between gap-4">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -881,12 +898,22 @@ const AdminDashboard: React.FC = () => {
                           </button>
                         </div>
                       </div>
-                      {index < filteredUsers.length - 1 && (
+                      {index < usersPagination.paginatedItems.length - 1 && (
                         <div className="mx-5 border-b border-[#EDEFE4] dark:border-gray-800"></div>
                       )}
                     </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+
+                  {/* 🚀 PAGINAÇÃO - Usuários */}
+                  <Pagination
+                    currentPage={usersPagination.currentPage}
+                    totalPages={usersPagination.totalPages}
+                    onPageChange={usersPagination.setCurrentPage}
+                    totalItems={usersPagination.totalItems}
+                    itemsPerPage={usersPagination.itemsPerPage}
+                  />
+                </>
               ) : (
                 <div className="text-center py-16">
                   <Users className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-700" />
@@ -905,63 +932,73 @@ const AdminDashboard: React.FC = () => {
       {/* Modais */}
       <AnimatePresence mode="wait">
         {showCreateObra && (
-          <CreateObraPage
-            users={users}
-            onBack={() => setShowCreateObra(false)}
-            onSuccess={() => {
-              loadData();
-              setShowCreateObra(false);
-            }}
-          />
+          <Suspense fallback={<LoadingSpinner />}>
+            <CreateObraPage
+              users={users}
+              onBack={() => setShowCreateObra(false)}
+              onSuccess={() => {
+                loadData();
+                setShowCreateObra(false);
+              }}
+            />
+          </Suspense>
         )}
       </AnimatePresence>
       
       <AnimatePresence mode="wait">
         {showCreateUser && (
-          <CreateUserPage
-            onBack={() => setShowCreateUser(false)}
-            onSuccess={() => {
-              loadData();
-              setShowCreateUser(false);
-            }}
-          />
+          <Suspense fallback={<LoadingSpinner />}>
+            <CreateUserPage
+              onBack={() => setShowCreateUser(false)}
+              onSuccess={() => {
+                loadData();
+                setShowCreateUser(false);
+              }}
+            />
+          </Suspense>
         )}
       </AnimatePresence>
       
       <AnimatePresence mode="wait">
         {editingObra && (
-          <EditObraPage
-            obra={editingObra}
-            users={users}
-            onBack={() => setEditingObra(null)}
-            onSuccess={() => {
-              loadData();
-              setEditingObra(null);
-            }}
-          />
+          <Suspense fallback={<LoadingSpinner />}>
+            <EditObraPage
+              obra={editingObra}
+              users={users}
+              onBack={() => setEditingObra(null)}
+              onSuccess={() => {
+                loadData();
+                setEditingObra(null);
+              }}
+            />
+          </Suspense>
         )}
       </AnimatePresence>
       
       <AnimatePresence mode="wait">
         {editingUser && (
-          <EditUserPage
-            user={editingUser}
-            onBack={() => setEditingUser(null)}
-            onSuccess={() => {
-              loadData();
-              setEditingUser(null);
-            }}
-          />
+          <Suspense fallback={<LoadingSpinner />}>
+            <EditUserPage
+              user={editingUser}
+              onBack={() => setEditingUser(null)}
+              onSuccess={() => {
+                loadData();
+                setEditingUser(null);
+              }}
+            />
+          </Suspense>
         )}
       </AnimatePresence>
       
       {viewingObra && (
-        <ViewRespostasModal
-          obra={viewingObra}
-          users={users}
-          formData={viewingFormData}
-          onClose={handleCloseModal}
-        />
+        <Suspense fallback={<LoadingSpinner />}>
+          <ViewRespostasModal
+            obra={viewingObra}
+            users={users}
+            formData={viewingFormData}
+            onClose={handleCloseModal}
+          />
+        </Suspense>
       )}
       
       {deletingObra && (

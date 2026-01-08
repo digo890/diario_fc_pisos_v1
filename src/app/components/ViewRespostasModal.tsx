@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { X, Download, Share2, Check, FileDown, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
 import { getStatusDisplay } from '../utils/diarioHelpers';
@@ -6,6 +6,13 @@ import { copyToClipboard } from '../utils/clipboard';
 import { generateFormPDF } from '../utils/pdfGenerator';
 import { generateFormExcel } from '../utils/excelGenerator';
 import type { Obra, User, FormData } from '../types';
+
+/**
+ * 🚀 PERFORMANCE: ViewRespostasModal otimizado
+ * 
+ * - useMemo para cálculos de loops aninhados pesados
+ * - Evita recalcular listas filtradas a cada render
+ */
 
 interface Props {
   obra: Obra;
@@ -164,8 +171,8 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
     return labels[clima] || clima;
   };
 
-  // Verificar quais serviços têm conteúdo
-  const getServicosComConteudo = () => {
+  // 🚀 PERFORMANCE: Memoizar cálculo de serviços com conteúdo (evita recalcular loops a cada render)
+  const servicosComConteudo = useMemo((): Array<'servico1' | 'servico2' | 'servico3'> => {
     if (!formData) return [];
     const servicosKeys: Array<'servico1' | 'servico2' | 'servico3'> = ['servico1', 'servico2', 'servico3'];
     return servicosKeys.filter(key => {
@@ -174,7 +181,7 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
       // Verificar se tem algum conteúdo
       return servico.horario || servico.local || Object.keys(servico.etapas || {}).length > 0 || Object.keys(servico.registros || {}).length > 0 || (servico.fotos && servico.fotos.length > 0);
     });
-  };
+  }, [formData]);
 
   if (!formData) {
     return (
@@ -198,8 +205,6 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
       </div>
     );
   }
-
-  const servicosComConteudo = getServicosComConteudo();
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">

@@ -41,11 +41,9 @@ class TokenManager {
     this.isRefreshing = true;
 
     try {
-      console.log('🔄 Renovando token...');
       const { data: { session }, error } = await supabase.auth.refreshSession();
 
       if (error || !session?.access_token) {
-        console.error('❌ Erro ao renovar token:', error?.message);
         this.clearToken();
         this.isRefreshing = false;
         
@@ -58,7 +56,6 @@ class TokenManager {
 
       const newToken = session.access_token;
       this.setToken(newToken);
-      console.log('✅ Token renovado com sucesso');
 
       // Notificar assinantes sobre sucesso
       this.refreshSubscribers.forEach((callback) => callback(newToken));

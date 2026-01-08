@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { supabase } from '/utils/supabase/client';
 import { projectId, publicAnonKey } from '/utils/supabase/info';
 import { setAuthToken } from '../utils/api';
+import { safeLog, safeError } from '../utils/logSanitizer';
 import type { User } from '../types';
 
 interface AuthContextType {
@@ -27,46 +28,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAuthToken(token); // Atualizar token no api.ts
     
     if (token) {
-      console.log('✅ Token atualizado com sucesso');
+      safeLog('✅ Token atualizado com sucesso');
     }
   };
 
   // Função para renovar sessão
   const refreshSession = async () => {
     try {
-      console.log('🔄 Renovando sessão...');
+      safeLog('🔄 Renovando sessão...');
       const { data: { session }, error } = await supabase.auth.refreshSession();
       
       if (error) {
-        console.error('❌ Erro ao renovar sessão:', error.message);
+        safeError('❌ Erro ao renovar sessão:', error.message);
         // Se falhar ao renovar, fazer logout
         await logout();
         return;
       }
 
       if (session?.access_token) {
-        console.log('✅ Sessão renovada com sucesso');
+        safeLog('✅ Sessão renovada com sucesso');
         updateToken(session.access_token);
         
         // Agendar próxima renovação (50 minutos - token expira em 1h)
         scheduleTokenRefresh();
       }
     } catch (error) {
-      console.error('❌ Erro ao renovar sessão:', error);
+      safeError('❌ Erro ao renovar sessão:', error);
     }
   };
 
-  // Agendar renovação automática do token
+  // Agendar renovação preventiva do token
   const scheduleTokenRefresh = () => {
     // Limpar timeout anterior se existir
     if (refreshTimeoutRef.current) {
       clearTimeout(refreshTimeoutRef.current);
     }
-
-    // Renovar a cada 50 minutos (3000000ms)
+    
+    // ✅ CORREÇÃO: Renovar a cada 45 minutos (token expira em 1h)
+    // Isso garante renovação preventiva antes da expiração
     refreshTimeoutRef.current = setTimeout(() => {
+      safeLog('⏰ Renovação preventiva de token agendada');
       refreshSession();
-    }, 50 * 60 * 1000);
+    }, 45 * 60 * 1000); // 45 minutos
   };
 
   // Função para buscar dados do usuário
@@ -85,14 +88,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Erro ao buscar dados do usuário:', errorText);
+        safeError('❌ Erro ao buscar dados do usuário:', errorText);
         return null;
       }
 
       const { data } = await response.json();
       return data;
     } catch (error) {
-      console.error('❌ Erro ao buscar dados do usuário:', error);
+      safeError('❌ Erro ao buscar dados do usuário:', error);
       return null;
     }
   };
@@ -138,6 +141,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const userData = await fetchUserData(session.access_token);
         if (userData) {
           setCurrentUser(userData);
+          // ✅ CORREÇÃO: Agendar renovação preventiva
+          scheduleTokenRefresh();
         }
       }
     });

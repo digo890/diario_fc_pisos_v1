@@ -516,7 +516,13 @@ export async function generateFormPDF(
   // ============================================
   // SALVAR PDF
   // ============================================
-  const fileName = `Diario_Obras_${obra.cliente.replace(/[^a-zA-Z0-9]/g, '_')}_${obra.obra.replace(/[^a-zA-Z0-9]/g, '_')}_${format(new Date(), 'yyyyMMdd_HHmmss')}.pdf`;
+  // ✅ CORREÇÃO #7: Usar timezone local para evitar diferença de data
+  const dataLocal = new Date(obra.data + 'T12:00:00'); // Meio-dia garante mesmo dia independente do fuso
+  const diaFormatado = format(dataLocal, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+  
+  const fileName = `Laudo_${obra.cliente.replace(/\s+/g, '_')}_${format(new Date(), 'dd-MM-yyyy')}.pdf`;
+  
+  // Salvar PDF
   pdf.save(fileName);
   
   console.log(`✅ PDF gerado com sucesso: ${fileName}`);

@@ -3,17 +3,30 @@
  * Exibe informações sobre sincronização offline e fila pendente
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { CloudOff, Cloud, CloudUpload, RefreshCw, AlertCircle } from 'lucide-react';
-import { useSyncQueue } from '../hooks/useSyncQueue';
+import { useSyncStatus } from '../hooks/useSyncStatus';
 
 export function SyncStatus() {
-  const { isPending, count, isSyncing, isOnline, lastError, sync } = useSyncQueue();
+  const { pendingCount, failedCount, isOnline, hasPendingOperations, processPending } = useSyncStatus();
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const totalCount = pendingCount + failedCount;
+  const hasError = failedCount > 0;
 
   // Não mostrar se não há itens pendentes e não está sincronizando
-  if (!isPending && !isSyncing && !lastError) {
+  if (!hasPendingOperations && !isSyncing) {
     return null;
   }
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      await processPending();
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   return (
     <div className="fixed bottom-20 right-4 z-50">
@@ -22,7 +35,7 @@ export function SyncStatus() {
           flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg backdrop-blur-md
           border transition-all duration-300
           ${
-            lastError
+            hasError
               ? 'bg-red-50 dark:bg-red-950/50 border-red-300 dark:border-red-800'
               : isSyncing
               ? 'bg-blue-50 dark:bg-blue-950/50 border-blue-300 dark:border-blue-800'
@@ -32,7 +45,7 @@ export function SyncStatus() {
       >
         {/* Ícone de Status */}
         <div className="relative">
-          {lastError ? (
+          {hasError ? (
             <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
           ) : isSyncing ? (
             <RefreshCw className="w-5 h-5 text-blue-600 dark:text-blue-400 animate-spin" />
@@ -43,9 +56,9 @@ export function SyncStatus() {
           )}
           
           {/* Badge de contagem */}
-          {count > 0 && !isSyncing && (
+          {totalCount > 0 && !isSyncing && (
             <span className="absolute -top-2 -right-2 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-[#FD5521] rounded-full">
-              {count}
+              {totalCount}
             </span>
           )}
         </div>
@@ -54,25 +67,25 @@ export function SyncStatus() {
         <div className="flex flex-col gap-0.5">
           <span
             className={`text-sm font-medium ${
-              lastError
+              hasError
                 ? 'text-red-900 dark:text-red-200'
                 : isSyncing
                 ? 'text-blue-900 dark:text-blue-200'
                 : 'text-orange-900 dark:text-orange-200'
             }`}
           >
-            {lastError
+            {hasError
               ? 'Erro na Sincronização'
               : isSyncing
               ? 'Sincronizando...'
               : !isOnline
               ? 'Modo Offline'
-              : `${count} ${count === 1 ? 'item pendente' : 'itens pendentes'}`}
+              : `${totalCount} ${totalCount === 1 ? 'item pendente' : 'itens pendentes'}`}
           </span>
           
-          {lastError && (
+          {hasError && (
             <span className="text-xs text-red-700 dark:text-red-300">
-              {lastError}
+              {failedCount} operação(ões) falharam
             </span>
           )}
           
@@ -84,9 +97,9 @@ export function SyncStatus() {
         </div>
 
         {/* Botão de sincronização manual */}
-        {!isSyncing && isOnline && isPending && (
+        {!isSyncing && isOnline && hasPendingOperations && (
           <button
-            onClick={sync}
+            onClick={handleSync}
             className="ml-2 p-1.5 rounded-lg hover:bg-white/50 dark:hover:bg-black/20 transition-colors"
             title="Sincronizar agora"
           >

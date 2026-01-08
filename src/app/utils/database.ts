@@ -2,7 +2,7 @@
 import type { User, Obra, FormData } from '../types';
 
 const DB_NAME = 'DiarioObrasDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // ✅ Incrementar versão para adicionar syncQueue
 
 let db: IDBDatabase | null = null;
 
@@ -47,6 +47,14 @@ export const initDB = (): Promise<IDBDatabase> => {
       // Store de configurações
       if (!database.objectStoreNames.contains('config')) {
         database.createObjectStore('config', { keyPath: 'key' });
+      }
+
+      // ✅ Store de fila de sincronização
+      if (!database.objectStoreNames.contains('syncQueue')) {
+        const syncStore = database.createObjectStore('syncQueue', { keyPath: 'id' });
+        syncStore.createIndex('status', 'status', { unique: false });
+        syncStore.createIndex('timestamp', 'timestamp', { unique: false });
+        syncStore.createIndex('entityId', 'entityId', { unique: false });
       }
     };
   });

@@ -1,5 +1,6 @@
 import { projectId, publicAnonKey } from '/utils/supabase/info';
 import { getAuthToken } from './api';
+import { retryWithBackoff } from './retryHelper';
 
 const API_URL = `https://${projectId}.supabase.co/functions/v1/make-server-1ff231a2`;
 
@@ -37,33 +38,35 @@ interface SendEncarregadoNovaObraParams {
  */
 export async function sendPrepostoConferenciaEmail(params: SendPrepostoEmailParams) {
   try {
-    console.log('📧 Enviando email ao preposto:', params.prepostoEmail);
-    
-    const accessToken = getAuthToken();
-    if (!accessToken) {
-      throw new Error('Usuário não autenticado');
-    }
-    
-    const response = await fetch(`${API_URL}/emails/send-preposto-conferencia`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`,
-        'X-User-Token': accessToken,
-      },
-      body: JSON.stringify(params),
+    // ✅ CORREÇÃO: Usar retry automático em envio de email
+    const result = await retryWithBackoff(async () => {
+      const accessToken = getAuthToken();
+      if (!accessToken) {
+        throw new Error('Usuário não autenticado');
+      }
+      
+      const response = await fetch(`${API_URL}/emails/send-preposto-conferencia`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${publicAnonKey}`,
+          'X-User-Token': accessToken,
+        },
+        body: JSON.stringify(params),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Erro ao enviar email');
+      }
+
+      return data;
     });
 
-    const data = await response.json();
-
-    if (!data.success) {
-      throw new Error(data.error || 'Erro ao enviar email');
-    }
-
-    console.log('✅ Email enviado ao preposto com sucesso');
-    return { success: true, link: data.link };
+    return { success: true };
   } catch (error: any) {
-    console.error('❌ Erro ao enviar email ao preposto:', error);
+    console.error('❌ Erro ao enviar email ao preposto após 3 tentativas:', error);
     return { success: false, error: error.message };
   }
 }
@@ -73,33 +76,35 @@ export async function sendPrepostoConferenciaEmail(params: SendPrepostoEmailPara
  */
 export async function sendAdminNotificacaoEmail(params: SendAdminNotificacaoParams) {
   try {
-    console.log('📧 Enviando email ao admin:', params.adminEmail);
-    
-    const accessToken = getAuthToken();
-    if (!accessToken) {
-      throw new Error('Usuário não autenticado');
-    }
-    
-    const response = await fetch(`${API_URL}/emails/send-admin-notificacao`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`,
-        'X-User-Token': accessToken,
-      },
-      body: JSON.stringify(params),
+    // ✅ CORREÇÃO: Usar retry automático em envio de email
+    await retryWithBackoff(async () => {
+      const accessToken = getAuthToken();
+      if (!accessToken) {
+        throw new Error('Usuário não autenticado');
+      }
+      
+      const response = await fetch(`${API_URL}/emails/send-admin-notificacao`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${publicAnonKey}`,
+          'X-User-Token': accessToken,
+        },
+        body: JSON.stringify(params),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Erro ao enviar email');
+      }
+
+      return data;
     });
 
-    const data = await response.json();
-
-    if (!data.success) {
-      throw new Error(data.error || 'Erro ao enviar email');
-    }
-
-    console.log('✅ Email enviado ao admin com sucesso');
     return { success: true };
   } catch (error: any) {
-    console.error('❌ Erro ao enviar email ao admin:', error);
+    console.error('❌ Erro ao enviar email ao admin após 3 tentativas:', error);
     return { success: false, error: error.message };
   }
 }
@@ -109,33 +114,35 @@ export async function sendAdminNotificacaoEmail(params: SendAdminNotificacaoPara
  */
 export async function sendEncarregadoNovaObraEmail(params: SendEncarregadoNovaObraParams) {
   try {
-    console.log('📧 Enviando email ao encarregado:', params.encarregadoEmail);
-    
-    const accessToken = getAuthToken();
-    if (!accessToken) {
-      throw new Error('Usuário não autenticado');
-    }
-    
-    const response = await fetch(`${API_URL}/emails/send-encarregado-nova-obra`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`,
-        'X-User-Token': accessToken,
-      },
-      body: JSON.stringify(params),
+    // ✅ CORREÇÃO: Usar retry automático em envio de email
+    await retryWithBackoff(async () => {
+      const accessToken = getAuthToken();
+      if (!accessToken) {
+        throw new Error('Usuário não autenticado');
+      }
+      
+      const response = await fetch(`${API_URL}/emails/send-encarregado-nova-obra`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${publicAnonKey}`,
+          'X-User-Token': accessToken,
+        },
+        body: JSON.stringify(params),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Erro ao enviar email');
+      }
+
+      return data;
     });
 
-    const data = await response.json();
-
-    if (!data.success) {
-      throw new Error(data.error || 'Erro ao enviar email');
-    }
-
-    console.log('✅ Email enviado ao encarregado com sucesso');
     return { success: true };
   } catch (error: any) {
-    console.error('❌ Erro ao enviar email ao encarregado:', error);
+    console.error('❌ Erro ao enviar email ao encarregado após 3 tentativas:', error);
     return { success: false, error: error.message };
   }
 }

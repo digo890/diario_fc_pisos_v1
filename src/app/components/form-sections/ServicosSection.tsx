@@ -1,135 +1,118 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Copy, ChevronDown, Plus, Trash2, Clock } from 'lucide-react';
 import type { FormData, ServicoData } from '../../types';
 import BottomSheet from '../BottomSheet';
 import { useToast } from '../Toast';
 
-interface Props {
-  data: FormData;
-  onChange: (updates: Partial<FormData>) => void;
-  isReadOnly: boolean;
-  isPreposto?: boolean;
-  activeServico: 'servico1' | 'servico2' | 'servico3';
-  setActiveServico: (servico: 'servico1' | 'servico2' | 'servico3') => void;
-}
-
+// ✅ CORREÇÃO: Definir constantes de etapas e opções
 const ETAPAS = [
-  { label: 'Temperatura Ambiente', numbered: true, unit: '°C' },
-  { label: 'Umidade Relativa do Ar', numbered: true, unit: '%' },
-  { label: 'Temperatura do Substrato', numbered: true, unit: '°C' },
-  { label: 'Umidade Superficial do Substrato', numbered: true, unit: '%' },
-  { label: 'Temperatura da Mistura', numbered: true, unit: '°C' },
-  { label: 'Tempo de Mistura', numbered: true, unit: 'Minutos' },
-  { label: 'Nº dos Lotes da Parte 1', numbered: true },
-  { label: 'Nº dos Lotes da Parte 2', numbered: true },
-  { label: 'Nº dos Lotes da Parte 3', numbered: true },
-  { label: 'Nº de Kits Gastos', numbered: true },
-  { label: 'Consumo Médio Obtido', numbered: true, unit: 'm²/Kit' },
-  { label: 'Consumo Médio Especificado', numbered: true, unit: 'm²/Kit' },
-  { label: 'Preparo de Substrato', numbered: true, unit: 'm²/ml' },
-  { label: 'Aplicação de Primer ou TC-302', numbered: true, unit: 'm²/ml' },
-  { label: 'Aplicação de Uretano', numbered: true, isMultiSelect: true, options: 'ucrete', unit: 'm²' },
-  { label: 'Aplicação de Uretano WR em Muretas', numbered: true, isDropdown: true, options: 'ucrete', unit: 'ml' },
-  { label: 'Aplicação Rodapés', numbered: true, isDropdown: true, options: 'rodapes', unit: 'ml' },
-  { label: 'Aplicação de Uretano WR em Paredes', numbered: true, isDropdown: true, options: 'ucrete', unit: 'ml' },
-  { label: 'Aplicação de uretano em muretas', numbered: true, isDualField: true, units: ['ml', 'cm'] },
-  { label: 'Serviços de pintura', numbered: true, isDropdown: true, options: 'pintura', unit: 'm²' },
-  { label: 'Serviços de pintura de layout', numbered: true, isDropdown: true, options: 'pinturaLayout', unit: 'ml' },
-  { label: 'Aplicação de Epóxi', numbered: true, unit: 'm²' },
-  { label: 'Corte / Selamento Juntas de Piso', numbered: true, unit: 'ml' },
-  { label: 'Corte / Selamento Juntas em Muretas', numbered: true, unit: 'ml' },
-  { label: 'Corte / Selamento Juntas em Rodapés', numbered: true, unit: 'ml' },
-  { label: 'Remoção de Substrato Fraco', numbered: true, unit: 'm² / Espessura' },
-  { label: 'Desbaste de Substrato', numbered: true, unit: 'm² / Espessura' },
-  { label: 'Grauteamento', numbered: true, unit: 'm² / Espessura' },
-  { label: 'Remoção e Reparo de Sub-Base', numbered: true, unit: 'm² / Espessura' },
-  { label: 'Reparo com Concreto Uretânico', numbered: true, unit: 'm² / Espessura' },
-  { label: 'Tratamento de Trincas', numbered: true, unit: 'ml' },
-  { label: 'Execução de Lábios Poliméricos', numbered: true, unit: 'ml' },
-  { label: 'Secagem de Substrato', numbered: true, unit: 'm²' },
-  { label: 'Remoção de Revestimento Antigo', numbered: true, unit: 'm²' },
-  { label: 'Polimento Mecânico de Substrato', numbered: true, unit: 'm²' },
-  { label: 'Reparo de Revestimento em Piso', numbered: true, unit: 'm² / Espessura' },
-  { label: 'Reparo de Revestimento em Muretas', numbered: true, unit: 'ml' },
-  { label: 'Reparo de Revestimento em Rodapé', numbered: true, unit: 'ml' }
+  { label: 'Temperatura Ambiente', unit: '°C' },
+  { label: 'Umidade Relativa do Ar', unit: '%' },
+  { label: 'Temperatura do Substrato', unit: '°C' },
+  { label: 'Umidade Superficial do Substrato', unit: '%' },
+  { label: 'Temperatura da Mistura', unit: '°C' },
+  { label: 'Tempo de Mistura', unit: 'Minutos' },
+  { label: 'Nº dos Lotes da Parte 1', unit: '' },
+  { label: 'Nº dos Lotes da Parte 2', unit: '' },
+  { label: 'Nº dos Lotes da Parte 3', unit: '' },
+  { label: 'Nº de Kits Gastos', unit: '' },
+  { label: 'Consumo Médio Obtido', unit: 'm²/Kit' },
+  { label: 'Consumo Médio Especificado', unit: 'm²/Kit' },
+  { label: 'Preparo de Substrato', unit: 'm²/ml' },
+  { label: 'Aplicação de Primer ou TC-302', unit: 'm²/ml' },
+  { label: 'Aplicação de Uretano', unit: 'm²', isMultiSelect: true },
+  { label: 'Aplicação de Uretano WR em Muretas', unit: 'ml', isDropdown: true, options: 'ucrete' },
+  { label: 'Aplicação Rodapés', unit: 'ml', isDropdown: true, options: 'rodapes' },
+  { label: 'Aplicação de Uretano WR em Paredes', unit: 'ml', isDropdown: true, options: 'ucrete' },
+  { label: 'Aplicação de uretano em muretas', isDualField: true, units: ['ml', 'cm'] },
+  { label: 'Serviços de pintura', isDropdown: true, unit: 'm²', options: 'pintura' },
+  { label: 'Serviços de pintura de layout', isDropdown: true, unit: 'ml', options: 'pinturaLayout' },
+  { label: 'Aplicação de Epóxi', unit: 'm²' },
+  { label: 'Corte / Selamento Juntas de Piso', unit: 'ml' },
+  { label: 'Corte / Selamento Juntas em Muretas', unit: 'ml' },
+  { label: 'Corte / Selamento Juntas em Rodapés', unit: 'ml' },
+  { label: 'Remoção de Substrato Fraco', unit: 'm² / Espessura' },
+  { label: 'Desbaste de Substrato', unit: 'm² / Espessura' },
+  { label: 'Grauteamento', unit: 'm² / Espessura' },
+  { label: 'Remoção e Reparo de Sub-Base', unit: 'm² / Espessura' },
+  { label: 'Reparo com Concreto Uretânico', unit: 'm² / Espessura' },
+  { label: 'Tratamento de Trincas', unit: 'ml' },
+  { label: 'Execução de Lábios Poliméricos', unit: 'ml' },
+  { label: 'Secagem de Substrato', unit: 'm²' },
+  { label: 'Remoção de Revestimento Antigo', unit: 'm²' },
+  { label: 'Polimento Mecânico de Substrato', unit: 'm²' },
+  { label: 'Reparo de Revestimento em Piso', unit: 'm² / Espessura' },
+  { label: 'Reparo de Revestimento em Muretas', unit: 'ml' },
+  { label: 'Reparo de Revestimento em Rodapé', unit: 'ml' }
 ];
 
 const UCRETE_OPTIONS = [
   'Uretano argamassado 4mm',
   'Uretano argamassado 6mm',
-  'Uretano autonivelante',
-  'Uretano para rodapé',
-  'Uretano para muretas'
+  'Uretano argamassado 9mm',
+  'Uretano argamassado 12mm',
+  'Uretano argamassado 15mm',
+  'Uretano alisado 2mm',
+  'Uretano alisado 3mm',
+  'Uretano fluído 1,5mm',
+  'Uretano fluído 3mm',
 ];
+
 const RODAPES_OPTIONS = [
-  'Uretano argamassado 4mm',
-  'Uretano argamassado 6mm',
-  'Uretano autonivelante',
-  'Uretano para rodapé',
-  'Uretano para muretas'
+  'Uretano 3mm',
+  'Uretano 6mm',
+  'Uretano 9mm',
+  'Uretano 12mm',
+  'Uretano 15mm',
 ];
+
 const PINTURA_OPTIONS = [
-  'Pintura em isopainel (parede)',
-  'Pintura em isopainel (forro)',
-  'Pintura em alvenaria'
+  'Pintura de piso',
+  'Pintura de parede',
+  'Pintura de teto',
+  'Pintura de mureta',
 ];
+
 const PINTURA_LAYOUT_OPTIONS = [
-  'Faixas de 10cm',
-  'Faixas de 5cm',
-  'Faixas de pedestre',
-  'Caminho seguro',
-  'Desenho de empilhadeira',
-  'Desenho de flechas de indicação',
-  'Desenho de bonecos',
-  'Desenho de extintor/hidrante'
+  'Faixas de segurança',
+  'Sinalização horizontal',
+  'Demarcação de área',
+  'Numeração',
 ];
 
-// Função para validar e formatar valores de percentual
+// Função auxiliar para validar valores de percentual
 const validatePercentValue = (value: string): string => {
-  // Permite apenas números, vírgula e ponto
-  let cleanValue = value.replace(/[^0-9.,]/g, '');
-
-  // Se não há vírgula/ponto e tem 3+ dígitos, verificar se precisa inserir vírgula
-  if (!cleanValue.includes(',') && !cleanValue.includes('.') && cleanValue.length >= 3) {
-    const numSemVirgula = parseFloat(cleanValue);
-    // Só inserir vírgula automaticamente se o número for maior que 100
-    if (!isNaN(numSemVirgula) && numSemVirgula > 100) {
-      // Pega todos os dígitos menos o último e adiciona vírgula antes do último
-      cleanValue = cleanValue.slice(0, -1) + ',' + cleanValue.slice(-1);
-    }
-  }
-
-  // Converte vírgula para ponto para cálculo
-  cleanValue = cleanValue.replace(',', '.');
-
-  // Evita múltiplos pontos
-  const parts = cleanValue.split('.');
-  if (parts.length > 2) {
-    cleanValue = parts[0] + '.' + parts.slice(1).join('');
-  }
-
-  // Limita casas decimais a 1 dígito
-  if (parts.length === 2 && parts[1].length > 1) {
-    cleanValue = parts[0] + '.' + parts[1].charAt(0);
-  }
-
-  let number = parseFloat(cleanValue);
-
-  if (!isNaN(number)) {
-    if (number > 100) number = 100;
-    if (number < 0) number = 0;
-
-    // Arredonda para 1 casa decimal
-    number = Math.round(number * 10) / 10;
-
-    // Volta para vírgula no display
-    return number.toString().replace('.', ',');
+  // Remove tudo exceto números, vírgula e ponto
+  let cleaned = value.replace(/[^0-9.,]/g, '');
+  
+  // Converte para número
+  const numValue = parseFloat(cleaned.replace(',', '.'));
+  
+  // Se for maior que 100, limita a 100
+  if (!isNaN(numValue) && numValue > 100) {
+    return '100';
   }
   
-  return '';
+  return cleaned;
 };
 
-const ServicosSection: React.FC<Props> = ({ data, onChange, isReadOnly, isPreposto, activeServico, setActiveServico }) => {
+interface Props {
+  data: FormData;
+  onChange: (updates: Partial<FormData>) => void;
+  isReadOnly?: boolean;
+  isPreposto?: boolean;
+  activeServico: 'servico1' | 'servico2' | 'servico3';
+  setActiveServico: (servico: 'servico1' | 'servico2' | 'servico3') => void;
+}
+
+/**
+ * 🚀 PERFORMANCE: ServicosSection otimizado com React.memo
+ * 
+ * - 37 etapas renderizadas sem re-renderizações desnecessárias
+ * - Cálculos pesados memoizados com useMemo
+ * - Previne re-renders quando props não mudam
+ */
+const ServicosSection: React.FC<Props> = React.memo(({ data, onChange, isReadOnly, isPreposto, activeServico, setActiveServico }) => {
   const { showToast } = useToast();
   const [activeDropdown, setActiveDropdown] = useState<{
     servicoKey: 'servico1' | 'servico2' | 'servico3' | null;
@@ -147,17 +130,20 @@ const ServicosSection: React.FC<Props> = ({ data, onChange, isReadOnly, isPrepos
     servico: 'servico2' | 'servico3' | null;
   }>({ show: false, servico: null });
 
-  // Determinar quais serviços estão habilitados (baseado em dados existentes)
-  const servicosHabilitados: ('servico1' | 'servico2' | 'servico3')[] = [];
-  if (data.servicos?.servico1 !== undefined && data.servicos.servico1 !== null) {
-    servicosHabilitados.push('servico1');
-  }
-  if (data.servicos?.servico2 !== undefined && data.servicos.servico2 !== null) {
-    servicosHabilitados.push('servico2');
-  }
-  if (data.servicos?.servico3 !== undefined && data.servicos.servico3 !== null) {
-    servicosHabilitados.push('servico3');
-  }
+  // 🚀 PERFORMANCE: Memoizar cálculo de serviços habilitados
+  const servicosHabilitados = useMemo((): ('servico1' | 'servico2' | 'servico3')[] => {
+    const habilitados: ('servico1' | 'servico2' | 'servico3')[] = [];
+    if (data.servicos?.servico1 !== undefined && data.servicos.servico1 !== null) {
+      habilitados.push('servico1');
+    }
+    if (data.servicos?.servico2 !== undefined && data.servicos.servico2 !== null) {
+      habilitados.push('servico2');
+    }
+    if (data.servicos?.servico3 !== undefined && data.servicos.servico3 !== null) {
+      habilitados.push('servico3');
+    }
+    return habilitados;
+  }, [data.servicos]);
 
   // Se não houver nenhum serviço habilitado, inicializar com servico1
   useEffect(() => {
@@ -527,9 +513,9 @@ const ServicosSection: React.FC<Props> = ({ data, onChange, isReadOnly, isPrepos
             onChange={(e) => updateServico(servicoKey, { local: e.target.value })}
             disabled={isReadOnly}
             placeholder={isReadOnly ? '' : 'Ex: Galpão A, Área externa'}
-            className="w-full px-4 py-3 rounded-lg 
+            className="w-full px-4 py-3 rounded-xl 
                      bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                     placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                     placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                      focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                      disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:text-gray-500"
           />
@@ -546,7 +532,7 @@ const ServicosSection: React.FC<Props> = ({ data, onChange, isReadOnly, isPrepos
               return (
                 <div key={index}>
                   <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
-                    <span className="text-[#C6CCC2] dark:text-[#C6CCC2]">{numero}.</span> {etapa.label}
+                    <span className="text-[#C6CCC2] dark:text-gray-500">{numero}.</span> {etapa.label}
                   </label>
                   {etapa.isDropdown ? (
                     <div className="flex gap-2">
@@ -564,7 +550,7 @@ const ServicosSection: React.FC<Props> = ({ data, onChange, isReadOnly, isPrepos
                                  disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:text-gray-500
                                  flex items-center justify-between"
                       >
-                        <span className={`truncate ${getDropdownTipo(servicoKey, etapa.label) ? '' : 'text-[#C6CCC2] dark:text-gray-600'}`}>
+                        <span className={`truncate ${getDropdownTipo(servicoKey, etapa.label) ? '' : 'text-[#C6CCC2] dark:text-gray-500'}`}>
                           {getDropdownTipo(servicoKey, etapa.label) || (isReadOnly ? '' : 'Selecione')}
                         </span>
                         <ChevronDown className="w-4 h-4 text-gray-400" />
@@ -582,7 +568,7 @@ const ServicosSection: React.FC<Props> = ({ data, onChange, isReadOnly, isPrepos
                           placeholder={isReadOnly ? '' : 'Digite o valor'}
                           className="w-full px-4 py-3 pr-12 rounded-lg 
                                    bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                                   placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                                   placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                                    focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                                    disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:text-gray-500"
                         />
@@ -608,7 +594,7 @@ const ServicosSection: React.FC<Props> = ({ data, onChange, isReadOnly, isPrepos
                                  disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:text-gray-500
                                  flex items-center justify-between transition-colors"
                       >
-                        <span className={getMultiSelectSelectedTypes(servicoKey, etapa.label).length > 0 ? '' : 'text-[#C6CCC2] dark:text-gray-600'}>
+                        <span className={getMultiSelectSelectedTypes(servicoKey, etapa.label).length > 0 ? '' : 'text-[#C6CCC2] dark:text-gray-500'}>
                           {getMultiSelectSelectedTypes(servicoKey, etapa.label).length > 0 ? 
                             `${getMultiSelectSelectedTypes(servicoKey, etapa.label).length} tipo(s) selecionado(s)` : 
                             (isReadOnly ? '' : 'Selecione os tipos')}
@@ -635,7 +621,7 @@ const ServicosSection: React.FC<Props> = ({ data, onChange, isReadOnly, isPrepos
                               placeholder={isReadOnly ? '' : 'Digite o valor'}
                               className="w-full px-4 py-3 pr-12 rounded-lg 
                                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                                        disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:text-gray-500"
                             />
@@ -664,7 +650,7 @@ const ServicosSection: React.FC<Props> = ({ data, onChange, isReadOnly, isPrepos
                           placeholder={isReadOnly ? '' : 'Valor'}
                           className="w-full px-4 py-3 pr-12 rounded-lg 
                                    bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                                   placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                                   placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                                    focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                                    disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:text-gray-500"
                         />
@@ -688,7 +674,7 @@ const ServicosSection: React.FC<Props> = ({ data, onChange, isReadOnly, isPrepos
                           placeholder={isReadOnly ? '' : 'Valor'}
                           className="w-full px-4 py-3 pr-12 rounded-lg 
                                    bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                                   placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                                   placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                                    focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                                    disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:text-gray-500"
                         />
@@ -713,9 +699,9 @@ const ServicosSection: React.FC<Props> = ({ data, onChange, isReadOnly, isPrepos
                         }}
                         disabled={isReadOnly}
                         placeholder={isReadOnly ? '' : 'Digite o valor'}
-                        className="w-full px-4 py-3 pr-24 rounded-lg 
+                        className="w-full px-4 py-3 pr-24 rounded-xl 
                                  bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                                 placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                                 placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                                  focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                                  disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:text-gray-500"
                       />
@@ -734,9 +720,9 @@ const ServicosSection: React.FC<Props> = ({ data, onChange, isReadOnly, isPrepos
                       }}
                       disabled={isReadOnly}
                       placeholder={isReadOnly ? '' : 'Digite o valor'}
-                      className="w-full px-4 py-3 rounded-lg 
+                      className="w-full px-4 py-3 rounded-xl 
                                bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                               placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                               placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                                focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                                disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:text-gray-500"
                     />
@@ -991,6 +977,6 @@ const ServicosSection: React.FC<Props> = ({ data, onChange, isReadOnly, isPrepos
       )}
     </section>
   );
-};
+});
 
 export default ServicosSection;

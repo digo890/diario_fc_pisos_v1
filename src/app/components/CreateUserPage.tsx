@@ -161,7 +161,7 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
               className={`w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
                        border border-gray-200 dark:border-gray-800
-                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                        ${errors.nome ? 'ring-2 ring-red-500' : ''}`}
               placeholder="Nome completo *"
@@ -218,7 +218,7 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
               className={`w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
                        border border-gray-200 dark:border-gray-800
-                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                        ${errors.email ? 'ring-2 ring-red-500' : ''}`}
               placeholder="Email *"
@@ -236,7 +236,7 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
               className="w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
                        border border-gray-200 dark:border-gray-800
-                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
               placeholder="Telefone"
             />
@@ -252,7 +252,7 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
               className="w-full pl-12 pr-12 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
                        border border-gray-200 dark:border-gray-800
-                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
               placeholder="Senha"
             />
@@ -276,7 +276,7 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
               className={`w-full pl-12 pr-12 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
                        border border-gray-200 dark:border-gray-800
-                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-600
+                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                        ${errors.senhas ? 'ring-2 ring-red-500' : ''}`}
               placeholder="Confirmar senha"

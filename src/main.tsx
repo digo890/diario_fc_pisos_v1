@@ -10,7 +10,7 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>
 );
 
-// Registrar Service Worker
-if (import.meta.env.PROD) {
+// Registrar Service Worker (também em DEV para testes)
+if (import.meta.env.PROD || import.meta.env.DEV) {
   registerServiceWorker();
 }

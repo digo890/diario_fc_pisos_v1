@@ -205,19 +205,12 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
               key={key}
               className={isEven ? 'bg-white dark:bg-gray-900' : 'bg-[#F9FAF2] dark:bg-gray-800'}
             >
-              <div 
-                className="p-4"
-                style={{ 
-                  boxShadow: index === 21 
-                    ? 'inset 4px 0 0 white, inset -4px 0 0 white, inset 0 -4px 0 white' 
-                    : 'inset 4px 0 0 white, inset -4px 0 0 white'
-                }}
-              >
+              <div className="p-4">
                 {/* Item 40: Estado do Substrato - Dropdown */}
                 {isEstadoSubstrato ? (
                   <div>
                     <label className="block font-medium text-gray-900 dark:text-white mb-3">
-                      <span className="text-[#C6CCC2] dark:text-[#C6CCC2]">{39 + index}.</span> {label}
+                      <span className="text-[#C6CCC2] dark:text-gray-500">{39 + index}.</span> {label}
                     </label>
                     <button
                       type="button"
@@ -226,9 +219,9 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
                       className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700
                                bg-white dark:bg-gray-800 text-left flex items-center justify-between
                                focus:ring-2 focus:ring-[#FD5521]/40 focus:border-transparent
-                               hover:border-[#FD5521] disabled:hover:border-gray-300 disabled:cursor-not-allowed"
+                               disabled:cursor-not-allowed"
                     >
-                      <span className={item?.texto ? 'text-gray-900 dark:text-white' : 'text-[#C6CCC2] dark:text-gray-600'}>
+                      <span className={item?.texto ? 'text-gray-900 dark:text-white' : 'text-[#C6CCC2] dark:text-gray-500'}>
                         {item?.texto || (isReadOnly ? '' : 'Selecione')}
                       </span>
                       <ChevronDown className="w-5 h-5 text-gray-400" />
@@ -291,23 +284,25 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
                   // Item 45: Campo numérico simples (sem observação)
                   <div>
                     <label className="block font-medium text-gray-900 dark:text-white mb-3">
-                      <span className="text-[#C6CCC2] dark:text-[#C6CCC2]">{39 + index}.</span> {label}
+                      <span className="text-[#C6CCC2] dark:text-gray-500">{39 + index}.</span> {label}
                     </label>
                     <div className="relative">
                       <input
-                        type="text"
-                        value={item?.texto || ''}
+                        type="number"
+                        value={item?.espessura || ''}
                         onChange={(e) => {
                           const value = e.target.value;
-                          // Permite números, pontos, vírgulas, barras e hífens
-                          if (/^[0-9.,/\\-]*$/.test(value)) {
-                            updateRegistro(key, { texto: value });
+                          if (value === '') {
+                            updateRegistro(key, { espessura: null });
+                          } else {
+                            updateRegistro(key, { espessura: parseFloat(value) });
                           }
                         }}
                         disabled={isReadOnly}
                         placeholder={isReadOnly ? '' : 'Digite a espessura'}
                         className="w-full px-4 py-3 pr-12 rounded-lg border-0
                                  bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                                 placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                                  focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                                  disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:text-gray-500"
                       />
@@ -320,7 +315,7 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
                   // Item 46: Campo numérico com observação
                   <div>
                     <label className="block font-medium text-gray-900 dark:text-white mb-3">
-                      <span className="text-[#C6CCC2] dark:text-[#C6CCC2]">{39 + index}.</span> {label}
+                      <span className="text-[#C6CCC2] dark:text-gray-500">{39 + index}.</span> {label}
                     </label>
                     <div className="relative">
                       <input
@@ -337,6 +332,7 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
                         placeholder={isReadOnly ? '' : 'Digite a profundidade'}
                         className="w-full px-4 py-3 pr-12 rounded-lg border border-gray-300 dark:border-gray-700 
                                  bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                                 placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                                  focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                                  disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:text-gray-500"
                       />
@@ -354,6 +350,7 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
                       rows={3}
                       className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700 
                                bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                               placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                                focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                                disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:text-gray-500
                                resize-none mt-3"
@@ -365,12 +362,14 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
                     <div className="flex flex-col sm:flex-row sm:items-start gap-3">
                       <div className="flex-1">
                         <label className="font-medium text-gray-900 dark:text-white">
-                          <span className="text-[#C6CCC2] dark:text-[#C6CCC2]">{39 + index}.</span> {label}
+                          <span className="text-[#C6CCC2] dark:text-gray-500">{39 + index}.</span> {label}
                         </label>
                       </div>
                       
                       {/* Switch Não/Sim - Design tipo toggle */}
-                      <div className="bg-[#edefe3] dark:bg-gray-800 rounded-full p-1 relative w-full sm:w-auto">
+                      <div className={`bg-[#edefe3] rounded-full p-1 relative w-full sm:w-auto ${
+                        isEven ? 'dark:bg-gray-800' : 'dark:bg-gray-900'
+                      }`}>
                         {/* Background verde que desliza */}
                         <div 
                           className={`absolute top-1 bottom-1 left-1 right-1 w-[calc(50%-4px)] bg-[#DBEA8D] dark:bg-[#DBEA8D] rounded-full transition-transform duration-300 ease-in-out ${
