@@ -17,67 +17,55 @@ const ETAPAS = [
   { label: 'Nº dos Lotes da Parte 3', unit: '' },
   { label: 'Nº de Kits Gastos', unit: '' },
   { label: 'Consumo Médio Obtido', unit: 'm²/Kit' },
-  { label: 'Consumo Médio Especificado', unit: 'm²/Kit' },
-  { label: 'Preparo de Substrato', unit: 'm²/ml' },
-  { label: 'Aplicação de Primer ou TC-302', unit: 'm²/ml' },
-  { label: 'Aplicação de Uretano', unit: 'm²', isMultiSelect: true },
-  { label: 'Aplicação de Uretano WR em Muretas', unit: 'ml', isDropdown: true, options: 'ucrete' },
-  { label: 'Aplicação Rodapés', unit: 'ml', isDropdown: true, options: 'rodapes' },
-  { label: 'Aplicação de Uretano WR em Paredes', unit: 'ml', isDropdown: true, options: 'ucrete' },
-  { label: 'Aplicação de uretano em muretas', isDualField: true, units: ['ml', 'cm'] },
-  { label: 'Serviços de pintura', isDropdown: true, unit: 'm²', options: 'pintura' },
-  { label: 'Serviços de pintura de layout', isDropdown: true, unit: 'ml', options: 'pinturaLayout' },
+  { label: 'Preparo de Substrato (fresagem e ancoragem)', unit: 'm²/ml' },
+  { label: 'Aplicação de Uretano', unit: 'm²', isMultiSelect: true, options: 'ucrete' },
+  { label: 'Serviços de pintura', unit: 'm²', isMultiSelect: true, options: 'pintura' },
+  { label: 'Serviços de pintura de layout', unit: 'ml', isMultiSelect: true, options: 'pinturaLayout' },
   { label: 'Aplicação de Epóxi', unit: 'm²' },
   { label: 'Corte / Selamento Juntas de Piso', unit: 'ml' },
   { label: 'Corte / Selamento Juntas em Muretas', unit: 'ml' },
   { label: 'Corte / Selamento Juntas em Rodapés', unit: 'ml' },
-  { label: 'Remoção de Substrato Fraco', unit: 'm² / Espessura' },
-  { label: 'Desbaste de Substrato', unit: 'm² / Espessura' },
-  { label: 'Grauteamento', unit: 'm² / Espessura' },
-  { label: 'Remoção e Reparo de Sub-Base', unit: 'm² / Espessura' },
-  { label: 'Reparo com Concreto Uretânico', unit: 'm² / Espessura' },
+  { label: 'Remoção de Substrato Fraco', isDualField: true, units: ['m²', 'cm'] },
+  { label: 'Desbaste de Substrato', isDualField: true, units: ['m²', 'cm'] },
+  { label: 'Grauteamento', isDualField: true, units: ['m²', 'cm'] },
+  { label: 'Remoção e Reparo de Sub-Base', isDualField: true, units: ['m²', 'cm'] },
+  { label: 'Reparo com Concreto Uretânico', isDualField: true, units: ['m²', 'cm'] },
   { label: 'Tratamento de Trincas', unit: 'ml' },
   { label: 'Execução de Lábios Poliméricos', unit: 'ml' },
   { label: 'Secagem de Substrato', unit: 'm²' },
   { label: 'Remoção de Revestimento Antigo', unit: 'm²' },
   { label: 'Polimento Mecânico de Substrato', unit: 'm²' },
-  { label: 'Reparo de Revestimento em Piso', unit: 'm² / Espessura' },
+  { label: 'Reparo de Revestimento em Piso', isDualField: true, units: ['m²', 'cm'] },
   { label: 'Reparo de Revestimento em Muretas', unit: 'ml' },
-  { label: 'Reparo de Revestimento em Rodapé', unit: 'ml' }
+  { label: 'Reparo de Revestimento em Rodapé', unit: 'ml' },
+  { label: 'Quantos botijões de gás foram utilizados?', unit: '' },
+  { label: 'Quantas bisnagas de selante foram utilizadas?', unit: '' }
 ];
 
 const UCRETE_OPTIONS = [
   'Uretano argamassado 4mm',
   'Uretano argamassado 6mm',
-  'Uretano argamassado 9mm',
-  'Uretano argamassado 12mm',
-  'Uretano argamassado 15mm',
-  'Uretano alisado 2mm',
-  'Uretano alisado 3mm',
-  'Uretano fluído 1,5mm',
-  'Uretano fluído 3mm',
-];
-
-const RODAPES_OPTIONS = [
-  'Uretano 3mm',
-  'Uretano 6mm',
-  'Uretano 9mm',
-  'Uretano 12mm',
-  'Uretano 15mm',
+  'Uretano autonivelante',
+  'Uretano para rodapé',
+  'Uretano para muretas',
+  'Uretano para Paredes, base e pilares',
 ];
 
 const PINTURA_OPTIONS = [
-  'Pintura de piso',
-  'Pintura de parede',
-  'Pintura de teto',
-  'Pintura de mureta',
+  'Pintura em isopainel (parede)',
+  'Pintura em isopainel (forro)',
+  'Pintura em alvenaria',
 ];
 
 const PINTURA_LAYOUT_OPTIONS = [
-  'Faixas de segurança',
-  'Sinalização horizontal',
-  'Demarcação de área',
-  'Numeração',
+  'Faixas de 10cm',
+  'Faixas de 5cm',
+  'Faixas de pedestre',
+  'Caminho seguro',
+  'Desenho de empilhadeira',
+  'Desenho de flechas de indicação',
+  'Desenho de bonecos',
+  'Desenho de extintor/hidrante',
 ];
 
 // Função auxiliar para validar valores de percentual
@@ -103,16 +91,17 @@ interface Props {
   isPreposto?: boolean;
   activeServico: 'servico1' | 'servico2' | 'servico3';
   setActiveServico: (servico: 'servico1' | 'servico2' | 'servico3') => void;
+  onBlur?: () => void; // 🏆 HÍBRIDO: Callback para salvar ao sair do campo
 }
 
 /**
  * 🚀 PERFORMANCE: ServicosSection otimizado com React.memo
  * 
- * - 37 etapas renderizadas sem re-renderizações desnecessárias
+ * - 34 etapas renderizadas sem re-renderizações desnecessárias
  * - Cálculos pesados memoizados com useMemo
  * - Previne re-renders quando props não mudam
  */
-const ServicosSection: React.FC<Props> = React.memo(({ data, onChange, isReadOnly, isPreposto, activeServico, setActiveServico }) => {
+const ServicosSection: React.FC<Props> = React.memo(({ data, onChange, isReadOnly, isPreposto, activeServico, setActiveServico, onBlur }) => {
   const { showToast } = useToast();
   const [activeDropdown, setActiveDropdown] = useState<{
     servicoKey: 'servico1' | 'servico2' | 'servico3' | null;
@@ -145,20 +134,23 @@ const ServicosSection: React.FC<Props> = React.memo(({ data, onChange, isReadOnl
     return habilitados;
   }, [data.servicos]);
 
-  // Se não houver nenhum serviço habilitado, inicializar com servico1
+  // ✅ CORREÇÃO #1: Se não houver nenhum serviço habilitado, inicializar com servico1
   useEffect(() => {
     if (servicosHabilitados.length === 0) {
       onChange({
         servicos: {
           servico1: {
-            horario: '',
+            horarioInicioManha: '',
+            horarioFimManha: '',
+            horarioInicioTarde: '',
+            horarioFimTarde: '',
             local: '',
             etapas: {}
           }
         }
       });
     }
-  }, []);
+  }, [servicosHabilitados, onChange]); // ✅ Dependências corretas
 
   const adicionarServico = () => {
     if (isReadOnly) return;
@@ -176,7 +168,10 @@ const ServicosSection: React.FC<Props> = React.memo(({ data, onChange, isReadOnl
         servicos: {
           ...data.servicos,
           [novoServico]: {
-            horario: '',
+            horarioInicioManha: '',
+            horarioFimManha: '',
+            horarioInicioTarde: '',
+            horarioFimTarde: '',
             local: '',
             etapas: {}
           }
@@ -221,14 +216,20 @@ const ServicosSection: React.FC<Props> = React.memo(({ data, onChange, isReadOnl
 
   const updateServico = (servicoKey: string, updates: Partial<ServicoData>) => {
     const servico = data.servicos[servicoKey] || {
-      horario: '',
+      horarioInicioManha: '',
+      horarioFimManha: '',
+      horarioInicioTarde: '',
+      horarioFimTarde: '',
       local: '',
       etapas: {}
     };
 
     // Deep copy para garantir independência completa
     const novoServico: ServicoData = {
-      horario: updates.horario !== undefined ? updates.horario : servico.horario,
+      horarioInicioManha: updates.horarioInicioManha !== undefined ? updates.horarioInicioManha : servico.horarioInicioManha,
+      horarioFimManha: updates.horarioFimManha !== undefined ? updates.horarioFimManha : servico.horarioFimManha,
+      horarioInicioTarde: updates.horarioInicioTarde !== undefined ? updates.horarioInicioTarde : servico.horarioInicioTarde,
+      horarioFimTarde: updates.horarioFimTarde !== undefined ? updates.horarioFimTarde : servico.horarioFimTarde,
       local: updates.local !== undefined ? updates.local : servico.local,
       etapas: updates.etapas !== undefined ? { ...updates.etapas } : { ...servico.etapas },
       fotos: updates.fotos !== undefined ? (updates.fotos ? [...updates.fotos] : undefined) : (servico.fotos ? [...servico.fotos] : undefined)
@@ -244,7 +245,10 @@ const ServicosSection: React.FC<Props> = React.memo(({ data, onChange, isReadOnl
 
   const updateEtapaValue = (servicoKey: string, etapa: string, value: string) => {
     const servico = data.servicos[servicoKey] || {
-      horario: '',
+      horarioInicioManha: '',
+      horarioFimManha: '',
+      horarioInicioTarde: '',
+      horarioFimTarde: '',
       local: '',
       etapas: {}
     };
@@ -258,7 +262,10 @@ const ServicosSection: React.FC<Props> = React.memo(({ data, onChange, isReadOnl
   // Funções genéricas para gerenciar dropdowns - funciona com qualquer label
   const updateDropdownTipo = (servicoKey: string, label: string, tipo: string) => {
     const servico = data.servicos[servicoKey] || {
-      horario: '',
+      horarioInicioManha: '',
+      horarioFimManha: '',
+      horarioInicioTarde: '',
+      horarioFimTarde: '',
       local: '',
       etapas: {}
     };
@@ -275,7 +282,10 @@ const ServicosSection: React.FC<Props> = React.memo(({ data, onChange, isReadOnl
 
   const updateDropdownValor = (servicoKey: string, label: string, valor: string) => {
     const servico = data.servicos[servicoKey] || {
-      horario: '',
+      horarioInicioManha: '',
+      horarioFimManha: '',
+      horarioInicioTarde: '',
+      horarioFimTarde: '',
       local: '',
       etapas: {}
     };
@@ -319,25 +329,12 @@ const ServicosSection: React.FC<Props> = React.memo(({ data, onChange, isReadOnl
     return getDropdownValor(servicoKey, 'Aplicação de Uretano (m²)');
   };
 
-  const updateRodapeTipo = (servicoKey: string, tipo: string) => {
-    updateDropdownTipo(servicoKey, 'Aplicação Rodapés (ml)', tipo);
-  };
-
-  const updateRodapeValor = (servicoKey: string, valor: string) => {
-    updateDropdownValor(servicoKey, 'Aplicação Rodapés (ml)', valor);
-  };
-
-  const getRodapeTipo = (servicoKey: string): string => {
-    return getDropdownTipo(servicoKey, 'Aplicação Rodapés (ml)');
-  };
-
-  const getRodapeValor = (servicoKey: string): string => {
-    return getDropdownValor(servicoKey, 'Aplicação Rodapés (ml)');
-  };
-
   const toggleEtapa = (servicoKey: string, etapa: string) => {
     const servico = data.servicos[servicoKey] || {
-      horario: '',
+      horarioInicioManha: '',
+      horarioFimManha: '',
+      horarioInicioTarde: '',
+      horarioFimTarde: '',
       local: '',
       etapas: {}
     };
@@ -358,7 +355,7 @@ const ServicosSection: React.FC<Props> = React.memo(({ data, onChange, isReadOnl
     return value.split('|').filter(item => item).map(item => {
       const [tipo, valor] = item.split(':');
       return { tipo: tipo || '', valor: valor || '' };
-    });
+    }).filter(item => item.tipo); // 🐛 CORREÇÃO: Filtrar itens sem tipo (dados corrompidos)
   };
 
   const getMultiSelectSelectedTypes = (servicoKey: string, label: string): string[] => {
@@ -368,7 +365,10 @@ const ServicosSection: React.FC<Props> = React.memo(({ data, onChange, isReadOnl
 
   const toggleMultiSelectType = (servicoKey: string, label: string, tipo: string) => {
     const servico = data.servicos[servicoKey] || {
-      horario: '',
+      horarioInicioManha: '',
+      horarioFimManha: '',
+      horarioInicioTarde: '',
+      horarioFimTarde: '',
       local: '',
       etapas: {}
     };
@@ -392,7 +392,10 @@ const ServicosSection: React.FC<Props> = React.memo(({ data, onChange, isReadOnl
 
   const updateMultiSelectValue = (servicoKey: string, label: string, tipo: string, valor: string) => {
     const servico = data.servicos[servicoKey] || {
-      horario: '',
+      horarioInicioManha: '',
+      horarioFimManha: '',
+      horarioInicioTarde: '',
+      horarioFimTarde: '',
       local: '',
       etapas: {}
     };
@@ -400,12 +403,22 @@ const ServicosSection: React.FC<Props> = React.memo(({ data, onChange, isReadOnl
     const etapas = { ...servico.etapas };
     const items = getMultiSelectData(servicoKey, label);
     
-    const updatedItems = items.map(item => {
-      if (item.tipo === tipo) {
-        return { tipo, valor };
-      }
-      return item;
-    });
+    // 🐛 CORREÇÃO: Verificar se o item já existe antes de adicionar
+    const itemExists = items.some(item => item.tipo === tipo);
+    
+    let updatedItems;
+    if (itemExists) {
+      // ✅ Atualizar valor do item existente
+      updatedItems = items.map(item => {
+        if (item.tipo === tipo) {
+          return { tipo, valor };
+        }
+        return item;
+      });
+    } else {
+      // ✅ Adicionar novo item apenas se não existir
+      updatedItems = [...items, { tipo, valor }];
+    }
 
     etapas[label] = updatedItems.map(i => `${i.tipo}:${i.valor}`).join('|');
     updateServico(servicoKey, { etapas });
@@ -435,7 +448,10 @@ const ServicosSection: React.FC<Props> = React.memo(({ data, onChange, isReadOnl
       servicos: {
         ...data.servicos,
         [destino]: {
-          horario: servico1.horario,
+          horarioInicioManha: servico1.horarioInicioManha,
+          horarioFimManha: servico1.horarioFimManha,
+          horarioInicioTarde: servico1.horarioInicioTarde,
+          horarioFimTarde: servico1.horarioFimTarde,
           local: servico1.local,
           etapas: { ...servico1.etapas },
           fotos: servico1.fotos ? [...servico1.fotos] : undefined,
@@ -482,25 +498,104 @@ const ServicosSection: React.FC<Props> = React.memo(({ data, onChange, isReadOnl
           </div>
         )}
 
-        {/* Horário de execução */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Horário de execução
-          </label>
-          <div className="relative">
-            <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-            <input
-              type="time"
-              value={servico?.horario || ''}
-              onChange={(e) => updateServico(servicoKey, { horario: e.target.value })}
-              disabled={isReadOnly}
-              className="w-full pl-12 pr-4 py-3 rounded-xl 
-                       bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                       focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
-                       disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:text-gray-500"
-            />
+        {/* Horários de execução */}
+        <div className="space-y-4">
+            {/* Período da Manhã */}
+            <div>
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Período da Manhã
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {/* Manhã - Início */}
+                <div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                    Início
+                  </div>
+                  <div className="relative">
+                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                    <input
+                      type="time"
+                      value={servico?.horarioInicioManha || ''}
+                      onChange={(e) => updateServico(servicoKey, { horarioInicioManha: e.target.value })}
+                      disabled={isReadOnly}
+                      className="w-full pl-12 pr-4 py-3 rounded-xl 
+                               bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                               focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
+                               disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:text-gray-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Manhã - Fim */}
+                <div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                    Fim
+                  </div>
+                  <div className="relative">
+                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                    <input
+                      type="time"
+                      value={servico?.horarioFimManha || ''}
+                      onChange={(e) => updateServico(servicoKey, { horarioFimManha: e.target.value })}
+                      disabled={isReadOnly}
+                      className="w-full pl-12 pr-4 py-3 rounded-xl 
+                               bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                               focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
+                               disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:text-gray-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Período da Tarde */}
+            <div>
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Período da Tarde
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {/* Tarde - Início */}
+                <div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                    Início
+                  </div>
+                  <div className="relative">
+                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                    <input
+                      type="time"
+                      value={servico?.horarioInicioTarde || ''}
+                      onChange={(e) => updateServico(servicoKey, { horarioInicioTarde: e.target.value })}
+                      disabled={isReadOnly}
+                      className="w-full pl-12 pr-4 py-3 rounded-xl 
+                               bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                               focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
+                               disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:text-gray-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Tarde - Fim */}
+                <div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                    Fim
+                  </div>
+                  <div className="relative">
+                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                    <input
+                      type="time"
+                      value={servico?.horarioFimTarde || ''}
+                      onChange={(e) => updateServico(servicoKey, { horarioFimTarde: e.target.value })}
+                      disabled={isReadOnly}
+                      className="w-full pl-12 pr-4 py-3 rounded-xl 
+                               bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                               focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
+                               disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:text-gray-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
 
         {/* Local de execução */}
         <div>
@@ -603,34 +698,102 @@ const ServicosSection: React.FC<Props> = React.memo(({ data, onChange, isReadOnl
                       </button>
 
                       {/* Campos para cada tipo selecionado */}
-                      {getMultiSelectData(servicoKey, etapa.label).map((item, itemIndex) => (
-                        <div key={itemIndex} className="pl-4 border-l-2 border-[#FD5521]">
-                          <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">
-                            {item.tipo}
+                      {getMultiSelectData(servicoKey, etapa.label).map((item, itemIndex) => {
+                        // Determinar a unidade baseado no tipo selecionado
+                        let itemUnit = etapa.unit; // unidade padrão
+                        let isDualFieldItem = false; // Por padrão, não é dual field
+                        
+                        if (etapa.label === 'Aplicação de Uretano') {
+                          if (item.tipo === 'Uretano para rodapé' || item.tipo === 'Uretano para muretas' || item.tipo === 'Uretano para Paredes, base e pilares' || item.tipo === 'Uretano para Paredes') {
+                            itemUnit = 'ml';
+                            isDualFieldItem = true; // Estes têm dois campos
+                          } else {
+                            itemUnit = 'm²';
+                          }
+                        }
+                        
+                        return (
+                          <div key={itemIndex} className="pl-4 border-l-2 border-[#FD5521]">
+                            <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                              {item.tipo === 'Uretano para Paredes' ? 'Uretano para Paredes, base e pilares' : item.tipo}
+                            </div>
+                            {isDualFieldItem ? (
+                              <div className="flex gap-2">
+                                <div className="relative w-1/2">
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={(item.valor || '').split('~')[0] || ''
+                                  }
+                                    onChange={(e) => {
+                                      const value = e.target.value.replace(/[^0-9.,/-]/g, '');
+                                      const parts = (item.valor || '').split('~');
+                                      const newValue = `${value}~${parts[1] || ''}`;
+                                      updateMultiSelectValue(servicoKey, etapa.label, item.tipo, newValue);
+                                    }}
+                                    disabled={isReadOnly}
+                                    placeholder={isReadOnly ? '' : 'Valor'}
+                                    className="w-full px-4 py-3 pr-12 rounded-lg 
+                                             bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                                             placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
+                                             focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
+                                             disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:text-gray-500"
+                                  />
+                                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 pointer-events-none text-sm">
+                                    ml
+                                  </span>
+                                </div>
+                                <div className="relative w-1/2">
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={(item.valor || '').split('~')[1] || ''
+                                  }
+                                    onChange={(e) => {
+                                      const value = e.target.value.replace(/[^0-9.,/-]/g, '');
+                                      const parts = (item.valor || '').split('~');
+                                      const newValue = `${parts[0] || ''}~${value}`;
+                                      updateMultiSelectValue(servicoKey, etapa.label, item.tipo, newValue);
+                                    }}
+                                    disabled={isReadOnly}
+                                    placeholder={isReadOnly ? '' : 'Valor'}
+                                    className="w-full px-4 py-3 pr-12 rounded-lg 
+                                             bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                                             placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
+                                             focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
+                                             disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:text-gray-500"
+                                  />
+                                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 pointer-events-none text-sm">
+                                    cm
+                                  </span>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={item.valor}
+                                  onChange={(e) => {
+                                    const value = e.target.value.replace(/[^0-9.,/-]/g, '');
+                                    updateMultiSelectValue(servicoKey, etapa.label, item.tipo, value);
+                                  }}
+                                  disabled={isReadOnly}
+                                  placeholder={isReadOnly ? '' : 'Digite o valor'}
+                                  className="w-full px-4 py-3 pr-12 rounded-lg 
+                                           bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                                           placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
+                                           focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
+                                           disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:text-gray-500"
+                                />
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 pointer-events-none text-sm">
+                                  {itemUnit}
+                                </span>
+                              </div>
+                            )}
                           </div>
-                          <div className="relative">
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              value={item.valor}
-                              onChange={(e) => {
-                                const value = e.target.value.replace(/[^0-9.,/-]/g, '');
-                                updateMultiSelectValue(servicoKey, etapa.label, item.tipo, value);
-                              }}
-                              disabled={isReadOnly}
-                              placeholder={isReadOnly ? '' : 'Digite o valor'}
-                              className="w-full px-4 py-3 pr-12 rounded-lg 
-                                       bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
-                                       focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
-                                       disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:text-gray-500"
-                            />
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 pointer-events-none text-sm">
-                              {etapa.unit}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : etapa.isDualField ? (
                     <div className="flex gap-2">
@@ -638,7 +801,8 @@ const ServicosSection: React.FC<Props> = React.memo(({ data, onChange, isReadOnl
                         <input
                           type="text"
                           inputMode="decimal"
-                          value={(servico?.etapas[etapa.label] || '').split('|')[0] || ''}
+                          value={(servico?.etapas[etapa.label] || '').split('|')[0] || ''
+                        }
                           onChange={(e) => {
                             const value = e.target.value.replace(/[^0-9.,/-]/g, '');
                             const currentValue = servico?.etapas[etapa.label] || '';
@@ -662,7 +826,8 @@ const ServicosSection: React.FC<Props> = React.memo(({ data, onChange, isReadOnl
                         <input
                           type="text"
                           inputMode="decimal"
-                          value={(servico?.etapas[etapa.label] || '').split('|')[1] || ''}
+                          value={(servico?.etapas[etapa.label] || '').split('|')[1] || ''
+                        }
                           onChange={(e) => {
                             const value = e.target.value.replace(/[^0-9.,/-]/g, '');
                             const currentValue = servico?.etapas[etapa.label] || '';
@@ -862,22 +1027,6 @@ const ServicosSection: React.FC<Props> = React.memo(({ data, onChange, isReadOnl
         />
       )}
 
-      {/* BottomSheets para Rodapés - um para cada serviço */}
-      {activeDropdown.type === 'rodapes' && (
-        <BottomSheet
-          key={`rodapes-${activeDropdown.servicoKey}`}
-          isOpen={!!activeDropdown.servicoKey}
-          onClose={() => setActiveDropdown({ servicoKey: null, label: null, type: null })}
-          title="Selecione o tipo"
-          options={RODAPES_OPTIONS.map(opt => ({ id: opt, label: opt }))}
-          selectedId={getDropdownTipo(activeDropdown.servicoKey!, activeDropdown.label!)}
-          onSelect={(id) => {
-            updateDropdownTipo(activeDropdown.servicoKey!, activeDropdown.label!, id);
-            setActiveDropdown({ servicoKey: null, label: null, type: null });
-          }}
-        />
-      )}
-
       {/* BottomSheets para Pintura - um para cada serviço */}
       {activeDropdown.type === 'pintura' && (
         <BottomSheet
@@ -911,70 +1060,86 @@ const ServicosSection: React.FC<Props> = React.memo(({ data, onChange, isReadOnl
       )}
 
       {/* Bottom Sheet Multiselect para Uretano */}
-      {showUretanoMultiSelect.servicoKey && showUretanoMultiSelect.label && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
-          onClick={() => setShowUretanoMultiSelect({ servicoKey: null, label: null })}
-        >
-          <div 
-            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white text-center">
-                Selecione os tipos de uretano
-              </h3>
-            </div>
-            
-            {/* Lista de opções com scroll */}
-            <div className="p-4 space-y-2 overflow-y-auto flex-1">
-              {UCRETE_OPTIONS.map((tipo) => {
-                const selectedTypes = getMultiSelectSelectedTypes(showUretanoMultiSelect.servicoKey!, showUretanoMultiSelect.label!);
-                const isSelected = selectedTypes.includes(tipo);
-                
-                return (
-                  <button
-                    key={tipo}
-                    type="button"
-                    onClick={() => {
-                      toggleMultiSelectType(showUretanoMultiSelect.servicoKey!, showUretanoMultiSelect.label!, tipo);
-                    }}
-                    className="w-full px-4 py-3 rounded-lg flex items-center justify-between
-                             bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800
-                             transition-colors"
-                  >
-                    <span className="text-gray-900 dark:text-white">{tipo}</span>
-                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                      isSelected 
-                        ? 'bg-[#FD5521] border-[#FD5521]' 
-                        : 'border-gray-300 dark:border-gray-600'
-                    }`}>
-                      {isSelected && (
-                        <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
-                          <path d="M10 3L4.5 8.5L2 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+      {showUretanoMultiSelect.servicoKey && showUretanoMultiSelect.label && (() => {
+        // Determinar qual lista de opções usar baseado no label
+        const etapa = ETAPAS.find(e => e.label === showUretanoMultiSelect.label);
+        const optionsType = etapa?.options || 'ucrete';
+        let optionsList = UCRETE_OPTIONS;
+        let title = 'Selecione os tipos de uretano';
+        
+        if (optionsType === 'pintura') {
+          optionsList = PINTURA_OPTIONS;
+          title = 'Selecione os tipos de pintura';
+        } else if (optionsType === 'pinturaLayout') {
+          optionsList = PINTURA_LAYOUT_OPTIONS;
+          title = 'Selecione os tipos de pintura de layout';
+        }
 
-            {/* Footer com botão */}
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-              <button
-                type="button"
-                onClick={() => setShowUretanoMultiSelect({ servicoKey: null, label: null })}
-                className="w-full py-3 rounded-lg bg-[#FD5521] text-white font-medium
-                         hover:bg-[#FD5521]/90 transition-colors"
-              >
-                Concluir
-              </button>
+        return (
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+            onClick={() => setShowUretanoMultiSelect({ servicoKey: null, label: null })}
+          >
+            <div 
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white text-center">
+                  {title}
+                </h3>
+              </div>
+              
+              {/* Lista de opções com scroll */}
+              <div className="p-4 space-y-2 overflow-y-auto flex-1">
+                {optionsList.map((tipo) => {
+                  const selectedTypes = getMultiSelectSelectedTypes(showUretanoMultiSelect.servicoKey!, showUretanoMultiSelect.label!);
+                  const isSelected = selectedTypes.includes(tipo);
+                  
+                  return (
+                    <button
+                      key={tipo}
+                      type="button"
+                      onClick={() => {
+                        toggleMultiSelectType(showUretanoMultiSelect.servicoKey!, showUretanoMultiSelect.label!, tipo);
+                      }}
+                      className="w-full px-4 py-3 rounded-lg flex items-center justify-between
+                               bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800
+                               transition-colors"
+                    >
+                      <span className="text-gray-900 dark:text-white">{tipo}</span>
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                        isSelected 
+                          ? 'bg-[#FD5521] border-[#FD5521]' 
+                          : 'border-gray-300 dark:border-gray-600'
+                      }`}>
+                        {isSelected && (
+                          <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
+                            <path d="M10 3L4.5 8.5L2 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Footer com botão */}
+              <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  type="button"
+                  onClick={() => setShowUretanoMultiSelect({ servicoKey: null, label: null })}
+                  className="w-full py-3 rounded-lg bg-[#FD5521] text-white font-medium
+                           hover:bg-[#FD5521]/90 transition-colors"
+                >
+                  Concluir
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </section>
   );
 });

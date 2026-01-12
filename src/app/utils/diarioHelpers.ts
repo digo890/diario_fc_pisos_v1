@@ -84,3 +84,13 @@ export function getStatusDisplay(obra: Obra): {
       };
   }
 }
+
+/**
+ * ✅ CORREÇÃO #4: Função padronizada para contar obras concluídas
+ * Considera tanto 'enviado_admin' quanto 'concluido' como concluídas
+ */
+export function contarObrasConcluidas(obras: Obra[]): number {
+  return obras.filter(o => 
+    o.status === 'enviado_admin' || o.status === 'concluido'
+  ).length;
+}

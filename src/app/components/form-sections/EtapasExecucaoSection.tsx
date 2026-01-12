@@ -164,7 +164,7 @@ export function EtapasExecucaoSection({
               disabled={disabled}
             />
             <NumberInput
-              label="14. Aplicação de Primer ou TC-302"
+              label="14. Aplicação de Primer"
               value={etapas.aplicacaoPrimerTC302}
               onChange={(v) => updateField('aplicacaoPrimerTC302', v)}
               unit="m²/ml"

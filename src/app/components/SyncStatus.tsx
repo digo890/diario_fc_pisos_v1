@@ -6,9 +6,13 @@
 import React, { useState } from 'react';
 import { CloudOff, Cloud, CloudUpload, RefreshCw, AlertCircle } from 'lucide-react';
 import { useSyncStatus } from '../hooks/useSyncStatus';
+import { useSessionCheck } from '../hooks/useSessionCheck';
+import { useToast } from './Toast';
 
 export function SyncStatus() {
   const { pendingCount, failedCount, isOnline, hasPendingOperations, processPending } = useSyncStatus();
+  const { checkSession } = useSessionCheck();
+  const { showToast } = useToast();
   const [isSyncing, setIsSyncing] = useState(false);
 
   const totalCount = pendingCount + failedCount;
@@ -20,6 +24,13 @@ export function SyncStatus() {
   }
 
   const handleSync = async () => {
+    // 🔐 VERIFICAÇÃO DE SESSÃO ANTES DE SINCRONIZAR
+    const sessionCheck = await checkSession();
+    if (!sessionCheck.isValid) {
+      showToast(sessionCheck.message || 'Sessão expirada', 'error');
+      return;
+    }
+    
     setIsSyncing(true);
     try {
       await processPending();

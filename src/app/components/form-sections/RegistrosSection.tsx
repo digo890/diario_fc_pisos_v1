@@ -47,7 +47,10 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
 
   const updateRegistro = (key: string, updates: Partial<CondicionalItem>) => {
     const currentServico = data.servicos[activeServico] || {
-      horario: '',
+      horarioInicioManha: '',
+      horarioFimManha: '',
+      horarioInicioTarde: '',
+      horarioFimTarde: '',
       local: '',
       etapas: {},
       registros: {}
@@ -75,7 +78,10 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
     if (item?.ativo) {
       // Desativar
       const currentServico = data.servicos[activeServico] || {
-        horario: '',
+        horarioInicioManha: '',
+        horarioFimManha: '',
+        horarioInicioTarde: '',
+        horarioFimTarde: '',
         local: '',
         etapas: {},
         registros: {}
@@ -210,7 +216,7 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
                 {isEstadoSubstrato ? (
                   <div>
                     <label className="block font-medium text-gray-900 dark:text-white mb-3">
-                      <span className="text-[#C6CCC2] dark:text-gray-500">{39 + index}.</span> {label}
+                      <span className="text-[#C6CCC2] dark:text-gray-500">{35 + index}.</span> {label}
                     </label>
                     <button
                       type="button"
@@ -284,7 +290,7 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
                   // Item 45: Campo numérico simples (sem observação)
                   <div>
                     <label className="block font-medium text-gray-900 dark:text-white mb-3">
-                      <span className="text-[#C6CCC2] dark:text-gray-500">{39 + index}.</span> {label}
+                      <span className="text-[#C6CCC2] dark:text-gray-500">{35 + index}.</span> {label}
                     </label>
                     <div className="relative">
                       <input
@@ -315,7 +321,7 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
                   // Item 46: Campo numérico com observação
                   <div>
                     <label className="block font-medium text-gray-900 dark:text-white mb-3">
-                      <span className="text-[#C6CCC2] dark:text-gray-500">{39 + index}.</span> {label}
+                      <span className="text-[#C6CCC2] dark:text-gray-500">{35 + index}.</span> {label}
                     </label>
                     <div className="relative">
                       <input
@@ -362,7 +368,7 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
                     <div className="flex flex-col sm:flex-row sm:items-start gap-3">
                       <div className="flex-1">
                         <label className="font-medium text-gray-900 dark:text-white">
-                          <span className="text-[#C6CCC2] dark:text-gray-500">{39 + index}.</span> {label}
+                          <span className="text-[#C6CCC2] dark:text-gray-500">{35 + index}.</span> {label}
                         </label>
                       </div>
                       

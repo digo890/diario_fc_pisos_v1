@@ -16,6 +16,7 @@ const Login = lazy(() => import('./components/Login'));
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 const EncarregadoDashboard = lazy(() => import('./components/EncarregadoDashboard'));
 const PrepostoValidationPage = lazy(() => import('./components/PrepostoValidationPage'));
+const DiagnosticoPage = lazy(() => import('./components/DiagnosticoPage'));
 
 /**
  * Diário de Obras - FC Pisos
@@ -52,6 +53,19 @@ const AppContent: React.FC = () => {
   // Verificar se é rota de validação pública
   const path = window.location.pathname;
   const isValidationRoute = path.startsWith('/validar/') || path.startsWith('/conferencia/');
+  const isDiagnosticoRoute = path.startsWith('/diagnostico');
+  
+  if (isDiagnosticoRoute) {
+    return (
+      <Suspense fallback={
+        <div className="min-h-screen bg-white dark:bg-gray-950 flex items-center justify-center">
+          <LoadingSpinner />
+        </div>
+      }>
+        <DiagnosticoPage />
+      </Suspense>
+    );
+  }
   
   if (isValidationRoute) {
     // Suportar ambas as rotas: /validar/ e /conferencia/
@@ -100,6 +114,7 @@ const AppContent: React.FC = () => {
     }>
       {currentUser.tipo === 'Administrador' && <AdminDashboard />}
       {currentUser.tipo === 'Encarregado' && <EncarregadoDashboard />}
+      {currentUser.tipo === 'Diagnóstico' && <DiagnosticoPage />}
       <PWAInstallPrompt />
       <OnlineStatus />
       <SyncStatus />

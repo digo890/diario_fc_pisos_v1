@@ -308,9 +308,22 @@ class SyncQueueManager {
         throw new Error('Operação falhou no backend');
       }
     } catch (error: any) {
+      // 🔐 PROTEÇÃO SESSÃO EXPIRADA: Se for 401, PAUSA mas NÃO REMOVE
+      const errorMsg = getErrorMessage(error);
+      const is401 = errorMsg.includes('401') || errorMsg.includes('Unauthorized') || errorMsg.includes('JWT');
+      
+      if (is401) {
+        safeWarn(`🔐 Sessão expirada detectada - pausando item sem contar retry: ${item.operation}`);
+        await this.updateItem(item.id, {
+          status: 'pending', // Volta para pending SEM incrementar retries
+          lastError: 'Sessão expirada. Faça login novamente para sincronizar.'
+        });
+        return; // IMPORTANTE: retorna sem incrementar contador
+      }
+      
       safeError(`❌ Erro ao processar ${item.operation}:`, error);
 
-      // Incrementar contador de tentativas
+      // Incrementar contador de tentativas (APENAS para erros não-401)
       const newRetries = item.retries + 1;
 
       if (newRetries >= MAX_RETRIES) {

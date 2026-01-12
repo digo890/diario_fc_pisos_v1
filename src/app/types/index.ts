@@ -46,7 +46,10 @@ export interface ClimaData {
 }
 
 export interface ServicoData {
-  horario: string;
+  horarioInicioManha: string;
+  horarioFimManha: string;
+  horarioInicioTarde: string;
+  horarioFimTarde: string;
   local: string;
   etapas: { [key: string]: any };
   fotos?: string[];
@@ -115,6 +118,7 @@ export interface FormData {
   prepostoReviewedAt?: number;
   prepostoReviewedBy?: string;
   completedAt?: number;
+  emailsEnviados?: boolean; // 🔒 Flag para prevenir duplicação de emails
 }
 
 export interface AppTheme {

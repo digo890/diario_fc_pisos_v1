@@ -21,7 +21,7 @@ interface Props {
   onClose: () => void;
 }
 
-// Itens 1-37: Etapas de Execução dos Serviços
+// Itens 1-34: Etapas de Execução dos Serviços (v1.1.0)
 const ETAPAS = [
   { label: 'Temperatura Ambiente', unit: '°C' },
   { label: 'Umidade Relativa do Ar', unit: '%' },
@@ -34,36 +34,32 @@ const ETAPAS = [
   { label: 'Nº dos Lotes da Parte 3', unit: '' },
   { label: 'Nº de Kits Gastos', unit: '' },
   { label: 'Consumo Médio Obtido', unit: 'm²/Kit' },
-  { label: 'Consumo Médio Especificado', unit: 'm²/Kit' },
-  { label: 'Preparo de Substrato', unit: 'm²/ml' },
-  { label: 'Aplicação de Primer ou TC-302', unit: 'm²/ml' },
-  { label: 'Aplicação de Uretano', unit: 'm²', isMultiSelect: true }, // Salvo como "tipo1:valor1|tipo2:valor2"
-  { label: 'Aplicação de Uretano WR em Muretas', unit: 'ml', isDropdown: true }, // Salvo como "tipo|valor"
-  { label: 'Aplicação Rodapés', unit: 'ml', isDropdown: true }, // Salvo como "tipo|valor"
-  { label: 'Aplicação de Uretano WR em Paredes', unit: 'ml', isDropdown: true }, // Salvo como "tipo|valor"
-  { label: 'Aplicação de uretano em muretas', isDualField: true, units: ['ml', 'cm'] }, // Salvo como "valor1|valor2"
-  { label: 'Serviços de pintura', isDropdown: true, unit: 'm²' }, // Salvo como "tipo|valor"
-  { label: 'Serviços de pintura de layout', isDropdown: true, unit: 'ml' }, // Salvo como "tipo|valor"
+  { label: 'Preparo de Substrato (fresagem e ancoragem)', unit: 'm²/ml' },
+  { label: 'Aplicação de Uretano', unit: '', isMultiSelect: true },
+  { label: 'Serviços de pintura', unit: '', isMultiSelect: true },
+  { label: 'Serviços de pintura de layout', unit: '', isMultiSelect: true },
   { label: 'Aplicação de Epóxi', unit: 'm²' },
   { label: 'Corte / Selamento Juntas de Piso', unit: 'ml' },
   { label: 'Corte / Selamento Juntas em Muretas', unit: 'ml' },
   { label: 'Corte / Selamento Juntas em Rodapés', unit: 'ml' },
-  { label: 'Remoção de Substrato Fraco', unit: 'm² / Espessura' },
-  { label: 'Desbaste de Substrato', unit: 'm² / Espessura' },
-  { label: 'Grauteamento', unit: 'm² / Espessura' },
-  { label: 'Remoção e Reparo de Sub-Base', unit: 'm² / Espessura' },
-  { label: 'Reparo com Concreto Uretânico', unit: 'm² / Espessura' },
+  { label: 'Remoção de Substrato Fraco', isDualField: true, units: ['m²', 'cm'] },
+  { label: 'Desbaste de Substrato', isDualField: true, units: ['m²', 'cm'] },
+  { label: 'Grauteamento', isDualField: true, units: ['m²', 'cm'] },
+  { label: 'Remoção e Reparo de Sub-Base', isDualField: true, units: ['m²', 'cm'] },
+  { label: 'Reparo com Concreto Uretânico', isDualField: true, units: ['m²', 'cm'] },
   { label: 'Tratamento de Trincas', unit: 'ml' },
   { label: 'Execução de Lábios Poliméricos', unit: 'ml' },
   { label: 'Secagem de Substrato', unit: 'm²' },
   { label: 'Remoção de Revestimento Antigo', unit: 'm²' },
   { label: 'Polimento Mecânico de Substrato', unit: 'm²' },
-  { label: 'Reparo de Revestimento em Piso', unit: 'm² / Espessura' },
+  { label: 'Reparo de Revestimento em Piso', isDualField: true, units: ['m²', 'cm'] },
   { label: 'Reparo de Revestimento em Muretas', unit: 'ml' },
-  { label: 'Reparo de Revestimento em Rodapé', unit: 'ml' }
+  { label: 'Reparo de Revestimento em Rodapé', unit: 'ml' },
+  { label: 'Quantos botijões de gás foram utilizados?', unit: '' },
+  { label: 'Quantas bisnagas de selante foram utilizadas?', unit: '' }
 ];
 
-// Itens 39-60: Registros Importantes (Estado do Substrato)
+// Itens 35-56: Registros Importantes (Estado do Substrato)
 const REGISTROS_ITEMS = [
   'Constatou-se água / umidade no substrato?',
   'As áreas estavam com fechamento lateral?',
@@ -179,7 +175,7 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
       const servico = formData.servicos[key];
       if (!servico) return false;
       // Verificar se tem algum conteúdo
-      return servico.horario || servico.local || Object.keys(servico.etapas || {}).length > 0 || Object.keys(servico.registros || {}).length > 0 || (servico.fotos && servico.fotos.length > 0);
+      return servico.horarioInicioManha || servico.horarioFimManha || servico.horarioInicioTarde || servico.horarioFimTarde || servico.local || Object.keys(servico.etapas || {}).length > 0 || Object.keys(servico.registros || {}).length > 0 || (servico.fotos && servico.fotos.length > 0);
     });
   }, [formData]);
 
@@ -210,9 +206,14 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 p-4 flex items-center justify-between z-10">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-            Respostas do Formulário
-          </h2>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+              Respostas
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              {status.label}
+            </p>
+          </div>
           <div className="flex items-center gap-2">
             <div className="relative" ref={downloadMenuRef}>
               <button
@@ -309,35 +310,18 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
             </div>
           </section>
 
-          {/* Status */}
-          <section>
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
-              Status do Formulário
-            </h3>
-            <div className="text-sm">
-              <span className={`inline-block px-3 py-1 rounded-full ${status.color}`}>
-                {status.label}
-              </span>
-            </div>
-          </section>
-
           {/* Condições Ambientais */}
           <section>
             <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
               Condições Ambientais
             </h3>
-            <div className="space-y-2 text-sm bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
-              <div className="flex gap-4">
-                <span className="text-gray-600 dark:text-gray-400 w-32">Clima Manhã:</span>
-                <span className="text-gray-900 dark:text-white">{getClimaLabel(formData.clima.manha)}</span>
-              </div>
-              <div className="flex gap-4">
-                <span className="text-gray-600 dark:text-gray-400 w-32">Clima Tarde:</span>
-                <span className="text-gray-900 dark:text-white">{getClimaLabel(formData.clima.tarde)}</span>
-              </div>
-              <div className="flex gap-4">
-                <span className="text-gray-600 dark:text-gray-400 w-32">Clima Noite:</span>
-                <span className="text-gray-900 dark:text-white">{getClimaLabel(formData.clima.noite)}</span>
+            <div className="text-sm bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+              <div className="text-gray-900 dark:text-white">
+                Manhã: <strong>{getClimaLabel(formData.clima.manha)}</strong>
+                {' - '}
+                Tarde: <strong>{getClimaLabel(formData.clima.tarde)}</strong>
+                {' - '}
+                Noite: <strong>{getClimaLabel(formData.clima.noite)}</strong>
               </div>
             </div>
           </section>
@@ -385,46 +369,54 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
                     )}
 
                     {/* Informações Básicas */}
-                    {(servico.horario || servico.local) && (
+                    {(servico.horarioInicioManha || servico.horarioFimManha || servico.horarioInicioTarde || servico.horarioFimTarde || servico.local) && (
                       <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 space-y-2 text-sm">
-                        {servico.horario && (
-                          <div className="flex gap-4">
-                            <span className="text-gray-600 dark:text-gray-400 w-24">Horário:</span>
-                            <span className="text-gray-900 dark:text-white">{servico.horario}</span>
+                        {/* Horários condensados em uma linha */}
+                        {(servico.horarioInicioManha || servico.horarioInicioTarde) && (
+                          <div className="flex gap-2">
+                            <span className="text-gray-600 dark:text-gray-400">Horários:</span>
+                            <span className="text-gray-900 dark:text-white">
+                              {servico.horarioInicioManha && servico.horarioFimManha && (
+                                <>Manhã <strong>{servico.horarioInicioManha}</strong> às <strong>{servico.horarioFimManha}</strong></>
+                              )}
+                              {servico.horarioInicioManha && servico.horarioFimManha && 
+                               servico.horarioInicioTarde && servico.horarioFimTarde && (
+                                <> - </>
+                              )}
+                              {servico.horarioInicioTarde && servico.horarioFimTarde && (
+                                <>Tarde <strong>{servico.horarioInicioTarde}</strong> às <strong>{servico.horarioFimTarde}</strong></>
+                              )}
+                            </span>
                           </div>
                         )}
                         {servico.local && (
-                          <div className="flex gap-4">
-                            <span className="text-gray-600 dark:text-gray-400 w-24">Local:</span>
+                          <div className="flex gap-2">
+                            <span className="text-gray-600 dark:text-gray-400">Local:</span>
                             <span className="text-gray-900 dark:text-white">{servico.local}</span>
                           </div>
                         )}
                       </div>
                     )}
 
-                    {/* Etapas - Itens 1 a 37 - MOSTRAR TODOS */}
+                    {/* Etapas - Itens 1 a 34 - MOSTRAR TODOS */}
                     <div>
-                      <h4 className="font-medium text-gray-900 dark:text-white mb-2 text-sm">Etapas de Execução (Itens 1-37):</h4>
+                      <h4 className="font-medium text-gray-900 dark:text-white mb-2 text-sm">
+                        Etapas de Execução (Itens 1-34) - Total: {ETAPAS.length} campos
+                      </h4>
                       <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
                         <div className="space-y-2 text-sm">
                           {ETAPAS.map((etapa, index) => {
                             const numeroItem = index + 1;
                             let valor = servico.etapas?.[etapa.label] || '-';
                             
-                            // Tratar itens com dropdown (formato "tipo|valor")
-                            if (etapa.isDropdown && valor !== '-') {
-                              const parts = valor.split('|');
-                              const tipo = parts[0] || '-';
-                              const valorNum = parts[1] || '-';
-                              valor = valorNum !== '-' && tipo !== '-' ? `${tipo}: ${valorNum}` : '-';
-                            }
-                            
-                            // Tratar itens com dois campos (formato "valor1|valor2")
+                            // Tratar campos dualField (formato "valor1|valor2")
                             if (etapa.isDualField && valor !== '-') {
-                              const parts = valor.split('|');
-                              const valor1 = parts[0] || '-';
-                              const valor2 = parts[1] || '-';
-                              valor = valor1 !== '-' && valor2 !== '-' ? `${valor1} ${etapa.units[0]}, ${valor2} ${etapa.units[1]}` : '-';
+                              const [val1, val2] = valor.split('|');
+                              if (val1 || val2) {
+                                const unit1 = etapa.units?.[0] || '';
+                                const unit2 = etapa.units?.[1] || '';
+                                valor = `${val1 || '-'} ${unit1} | ${val2 || '-'} ${unit2}`;
+                              }
                             }
                             
                             // Tratar itens com múltipla seleção (formato "tipo1:valor1|tipo2:valor2")
@@ -433,27 +425,79 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
                               if (items.length > 0) {
                                 const tiposValores = items.map(item => {
                                   const [tipo, valorNum] = item.split(':');
+                                  
+                                  // 🐛 CORREÇÃO: Detectar e processar dual fields dentro de multiselect
+                                  if (etapa.label === 'Aplicação de Uretano' && valorNum) {
+                                    // Verificar se é um tipo que tem dual field (usa ~)
+                                    if (tipo === 'Uretano para rodapé' || tipo === 'Uretano para muretas' || 
+                                        tipo === 'Uretano para Paredes' || tipo === 'Uretano para Paredes, base e pilares') {
+                                      const [val1, val2] = valorNum.split('~');
+                                      if (val1 && val2) {
+                                        return { tipo: tipo || '-', valor: `${val1} ml / ${val2} cm` };
+                                      }
+                                      // Fallback se não tiver o formato dual field
+                                      return { tipo: tipo || '-', valor: `${valorNum} ml` };
+                                    } else {
+                                      // Outros tipos de uretano
+                                      return { tipo: tipo || '-', valor: `${valorNum} m²` };
+                                    }
+                                  } else if (etapa.label === 'Serviços de pintura') {
+                                    return { tipo: tipo || '-', valor: `${valorNum} m²` };
+                                  } else if (etapa.label === 'Serviços de pintura de layout') {
+                                    return { tipo: tipo || '-', valor: `${valorNum} ml` };
+                                  }
+                                  
                                   return { tipo: tipo || '-', valor: valorNum || '-' };
                                 });
                                 valor = tiposValores
                                   .filter(tv => tv.tipo !== '-' && tv.valor !== '-')
-                                  .map(tv => `${tv.tipo}: ${tv.valor} ${etapa.unit}`)
+                                  .map(tv => `${tv.tipo}: ${tv.valor}`)
                                   .join(', ') || '-';
                               } else {
                                 valor = '-';
                               }
                             }
                             
+                            // Determinar se o campo foi preenchido
+                            const isPreenchido = valor !== '-';
+                            
                             return (
                               <div 
                                 key={index} 
-                                className="flex gap-4 p-3 rounded-lg bg-white dark:bg-gray-900"
+                                className={`flex gap-4 p-3 rounded-lg transition-colors ${
+                                  isPreenchido 
+                                    ? 'bg-white dark:bg-gray-900 border-l-4 border-[#FD5521]' 
+                                    : 'bg-gray-100/50 dark:bg-gray-800/30 border-l-4 border-gray-300 dark:border-gray-700'
+                                }`}
                               >
-                                <span className="text-gray-600 dark:text-gray-400 min-w-[40px] font-medium">{numeroItem}.</span>
+                                <span className={`min-w-[40px] font-bold ${
+                                  isPreenchido 
+                                    ? 'text-[#FD5521]' 
+                                    : 'text-gray-400 dark:text-gray-600'
+                                }`}>
+                                  {numeroItem}.
+                                </span>
                                 <div className="flex-1">
-                                  <div className="text-gray-900 dark:text-white font-medium">{etapa.label}</div>
-                                  <div className={`${valor !== '-' ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600'}`}>
-                                    {valor}{valor !== '-' && etapa.unit && !etapa.isMultiSelect ? ` ${etapa.unit}` : ''}
+                                  <div className={`font-medium ${
+                                    isPreenchido 
+                                      ? 'text-gray-900 dark:text-white' 
+                                      : 'text-gray-600 dark:text-gray-400'
+                                  }`}>
+                                    {etapa.label}
+                                  </div>
+                                  <div className={`mt-1 ${
+                                    isPreenchido 
+                                      ? 'text-gray-700 dark:text-gray-300 font-semibold' 
+                                      : 'text-gray-400 dark:text-gray-600 italic'
+                                  }`}>
+                                    {isPreenchido ? (
+                                      <>
+                                        {valor}
+                                        {!etapa.isMultiSelect && !etapa.isDualField && etapa.unit && ` ${etapa.unit}`}
+                                      </>
+                                    ) : (
+                                      'Não preenchido'
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -482,14 +526,14 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
                       </div>
                     )}
 
-                    {/* Registros Importantes - Itens 39 a 60 - MOSTRAR TODOS */}
+                    {/* Registros Importantes - Itens 35 a 56 - MOSTRAR TODOS */}
                     <div>
-                      <h4 className="font-medium text-gray-900 dark:text-white mb-3 text-sm">Estado do Substrato (Itens 39-60):</h4>
+                      <h4 className="font-medium text-gray-900 dark:text-white mb-3 text-sm">Estado do Substrato (Itens 35-56):</h4>
                       <div className="space-y-2">
                         {REGISTROS_ITEMS.map((label, index) => {
                           const registroKey = `registro-${index}`;
                           const item = servico.registros?.[registroKey];
-                          const numeroItem = 39 + index;
+                          const numeroItem = 35 + index;
                           
                           // Itens especiais
                           const isEstadoSubstrato = index === 2; // Item 41

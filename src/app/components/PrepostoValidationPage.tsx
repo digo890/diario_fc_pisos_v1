@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CheckCircle, XCircle, FileText, Building2, Calendar, MapPin, UserRound, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { getObras, getFormByObraId, saveForm, saveObra, getUsers } from '../utils/database';
 import { sendAdminNotificacaoEmail } from '../utils/emailApi';
-import { validationApi } from '../utils/api';
+import { validationApi, formularioApi } from '../utils/api';
 import { retryWithBackoff } from '../utils/retryHelper';
 import { safeLog, safeError } from '../utils/logSanitizer';
 import type { Obra, FormData } from '../types';
@@ -17,6 +17,7 @@ interface Props {
 const PrepostoValidationPage: React.FC<Props> = ({ token }) => {
   const { showToast, ToastComponent } = useToast();
   const [loading, setLoading] = useState(true);
+  const [loadingMessage, setLoadingMessage] = useState('Carregando...'); // 🆕 PROTEÇÃO #3: Feedback visual
   const [obra, setObra] = useState<Obra | null>(null);
   const [formData, setFormData] = useState<FormData | null>(null);
   const [error, setError] = useState<string>('');
@@ -26,6 +27,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token }) => {
   const [validationType, setValidationType] = useState<'aprovar' | 'reprovar' | null>(null);
   const [motivoReprovacao, setMotivoReprovacao] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false); // ✅ Estado para prevenir múltiplos submits
+  const [retryAttempt, setRetryAttempt] = useState(0); // 🆕 PROTEÇÃO #3: Contador de tentativas
 
   useEffect(() => {
     loadData();
@@ -34,23 +36,36 @@ const PrepostoValidationPage: React.FC<Props> = ({ token }) => {
   const loadData = async () => {
     try {
       setLoading(true);
+      setLoadingMessage('Validando token...'); // 🆕 PROTEÇÃO #3
       
       // ✅ CORREÇÃO: Validar token no backend primeiro
-      safeLog('🔍 Validando token no backend...');
+      console.log('🔍 [PREPOSTO FRONTEND] Validando token no backend...', token);
+      console.log('🔍 [PREPOSTO FRONTEND] Chamando validationApi.getObraByToken()...');
+      
       const validationResponse = await retryWithBackoff(
         () => validationApi.getObraByToken(token),
         3, // maxAttempts
-        1000 // delayMs
+        1000, // delayMs
+        true, // exponentialBackoff
+        (attempt, error) => {
+          // 🆕 PROTEÇÃO #3: Feedback visual durante retry
+          setRetryAttempt(attempt);
+          setLoadingMessage(`Validando token... (tentativa ${attempt}/3)`);
+          console.error(`❌ [PREPOSTO FRONTEND] Tentativa ${attempt} falhou:`, error);
+        }
       );
       
+      console.log('📦 [PREPOSTO FRONTEND] Resposta da validação:', validationResponse);
+      
       if (!validationResponse.success) {
+        console.error('❌ [PREPOSTO FRONTEND] Validação falhou:', validationResponse.error);
         setError(validationResponse.error || 'Link inválido ou expirado');
         setLoading(false);
         return;
       }
       
       const obraBackend = validationResponse.data;
-      safeLog('✅ Token validado no backend');
+      console.log('✅ [PREPOSTO FRONTEND] Token validado no backend');
       
       // Buscar obra local (sincronizar com backend se necessário)
       const obras = await getObras();
@@ -58,7 +73,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token }) => {
       
       // Se não existe localmente, criar a partir do backend
       if (!obraEncontrada) {
-        safeLog('📥 Sincronizando obra do backend para local...', { obraId: obraBackend.id });
+        console.log('📥 [PREPOSTO FRONTEND] Sincronizando obra do backend para local...', { obraId: obraBackend.id });
         obraEncontrada = {
           id: obraBackend.id,
           cliente: obraBackend.cliente,
@@ -81,17 +96,64 @@ const PrepostoValidationPage: React.FC<Props> = ({ token }) => {
 
       setObra(obraEncontrada);
 
-      const form = await getFormByObraId(obraEncontrada.id);
-      if (!form) {
+      // 🔥 CRÍTICO: Buscar formulário DO BACKEND usando o token
+      setLoadingMessage('Carregando formulário...');
+      console.log('🔍 [PREPOSTO FRONTEND] Buscando formulário no backend por token...');
+      
+      const formularioResponse = await retryWithBackoff(
+        () => validationApi.getByToken(token),
+        3,
+        1000,
+        true,
+        (attempt, error) => {
+          setRetryAttempt(attempt);
+          setLoadingMessage(`Carregando formulário... (tentativa ${attempt}/3)`);
+          console.error(`⚠️ [PREPOSTO FRONTEND] Tentativa ${attempt} de buscar formulário falhou, tentando novamente...`, error);
+        }
+      );
+
+      if (!formularioResponse.success || !formularioResponse.data) {
+        console.error('❌ [PREPOSTO FRONTEND] Formulário não encontrado ou ainda não foi preenchido');
         setError('Formulário não encontrado ou ainda não foi preenchido');
         setLoading(false);
         return;
       }
 
+      const formularioBackend = formularioResponse.data;
+      console.log('✅ [PREPOSTO FRONTEND] Formulário encontrado no backend');
+
+      // Converter dados do backend para o formato local
+      const form: FormData = {
+        id: formularioBackend.id,
+        obraId: formularioBackend.obra_id,
+        temperaturaMin: formularioBackend.temperaturaMin || 0,
+        temperaturaMax: formularioBackend.temperaturaMax || 0,
+        umidade: formularioBackend.umidade || 0,
+        horarioInicio: formularioBackend.horarioInicio || '',
+        horarioTermino: formularioBackend.horarioTermino || '',
+        area: formularioBackend.area || 0,
+        espessura: formularioBackend.espessura || 0,
+        observacoes: formularioBackend.observacoes || '',
+        servicos: formularioBackend.servicos || [],
+        status: formularioBackend.status || 'em_preenchimento',
+        prepostoConfirmado: formularioBackend.prepostoConfirmado || false,
+        assinaturaPreposto: formularioBackend.assinaturaPreposto,
+        prepostoMotivoReprovacao: formularioBackend.prepostoMotivoReprovacao,
+        prepostoReviewedAt: formularioBackend.prepostoReviewedAt,
+        prepostoReviewedBy: formularioBackend.prepostoReviewedBy,
+        emailsEnviados: formularioBackend.emailsEnviados || false,
+        createdAt: formularioBackend.createdAt || Date.now(),
+        updatedAt: formularioBackend.updatedAt || Date.now(),
+      };
+
+      // Salvar localmente para uso offline
+      await saveForm(form);
+      
       setFormData(form);
 
       // ✅ SEGURANÇA: Verificar se já foi validado (impedir re-assinatura)
       if (form.prepostoConfirmado) {
+        console.error('❌ [PREPOSTO FRONTEND] Este formulário já foi assinado anteriormente. Não é possível assinar novamente.');
         setError('Este formulário já foi assinado anteriormente. Não é possível assinar novamente.');
         setValidated(true);
         setLoading(false);
@@ -105,6 +167,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token }) => {
 
       setLoading(false);
     } catch (err) {
+      console.error('❌ [PREPOSTO FRONTEND] Erro ao carregar dados:', err);
       safeError('❌ Erro ao carregar dados:', err);
       setError('Erro ao carregar os dados');
       setLoading(false);
@@ -132,6 +195,16 @@ const PrepostoValidationPage: React.FC<Props> = ({ token }) => {
 
     if (!obra || !formData) return;
 
+    // 🆕 PROTEÇÃO #1: Verificar se emails já foram enviados
+    if (formData.emailsEnviados) {
+      console.log('📧 [PREPOSTO FRONTEND] Emails já foram enviados anteriormente, pulando envio...');
+      safeLog('📧 Emails já foram enviados anteriormente, pulando envio...');
+      setValidated(true);
+      setShowSignature(false);
+      showToast('Este formulário já foi processado anteriormente', 'info');
+      return;
+    }
+
     try {
       setIsSubmitting(true); // ✅ Bloquear múltiplos submits
 
@@ -143,7 +216,8 @@ const PrepostoValidationPage: React.FC<Props> = ({ token }) => {
         assinaturaPreposto: assinatura,
         prepostoMotivoReprovacao: validationType === 'reprovar' ? motivoReprovacao : undefined,
         prepostoReviewedAt: Date.now(),
-        status: validationType === 'aprovar' ? 'enviado_admin' : 'reprovado_preposto'
+        status: validationType === 'aprovar' ? 'enviado_admin' : 'reprovado_preposto',
+        emailsEnviados: false // 🆕 PROTEÇÃO #1: Será marcado como true após envio
       };
 
       await saveForm(formAtualizado);
@@ -156,34 +230,79 @@ const PrepostoValidationPage: React.FC<Props> = ({ token }) => {
 
       await saveObra(obraAtualizada);
 
-      // Enviar email para todos os admins
-      safeLog('📧 Enviando email para administradores...');
+      // 🆕 PROTEÇÃO #2 e #4: Enviar emails com retry e Promise.allSettled
+      console.log('📧 [PREPOSTO FRONTEND] Enviando emails para administradores...');
+      safeLog('📧 Enviando emails para administradores...');
       const users = await getUsers();
       const admins = users.filter(u => u.tipo === 'Administrador');
       
-      for (const admin of admins) {
-        if (admin.email) {
-          const emailResult = await sendAdminNotificacaoEmail({
-            adminEmail: admin.email,
-            adminNome: admin.nome,
-            obraNome: `${obra.cliente} - ${obra.obra}`,
-            cliente: obra.cliente,
-            prepostoNome: obra.prepostoNome || 'Preposto',
-            aprovado: validationType === 'aprovar',
-          });
-          
-          if (emailResult.success) {
-            safeLog('✅ Email enviado para admin', { adminId: admin.id });
-          } else {
-            safeError('⚠️ Erro ao enviar email para admin:', emailResult.error);
+      if (admins.length === 0) {
+        console.warn('⚠️ [PREPOSTO FRONTEND] Nenhum administrador encontrado para envio de email');
+        safeLog('⚠️ Nenhum administrador encontrado para envio de email');
+      } else {
+        // 🆕 PROTEÇÃO #4: Usar Promise.allSettled para envios paralelos
+        const emailPromises = admins.map(admin => {
+          if (!admin.email) {
+            return Promise.resolve({ success: false, error: 'Admin sem email' });
           }
-        }
+
+          // 🆕 PROTEÇÃO #2: Retry automático com backoff
+          return retryWithBackoff(
+            () => sendAdminNotificacaoEmail({
+              adminEmail: admin.email!,
+              adminNome: admin.nome,
+              obraNome: `${obra.cliente} - ${obra.obra}`,
+              cliente: obra.cliente,
+              prepostoNome: obra.prepostoNome || 'Preposto',
+              aprovado: validationType === 'aprovar',
+            }),
+            3, // maxAttempts
+            2000, // delayMs (2s)
+            true, // exponentialBackoff
+            (attempt, error) => {
+              console.error(`⚠️ [PREPOSTO FRONTEND] Tentativa ${attempt}/3 de envio de email para ${admin.email} falhou:`, error);
+              safeLog(`⚠️ Tentativa ${attempt}/3 de envio de email para ${admin.email} falhou:`, error);
+            }
+          );
+        });
+
+        const emailResults = await Promise.allSettled(emailPromises);
+        
+        let successCount = 0;
+        let failCount = 0;
+
+        emailResults.forEach((result, index) => {
+          if (result.status === 'fulfilled' && result.value.success) {
+            successCount++;
+            console.log(`✅ [PREPOSTO FRONTEND] Email enviado com sucesso para ${admins[index].email}`);
+            safeLog(`✅ Email enviado com sucesso para ${admins[index].email}`);
+          } else {
+            failCount++;
+            const error = result.status === 'rejected' ? result.reason : result.value.error;
+            console.error(`❌ [PREPOSTO FRONTEND] Falha ao enviar email para ${admins[index].email}:`, error);
+            safeError(`❌ Falha ao enviar email para ${admins[index].email}:`, error);
+          }
+        });
+
+        console.log(`📊 [PREPOSTO FRONTEND] Resultado de envio de emails: ${successCount} sucesso, ${failCount} falhas`);
+        safeLog(`📊 Resultado de envio de emails: ${successCount} sucesso, ${failCount} falhas`);
       }
+
+      // 🆕 PROTEÇÃO #1: Marcar emails como enviados
+      const formComEmailsEnviados: FormData = {
+        ...formAtualizado,
+        emailsEnviados: true
+      };
+      await saveForm(formComEmailsEnviados);
+      console.log('✅ [PREPOSTO FRONTEND] Formulário marcado com emailsEnviados=true');
+      safeLog('✅ Formulário marcado com emailsEnviados=true');
 
       setValidated(true);
       setShowSignature(false);
       showToast(validationType === 'aprovar' ? 'Formulário aprovado com sucesso! ✓' : 'Formulário reprovado', 'success');
     } catch (err) {
+      console.error('❌ [PREPOSTO FRONTEND] Erro durante validação:', err);
+      safeError('❌ Erro durante validação:', err);
       showToast('Erro ao salvar validação. Tente novamente.', 'error');
     } finally {
       setIsSubmitting(false); // ✅ Liberar após o submit
@@ -195,7 +314,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token }) => {
       <div className="min-h-screen bg-[#EDEFE4] dark:bg-gray-950 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FD5521] mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Carregando...</p>
+          <p className="text-gray-600 dark:text-gray-400">{loadingMessage}</p>
         </div>
       </div>
     );

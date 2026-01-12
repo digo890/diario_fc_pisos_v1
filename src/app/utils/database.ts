@@ -196,6 +196,19 @@ export const saveForm = async (form: FormData): Promise<void> => {
   });
 };
 
+// 🆕 CORREÇÃO URGENTE #1: Deletar formulário associado a uma obra
+export const deleteForm = async (obraId: string): Promise<void> => {
+  const database = await initDB();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(['forms'], 'readwrite');
+    const store = transaction.objectStore('forms');
+    const request = store.delete(obraId);
+
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+};
+
 // ===== CONFIG =====
 export const getConfig = async (key: string): Promise<any> => {
   const database = await initDB();

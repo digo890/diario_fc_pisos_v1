@@ -204,6 +204,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
+    // 🆕 CORREÇÃO URGENTE #3: Limpar timeout de refresh ao fazer logout
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+      refreshTimeoutRef.current = null;
+    }
+    
     await supabase.auth.signOut();
     setCurrentUser(null);
     updateToken(null);
@@ -218,9 +224,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
+  
+  // Durante HMR (Hot Module Replacement), o context pode estar temporariamente undefined
+  // Retornar valores padrão em vez de quebrar a aplicação
   if (!context) {
+    // ⚠️ Em desenvolvimento, o HMR pode causar re-renderizações antes do Provider estar pronto
+    // Apenas logar warning em vez de quebrar
+    if (import.meta.env.DEV) {
+      console.warn('⚠️ useAuth chamado fora de AuthProvider (possivelmente durante HMR)');
+      // Retornar valores padrão seguros durante HMR
+      return {
+        currentUser: null,
+        login: async () => { throw new Error('AuthProvider não inicializado'); },
+        logout: async () => {},
+        isLoading: true,
+        accessToken: null,
+        refreshSession: async () => {}
+      };
+    }
+    
+    // Em produção, lançar erro
     throw new Error('useAuth deve ser usado dentro de AuthProvider');
   }
+  
   return context;
 };
 

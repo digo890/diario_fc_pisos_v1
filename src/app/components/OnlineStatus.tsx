@@ -6,21 +6,29 @@ export function OnlineStatus() {
   const [showStatus, setShowStatus] = useState(false);
 
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout | null = null; // ✅ CORREÇÃO #2: Armazenar timeout ID
+
     const handleOnline = () => {
       setIsOnline(true);
       setShowStatus(true);
-      setTimeout(() => setShowStatus(false), 3000);
+      // ✅ CORREÇÃO #2: Limpar timeout anterior antes de criar novo
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => setShowStatus(false), 3000);
     };
 
     const handleOffline = () => {
       setIsOnline(false);
       setShowStatus(true);
+      // ✅ CORREÇÃO #2: Limpar timeout ao ficar offline
+      if (timeoutId) clearTimeout(timeoutId);
     };
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
     return () => {
+      // ✅ CORREÇÃO #2: Cleanup do timeout ao desmontar componente
+      if (timeoutId) clearTimeout(timeoutId);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };

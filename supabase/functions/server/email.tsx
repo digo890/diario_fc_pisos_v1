@@ -399,8 +399,8 @@ export function getEncarregadoNovaObraEmail(
   prepostoNome: string,
   obraId: string // Mantido por compatibilidade, mas não usado no link
 ): string {
-  // Link estático para o sistema (sempre o mesmo)
-  const appLink = Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '') || 'https://your-app-url.com';
+  // ✅ CORREÇÃO: URL hardcoded para o app Vercel
+  const appLink = 'https://diario-fc-pisos-v1.vercel.app';
   
   return `
 <!DOCTYPE html>
@@ -517,6 +517,13 @@ export function getEncarregadoNovaObraEmail(
                   </td>
                 </tr>
               </table>
+              
+              <p style="margin: 30px 0 8px 0; color: #6B7280; font-size: 14px; line-height: 1.5;">
+                Ou copie e cole o link abaixo no seu navegador:
+              </p>
+              <p style="margin: 0; padding: 12px; background-color: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 6px; color: #FD5521; font-size: 13px; word-wrap: break-word; overflow-wrap: break-word;">
+                <a href="${appLink}" style="color: #FD5521; text-decoration: none;">${appLink}</a>
+              </p>
             </td>
           </tr>
           
@@ -527,8 +534,12 @@ export function getEncarregadoNovaObraEmail(
                 Atenciosamente,<br>
                 <strong style="color: #1F2937;">Equipe FC Pisos</strong>
               </p>
-              <p style="margin: 20px 0 0 0; color: #9CA3AF; font-size: 12px; line-height: 1.4;">
-                Este é um email automático, por favor não responda.
+              <p style="margin: 16px 0 0 0; color: #9CA3AF; font-size: 12px; line-height: 1.4;">
+                Este é um email transacional do sistema Diário de Obras.<br>
+                Você recebeu esta mensagem porque uma nova obra foi atribuída a você.
+              </p>
+              <p style="margin: 16px 0 0 0; font-size: 12px; line-height: 1.4;">
+                <a href="mailto:administrativo@fcpisos.com.br" style="color: #FD5521; text-decoration: none;">administrativo@fcpisos.com.br</a>
               </p>
             </td>
           </tr>

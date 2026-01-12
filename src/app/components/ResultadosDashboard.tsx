@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { FileText, CheckCircle2, Clock, AlertCircle, TrendingUp, Calendar } from 'lucide-react';
 import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { getAllForms } from '../utils/database';
+import { contarObrasConcluidas } from '../utils/diarioHelpers'; // ✅ CORREÇÃO #4: Importar função padronizada
 import { SkeletonDashboard } from './SkeletonCard';
 import type { Obra, FormData } from '../types';
 
@@ -63,7 +64,7 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
       o.status === 'reprovado_preposto'
     ).length;
     
-    const obrasConcluidas = obras.filter(o => o.status === 'enviado_admin' || o.status === 'concluido').length;
+    const obrasConcluidas = contarObrasConcluidas(obras); // ✅ CORREÇÃO #4: Usar função padronizada
 
     setDashboardData({
       totalObras: obras.length,

@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx';
 import type { Obra, User, FormData } from '../types';
 
-// Itens 1-37: Etapas de Execução dos Serviços
+// Itens 1-34: Etapas de Execução dos Serviços (v1.1.0)
 const ETAPAS = [
   { label: 'Temperatura Ambiente', unit: '°C' },
   { label: 'Umidade Relativa do Ar', unit: '%' },
@@ -14,59 +14,29 @@ const ETAPAS = [
   { label: 'Nº dos Lotes da Parte 3', unit: '' },
   { label: 'Nº de Kits Gastos', unit: '' },
   { label: 'Consumo Médio Obtido', unit: 'm²/Kit' },
-  { label: 'Consumo Médio Especificado', unit: 'm²/Kit' },
-  { label: 'Preparo de Substrato', unit: 'm²/ml' },
-  { label: 'Aplicação de Primer ou TC-302', unit: 'm²/ml' },
-  { label: 'Aplicação de Uretano', unit: 'm²', isMultiSelect: true },
-  { label: 'Aplicação de Uretano WR em Muretas', unit: 'ml', isDropdown: true },
-  { label: 'Aplicação Rodapés', unit: 'ml', isDropdown: true },
-  { label: 'Aplicação de Uretano WR em Paredes', unit: 'ml', isDropdown: true },
-  { label: 'Aplicação de uretano em muretas', isDualField: true, units: ['ml', 'cm'] },
-  { label: 'Serviços de pintura', isDropdown: true, unit: 'm²' },
-  { label: 'Serviços de pintura de layout', isDropdown: true, unit: 'ml' },
+  { label: 'Preparo de Substrato (fresagem e ancoragem)', unit: 'm²/ml' },
+  { label: 'Aplicação de Uretano', unit: '', isMultiSelect: true },
+  { label: 'Serviços de pintura', unit: '', isMultiSelect: true },
+  { label: 'Serviços de pintura de layout', unit: '', isMultiSelect: true },
   { label: 'Aplicação de Epóxi', unit: 'm²' },
   { label: 'Corte / Selamento Juntas de Piso', unit: 'ml' },
   { label: 'Corte / Selamento Juntas em Muretas', unit: 'ml' },
   { label: 'Corte / Selamento Juntas em Rodapés', unit: 'ml' },
-  { label: 'Remoção de Substrato Fraco', unit: 'm² / Espessura' },
-  { label: 'Desbaste de Substrato', unit: 'm² / Espessura' },
-  { label: 'Grauteamento', unit: 'm² / Espessura' },
-  { label: 'Remoção e Reparo de Sub-Base', unit: 'm² / Espessura' },
-  { label: 'Reparo com Concreto Uretânico', unit: 'm² / Espessura' },
+  { label: 'Remoção de Substrato Fraco', isDualField: true, units: ['m²', 'cm'] },
+  { label: 'Desbaste de Substrato', isDualField: true, units: ['m²', 'cm'] },
+  { label: 'Grauteamento', isDualField: true, units: ['m²', 'cm'] },
+  { label: 'Remoção e Reparo de Sub-Base', isDualField: true, units: ['m²', 'cm'] },
+  { label: 'Reparo com Concreto Uretânico', isDualField: true, units: ['m²', 'cm'] },
   { label: 'Tratamento de Trincas', unit: 'ml' },
   { label: 'Execução de Lábios Poliméricos', unit: 'ml' },
   { label: 'Secagem de Substrato', unit: 'm²' },
   { label: 'Remoção de Revestimento Antigo', unit: 'm²' },
   { label: 'Polimento Mecânico de Substrato', unit: 'm²' },
-  { label: 'Reparo de Revestimento em Piso', unit: 'm² / Espessura' },
+  { label: 'Reparo de Revestimento em Piso', isDualField: true, units: ['m²', 'cm'] },
   { label: 'Reparo de Revestimento em Muretas', unit: 'ml' },
-  { label: 'Reparo de Revestimento em Rodapé', unit: 'ml' }
-];
-
-// Itens 39-60: Registros Importantes (Estado do Substrato)
-const REGISTROS_ITEMS = [
-  'Constatou-se água / umidade no substrato?',
-  'As áreas estavam com fechamento lateral?',
-  'Estado do substrato',
-  'Existe contaminações / crostas / incrustações no substrato?',
-  'Há concreto remontado sobre os bordos de ralos / canaletas / trilhos (ml)?',
-  'Há ralos / canaletas / trilhos desnivelados em relação ao substrato (ml)?',
-  'O boleado de rodapés / muretas foi executado com concreto?',
-  'Qual a espessura do piso de concreto?',
-  'Qual a profundidade dos cortes das juntas serradas?',
-  'As juntas serradas do piso foram aprofundadas por corte adicional? Em que extensão (ml)?',
-  'Existem juntas de dilatação no substrato (ml)?',
-  'As muretas estão ancoradas no piso?',
-  'Existem muretas apoiadas sobre juntas de dilatação no piso?',
-  'Existem juntas com bordas esborcinadas (ml)?',
-  'Existem trincas no substrato (ml)?',
-  'Existem serviços adicionais a serem realizados?',
-  'Os serviços adicionais foram liberados pela contratante?',
-  'O preposto acompanhou e conferiu as medições?',
-  'As áreas concluídas foram protegidas e isoladas?',
-  'O substrato foi fotografado?',
-  'Ocorreu alguma desconformidade durante ou após as aplicações?',
-  'Você relatou ao preposto as desconformidades?'
+  { label: 'Reparo de Revestimento em Rodapé', unit: 'ml' },
+  { label: 'Quantos botijões de gás foram utilizados?', unit: '' },
+  { label: 'Quantas bisnagas de selante foram utilizadas?', unit: '' }
 ];
 
 export async function generateFormExcel(
@@ -138,7 +108,7 @@ export async function generateFormExcel(
       ['Horário:', servico.horario || '-'],
       ['Local:', servico.local || '-'],
       [''],
-      ['ETAPAS DE EXECUÇÃO (Itens 1-37)'],
+      ['ETAPAS DE EXECUÇÃO (Itens 1-34)'],
       ['Item', 'Descrição', 'Valor', 'Unidade']
     ];
 
@@ -165,14 +135,35 @@ export async function generateFormExcel(
       if (etapa.isMultiSelect && valor !== '-') {
         const items = valor.split('|').filter((item: string) => item);
         if (items.length > 0) {
-          const tiposValores = items.map((item: string) => {
+          const resultados: string[] = [];
+          items.forEach((item: string) => {
             const [tipo, valorNum] = item.split(':');
-            return { tipo: tipo || '-', valor: valorNum || '-' };
+            if (tipo && valorNum) {
+              // Detectar unidade baseada no tipo para campo 13 (Aplicação de Uretano)
+              if (etapa.label === 'Aplicação de Uretano') {
+                if (tipo === 'Uretano para rodapé') {
+                  resultados.push(`${tipo}: ${valorNum} ml`);
+                } else if (tipo === 'Uretano para muretas' || tipo === 'Uretano para Paredes' || tipo === 'Uretano para Paredes, base e pilares') {
+                  // Para campos duplos dentro do multiselect (usa ~ como separador)
+                  const [val1, val2] = valorNum.split('~');
+                  if (val1 && val2) {
+                    resultados.push(`${tipo}: ${val1} ml / ${val2} cm`);
+                  } else {
+                    resultados.push(`${tipo}: ${valorNum} ml`);
+                  }
+                } else {
+                  resultados.push(`${tipo}: ${valorNum} m²`);
+                }
+              } else if (etapa.label === 'Serviços de pintura') {
+                resultados.push(`${tipo}: ${valorNum} m²`);
+              } else if (etapa.label === 'Serviços de pintura de layout') {
+                resultados.push(`${tipo}: ${valorNum} ml`);
+              } else {
+                resultados.push(`${tipo}: ${valorNum}`);
+              }
+            }
           });
-          valor = tiposValores
-            .filter((tv: any) => tv.tipo !== '-' && tv.valor !== '-')
-            .map((tv: any) => `${tv.tipo}: ${tv.valor} ${etapa.unit}`)
-            .join(', ') || '-';
+          valor = resultados.length > 0 ? resultados.join(', ') : '-';
         } else {
           valor = '-';
         }
@@ -184,44 +175,6 @@ export async function generateFormExcel(
         valor,
         valor !== '-' && etapa.unit && !etapa.isMultiSelect ? etapa.unit : ''
       ]);
-    });
-
-    // Adicionar registros importantes
-    wsDataServico.push(
-      [''],
-      ['ESTADO DO SUBSTRATO (Itens 39-60)'],
-      ['Item', 'Descrição', 'Resposta', 'Detalhes/Observações']
-    );
-
-    REGISTROS_ITEMS.forEach((label, index) => {
-      const registroKey = `registro-${index}`;
-      const item = servico.registros?.[registroKey];
-      const numeroItem = 39 + index;
-      
-      const isEstadoSubstrato = index === 2;
-      
-      if (isEstadoSubstrato) {
-        const textoResposta = item?.texto || '-';
-        const comentarioResposta = item?.comentario || '';
-        wsDataServico.push([
-          numeroItem,
-          label,
-          textoResposta,
-          comentarioResposta
-        ]);
-      } else {
-        const resposta = item?.ativo ? 'SIM' : 'NÃO';
-        const detalhes: string[] = [];
-        if (item?.texto) detalhes.push(`Detalhes: ${item.texto}`);
-        if (item?.comentario) detalhes.push(`Comentário: ${item.comentario}`);
-        
-        wsDataServico.push([
-          numeroItem,
-          label,
-          resposta,
-          detalhes.join(' | ')
-        ]);
-      }
     });
 
     const wsServico = XLSX.utils.aoa_to_sheet(wsDataServico);

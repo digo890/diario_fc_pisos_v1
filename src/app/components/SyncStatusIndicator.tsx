@@ -104,8 +104,8 @@ export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps
     }
   };
 
-  // Determinar ícone e cor baseado no status
-  const getStatusDisplay = () => {
+  // ✅ CORREÇÃO #3: Renomear para evitar conflito com diarioHelpers.getStatusDisplay
+  const getSyncStatusDisplay = () => {
     if (!isOnline) {
       return {
         icon: CloudOff,
@@ -145,7 +145,7 @@ export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps
     };
   };
 
-  const statusDisplay = getStatusDisplay();
+  const statusDisplay = getSyncStatusDisplay(); // ✅ Usar novo nome
   const Icon = statusDisplay.icon;
 
   return (

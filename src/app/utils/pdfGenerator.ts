@@ -184,78 +184,102 @@ export async function generateFormPDF(
       servicoData.push(['Local de Execução', servico.local]);
     }
 
-    // TODAS AS 37 ETAPAS POSSÍVEIS
+    // TODAS AS 34 ETAPAS POSSÍVEIS (v1.1.0)
     if (servico.etapas) {
       const todasEtapas = [
-        { key: 'temperaturaAmbiente', label: '1. Temperatura Ambiente', unit: ' °C' },
-        { key: 'umidadeRelativa', label: '2. Umidade Relativa do Ar', unit: ' %' },
-        { key: 'temperaturaSubstrato', label: '3. Temperatura do Substrato', unit: ' °C' },
-        { key: 'umidadeSubstrato', label: '4. Umidade Superficial do Substrato', unit: ' %' },
-        { key: 'temperaturaMistura', label: '5. Temperatura da Mistura', unit: ' °C' },
-        { key: 'tempoMistura', label: '6. Tempo de Mistura', unit: ' Minutos' },
-        { key: 'loteParte1', label: '7. Nº dos Lotes da Parte 1', unit: '' },
-        { key: 'loteParte2', label: '8. Nº dos Lotes da Parte 2', unit: '' },
-        { key: 'loteParte3', label: '9. Nº dos Lotes da Parte 3', unit: '' },
-        { key: 'kitsGastos', label: '10. Nº de Kits Gastos', unit: '' },
-        { key: 'consumoObtido', label: '11. Consumo Médio Obtido', unit: ' m²/Kit' },
-        { key: 'consumoEspecificado', label: '12. Consumo Médio Especificado', unit: ' m²/Kit' },
-        { key: 'preparoSubstrato', label: '13. Preparo de Substrato', unit: ' m²/ml' },
-        { key: 'aplicacaoPrimer', label: '14. Aplicação de Primer ou TC-302', unit: ' m²/ml' },
-        { key: 'aplicacaoUretano', label: '15. Aplicação de Uretano', unit: ' m²', isComplex: true },
-        { key: 'uretanoMuretas', label: '16. Aplicação de Uretano WR em Muretas', unit: ' ml', isComplex: true },
-        { key: 'rodapes', label: '17. Aplicação Rodapés', unit: ' ml', isComplex: true },
-        { key: 'uretanoParedes', label: '18. Aplicação de Uretano WR em Paredes', unit: ' ml', isComplex: true },
-        { key: 'muretasUretano', label: '19. Aplicação de uretano em muretas', unit: '', isComplex: true },
-        { key: 'pintura', label: '20. Serviços de pintura', unit: ' m²', isComplex: true },
-        { key: 'pinturaLayout', label: '21. Serviços de pintura de layout', unit: ' ml', isComplex: true },
-        { key: 'epoxi', label: '22. Aplicação de Epóxi', unit: ' m²' },
-        { key: 'juntas', label: '23. Corte / Selamento Juntas de Piso', unit: ' ml' },
-        { key: 'juntasMuretas', label: '24. Corte / Selamento Juntas em Muretas', unit: ' ml' },
-        { key: 'juntasRodapes', label: '25. Corte / Selamento Juntas em Rodapés', unit: ' ml' },
-        { key: 'remocaoSubstrato', label: '26. Remoção de Substrato Fraco', unit: ' m² / Espessura' },
-        { key: 'desbaste', label: '27. Desbaste de Substrato', unit: ' m² / Espessura' },
-        { key: 'grauteamento', label: '28. Grauteamento', unit: ' m² / Espessura' },
-        { key: 'remocaoReparo', label: '29. Remoção e Reparo de Sub-Base', unit: ' m² / Espessura' },
-        { key: 'reparoUretanico', label: '30. Reparo com Concreto Uretânico', unit: ' m² / Espessura' },
-        { key: 'tratamentoTrincas', label: '31. Tratamento de Trincas', unit: ' ml' },
-        { key: 'labiosPolimericos', label: '32. Execução de Lábios Poliméricos', unit: ' ml' },
-        { key: 'secagemSubstrato', label: '33. Secagem de Substrato', unit: ' m²' },
-        { key: 'remocaoRevestimento', label: '34. Remoção de Revestimento Antigo', unit: ' m²' },
-        { key: 'polimentoMecanico', label: '35. Polimento Mecânico de Substrato', unit: ' m²' },
-        { key: 'reparoPiso', label: '36. Reparo de Revestimento em Piso', unit: ' m² / Espessura' },
-        { key: 'reparoMuretas', label: '37. Reparo de Revestimento em Muretas', unit: ' ml' },
-        { key: 'reparoRodape', label: '38. Reparo de Revestimento em Rodapé', unit: ' ml' },
+        { dataKey: 'Temperatura Ambiente', label: '1. Temperatura Ambiente', unit: ' °C' },
+        { dataKey: 'Umidade Relativa do Ar', label: '2. Umidade Relativa do Ar', unit: ' %' },
+        { dataKey: 'Temperatura do Substrato', label: '3. Temperatura do Substrato', unit: ' °C' },
+        { dataKey: 'Umidade Superficial do Substrato', label: '4. Umidade Superficial do Substrato', unit: ' %' },
+        { dataKey: 'Temperatura da Mistura', label: '5. Temperatura da Mistura', unit: ' °C' },
+        { dataKey: 'Tempo de Mistura', label: '6. Tempo de Mistura', unit: ' Minutos' },
+        { dataKey: 'Nº dos Lotes da Parte 1', label: '7. Nº dos Lotes da Parte 1', unit: '' },
+        { dataKey: 'Nº dos Lotes da Parte 2', label: '8. Nº dos Lotes da Parte 2', unit: '' },
+        { dataKey: 'Nº dos Lotes da Parte 3', label: '9. Nº dos Lotes da Parte 3', unit: '' },
+        { dataKey: 'Nº de Kits Gastos', label: '10. Nº de Kits Gastos', unit: '' },
+        { dataKey: 'Consumo Médio Obtido', label: '11. Consumo Médio Obtido', unit: ' m²/Kit' },
+        { dataKey: 'Preparo de Substrato (fresagem e ancoragem)', label: '12. Preparo de Substrato (fresagem e ancoragem)', unit: ' m²/ml' },
+        { dataKey: 'Aplicação de Uretano', label: '13. Aplicação de Uretano', unit: '', isMultiSelect: true },
+        { dataKey: 'Serviços de pintura', label: '14. Serviços de pintura', unit: '', isMultiSelect: true },
+        { dataKey: 'Serviços de pintura de layout', label: '15. Serviços de pintura de layout', unit: '', isMultiSelect: true },
+        { dataKey: 'Aplicação de Epóxi', label: '16. Aplicação de Epóxi', unit: ' m²' },
+        { dataKey: 'Corte / Selamento Juntas de Piso', label: '17. Corte / Selamento Juntas de Piso', unit: ' ml' },
+        { dataKey: 'Corte / Selamento Juntas em Muretas', label: '18. Corte / Selamento Juntas em Muretas', unit: ' ml' },
+        { dataKey: 'Corte / Selamento Juntas em Rodapés', label: '19. Corte / Selamento Juntas em Rodapés', unit: ' ml' },
+        { dataKey: 'Remoção de Substrato Fraco', label: '20. Remoção de Substrato Fraco', isDualField: true },
+        { dataKey: 'Desbaste de Substrato', label: '21. Desbaste de Substrato', isDualField: true },
+        { dataKey: 'Grauteamento', label: '22. Grauteamento', isDualField: true },
+        { dataKey: 'Remoção e Reparo de Sub-Base', label: '23. Remoção e Reparo de Sub-Base', isDualField: true },
+        { dataKey: 'Reparo com Concreto Uretânico', label: '24. Reparo com Concreto Uretânico', isDualField: true },
+        { dataKey: 'Tratamento de Trincas', label: '25. Tratamento de Trincas', unit: ' ml' },
+        { dataKey: 'Execução de Lábios Poliméricos', label: '26. Execução de Lábios Poliméricos', unit: ' ml' },
+        { dataKey: 'Secagem de Substrato', label: '27. Secagem de Substrato', unit: ' m²' },
+        { dataKey: 'Remoção de Revestimento Antigo', label: '28. Remoção de Revestimento Antigo', unit: ' m²' },
+        { dataKey: 'Polimento Mecânico de Substrato', label: '29. Polimento Mecânico de Substrato', unit: ' m²' },
+        { dataKey: 'Reparo de Revestimento em Piso', label: '30. Reparo de Revestimento em Piso', isDualField: true },
+        { dataKey: 'Reparo de Revestimento em Muretas', label: '31. Reparo de Revestimento em Muretas', unit: ' ml' },
+        { dataKey: 'Reparo de Revestimento em Rodapé', label: '32. Reparo de Revestimento em Rodapé', unit: ' ml' },
+        { dataKey: 'Quantos botijões de gás foram utilizados?', label: '33. Quantos botijões de gás foram utilizados?', unit: '' },
+        { dataKey: 'Quantas bisnagas de selante foram utilizadas?', label: '34. Quantas bisnagas de selante foram utilizadas?', unit: '' },
       ];
       
-      todasEtapas.forEach(({ key, label, unit, isComplex }) => {
-        const value = servico.etapas[key];
+      todasEtapas.forEach(({ dataKey, label, unit, isMultiSelect, isDualField }) => {
+        const value = servico.etapas[dataKey];
         if (value !== null && value !== undefined && value !== '') {
-          if (isComplex) {
-            // Campos complexos (objetos ou arrays)
-            if (Array.isArray(value)) {
-              value.forEach((item: any, idx: number) => {
-                if (item.tipo && item.area) {
-                  const itemLabel = idx === 0 ? label : `   ${item.tipo}`;
-                  servicoData.push([itemLabel, `${item.area}${unit} (${item.tipo})`]);
-                } else if (item.tipo && item.valor) {
-                  const itemLabel = idx === 0 ? label : `   ${item.tipo}`;
-                  servicoData.push([itemLabel, `${item.valor}${unit} (${item.tipo})`]);
+          if (isMultiSelect) {
+            // ✅ Formato MultiSelect: "tipo1:valor1|tipo2:valor2|tipo3:valor3"
+            const stringValue = String(value);
+            if (stringValue.includes(':')) {
+              const items = stringValue.split('|').filter(item => item);
+              items.forEach((item, idx) => {
+                const [tipo, valor] = item.split(':');
+                if (tipo && valor) {
+                  // Detectar unidade baseada no tipo para campo 13 (Aplicação de Uretano)
+                  let itemUnit = '';
+                  if (dataKey === 'Aplicação de Uretano') {
+                    if (tipo === 'Uretano para rodapé') {
+                      itemUnit = ' ml';
+                    } else if (tipo === 'Uretano para muretas' || tipo === 'Uretano para Paredes' || tipo === 'Uretano para Paredes, base e pilares') {
+                      // Para campos duplos dentro do multiselect (usa ~ como separador)
+                      const [val1, val2] = valor.split('~');
+                      if (val1 && val2) {
+                        const itemLabel = idx === 0 ? label : `   ${tipo}`;
+                        servicoData.push([itemLabel, `${val1} ml / ${val2} cm`]);
+                        return;
+                      }
+                      itemUnit = ' ml';
+                    } else {
+                      itemUnit = ' m²';
+                    }
+                  } else if (dataKey === 'Serviços de pintura') {
+                    itemUnit = ' m²';
+                  } else if (dataKey === 'Serviços de pintura de layout') {
+                    itemUnit = ' ml';
+                  }
+                  
+                  const itemLabel = idx === 0 ? label : `   ${tipo}`;
+                  servicoData.push([itemLabel, `${valor}${itemUnit} (${tipo})`]);
                 }
               });
-            } else if (typeof value === 'object') {
-              if (value.tipo && value.valor) {
-                servicoData.push([label, `${value.valor}${unit} (${value.tipo})`]);
-              } else if (value.metragem && value.altura) {
-                servicoData.push([label, `${value.metragem} ml × ${value.altura} m`]);
-              } else if (value.area) {
-                servicoData.push([label, `${value.area}${unit}`]);
-              } else {
-                servicoData.push([label, JSON.stringify(value)]);
+            } else {
+              servicoData.push([label, stringValue]);
+            }
+          } else if (isDualField) {
+            // ✅ Formato DualField: "valor1|valor2"
+            const stringValue = String(value);
+            if (stringValue.includes('|')) {
+              const [valor1, valor2] = stringValue.split('|');
+              if (valor1 && valor2) {
+                servicoData.push([label, `${valor1} m² / ${valor2} cm`]);
+              } else if (valor1 || valor2) {
+                servicoData.push([label, `${valor1 || valor2} m²`]);
               }
+            } else {
+              servicoData.push([label, `${stringValue} m²`]);
             }
           } else {
             // Campos simples
-            servicoData.push([label, `${value}${unit}`]);
+            servicoData.push([label, `${value}${unit || ''}`]);
           }
         }
       });
@@ -288,20 +312,64 @@ export async function generateFormPDF(
       
       pdf.setFontSize(13);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(`Registros Importantes - Serviço ${index + 1}`, margin, yPos);
+      pdf.text(`Registros Importantes - Serviço ${index + 1} (Itens 35-56)`, margin, yPos);
       yPos += 6;
+
+      // Labels dos 22 registros importantes
+      const REGISTROS_LABELS = [
+        'Constatou-se água / umidade no substrato?',
+        'As áreas estavam com fechamento lateral?',
+        'Estado do substrato',
+        'Existe contaminações / crostas / incrustações no substrato?',
+        'Há concreto remontado sobre os bordos de ralos / canaletas / trilhos (ml)?',
+        'Há ralos / canaletas / trilhos desnivelados em relação ao substrato (ml)?',
+        'O boleado de rodapés / muretas foi executado com concreto?',
+        'Qual a espessura do piso de concreto?',
+        'Qual a profundidade dos cortes das juntas serradas?',
+        'As juntas serradas do piso foram aprofundadas por corte adicional? Em que extensão (ml)?',
+        'Existem juntas de dilatação no substrato (ml)?',
+        'As muretas estão ancoradas no piso?',
+        'Existem muretas apoiadas sobre juntas de dilatação no piso?',
+        'Existem juntas com bordas esborcinadas (ml)?',
+        'Existem trincas no substrato (ml)?',
+        'Existem serviços adicionais a serem realizados?',
+        'Os serviços adicionais foram liberados pela contratante?',
+        'O preposto acompanhou e conferiu as medições?',
+        'As áreas concluídas foram protegidas e isoladas?',
+        'O substrato foi fotografado?',
+        'Ocorreu alguma desconformidade durante ou após as aplicações?',
+        'Você relatou ao preposto as desconformidades?'
+      ];
 
       const registrosServicoData = [];
       Object.entries(servico.registros).forEach(([key, item]: [string, any]) => {
-        if (item.ativo && item.texto) {
-          let resposta = item.texto;
-          if (item.resposta !== undefined) {
-            resposta += ` - ${item.resposta ? 'Sim' : 'Não'}`;
+        // Extrair o índice do registro (registro-0 -> 0, registro-1 -> 1, etc.)
+        const registroIndex = parseInt(key.replace('registro-', ''));
+        const numeroItem = 35 + registroIndex;
+        const label = REGISTROS_LABELS[registroIndex] || key;
+        
+        // Se o item está ativo (preenchido)
+        if (item.ativo || item.texto || item.comentario) {
+          let resposta = '';
+          
+          // Para item "Estado do substrato" (index 2), mostrar o texto diretamente
+          if (registroIndex === 2) {
+            resposta = item.texto || 'N/A';
+            if (item.comentario) {
+              resposta += ` (${item.comentario})`;
+            }
+          } else {
+            // Para outros itens, mostrar SIM/NÃO baseado em ativo
+            resposta = item.ativo ? 'SIM' : 'NÃO';
+            if (item.texto) {
+              resposta += ` - ${item.texto}`;
+            }
+            if (item.comentario) {
+              resposta += ` (${item.comentario})`;
+            }
           }
-          if (item.comentario) {
-            resposta += ` (${item.comentario})`;
-          }
-          registrosServicoData.push([key, resposta]);
+          
+          registrosServicoData.push([`${numeroItem}. ${label}`, resposta]);
         }
       });
 

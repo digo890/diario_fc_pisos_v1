@@ -1,11 +1,11 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { Plus, Edit2, Trash2, FileText, Moon, Sun, LogOut, Download, Building2, Users, BarChart3, Bell, Filter, LayoutGrid, LayoutList, FolderOpen } from 'lucide-react';
+import React, { useState, useEffect, lazy, Suspense, useMemo, useCallback } from 'react';
+import { Plus, Edit2, Trash2, FileText, Moon, Sun, LogOut, Download, Building2, Users, BarChart3, Bell, Filter, LayoutGrid, LayoutList, FolderOpen, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { getObras, getUsers, saveObra, deleteObra, saveUser, deleteUser, getAllForms, getFormByObraId } from '../utils/database';
+import { getObras, getUsers, saveObra, deleteObra, saveUser, deleteUser, getAllForms, getFormByObraId, deleteForm } from '../utils/database';
 import { obraApi, userApi } from '../utils/api';
-import { getStatusDisplay } from '../utils/diarioHelpers';
+import { getStatusDisplay } from '../utils/diarioHelpers'; // ✅ CORREÇÃO #4: contarObrasConcluidas removido (não usado aqui)
 import { mergeObras, mergeUsers } from '../utils/dataSync';
 import { safeLog, safeError, safeWarn } from '../utils/logSanitizer';
 import type { Obra, User, UserRole, FormData } from '../types';
@@ -16,6 +16,7 @@ import LoadingSpinner from './LoadingSpinner';
 import type { Notification } from './NotificationDrawer';
 import { Pagination, usePagination } from './Pagination';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
+import { useSafeLogout } from '../hooks/useSafeLogout'; // 🔒 CORREÇÃO #7
 
 // 🚀 LAZY LOADING: Componentes pesados carregados sob demanda
 const CreateObraPage = lazy(() => import('./CreateObraPage'));
@@ -26,6 +27,7 @@ const ViewRespostasModal = lazy(() => import('./ViewRespostasModal'));
 const ResultadosDashboard = lazy(() => import('./ResultadosDashboard'));
 const NotificationDrawer = lazy(() => import('./NotificationDrawer'));
 const FilterModal = lazy(() => import('./FilterModal'));
+const ProductionMonitorDashboard = lazy(() => import('./ProductionMonitorDashboard')); // 🚨 MONITOR
 
 type TabType = 'resultados' | 'obras' | 'usuarios';
 type ObraFilter = 'todas' | 'novo' | 'em_andamento' | 'conferencia' | 'concluidas';
@@ -56,9 +58,13 @@ const getAvatarColor = (userId: string): string => {
 };
 
 const AdminDashboard: React.FC = () => {
-  const { currentUser, logout } = useAuth();
+  const { currentUser } = useAuth(); // 🔒 CORREÇÃO #7: logout removido daqui
   const { theme, toggleTheme } = useTheme();
   const { showToast, ToastComponent } = useToast();
+  
+  // 🔒 CORREÇÃO #7: Hook de logout seguro v1.1.0
+  const { handleLogout, forceLogout, cancelLogout, showLogoutConfirm, pendingCount } = useSafeLogout();
+  
   const [activeTab, setActiveTab] = useState<TabType>('resultados');
   const [obras, setObras] = useState<Obra[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -66,6 +72,7 @@ const AdminDashboard: React.FC = () => {
   const [userFilter, setUserFilter] = useState<UserFilter>('todos');
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(false); // 🆕 CORREÇÃO URGENTE #2: Prevenir loadData simultâneo
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid'); // Para desktop apenas
   const [searchObra, setSearchObra] = useState('');
   const [searchUser, setSearchUser] = useState('');
@@ -93,12 +100,180 @@ const AdminDashboard: React.FC = () => {
     }
   }, [viewingObra]);
   
-  // Generate notifications when obras data changes
-  useEffect(() => {
-    generateNotifications();
+  // 🚀 OTIMIZAÇÃO #2: Memoizar generateNotifications para evitar loops infinitos
+  const generateNotifications = useCallback(async () => {
+    const newNotifications: Notification[] = [];
+    const storedReadIds = JSON.parse(localStorage.getItem('readNotifications') || '[]') as string[];
+    
+    // ✅ CORREÇÃO #6: Filtrar apenas obras com status relevante ANTES de buscar formulários
+    // Evita chamadas desnecessárias ao IndexedDB
+    const obrasComNotificacao = obras.filter(o => 
+      ['enviado_preposto', 'aprovado_preposto', 'reprovado_preposto', 'enviado_admin', 'concluido'].includes(o.status)
+    );
+    
+    for (const obra of obrasComNotificacao) {
+      // Notificação quando encarregado responde o formulário
+      if (obra.status === 'enviado_preposto' || obra.status === 'aprovado_preposto' || 
+          obra.status === 'reprovado_preposto' || obra.status === 'enviado_admin' || obra.status === 'concluido') {
+        const formData = await getFormByObraId(obra.id);
+        if (formData && formData.assinaturaEncarregado) {
+          const encarregado = users.find(u => u.id === obra.encarregadoId);
+          const notificationId = `form_submitted_${obra.id}`;
+          newNotifications.push({
+            id: notificationId,
+            type: 'form_submitted',
+            obraId: obra.id,
+            obraNome: `${obra.cliente} - ${obra.obra}`,
+            userName: encarregado?.nome || 'Encarregado',
+            timestamp: formData.updatedAt || obra.updatedAt,
+            read: storedReadIds.includes(notificationId)
+          });
+        }
+      }
+      
+      // Notificação quando preposto assina o formulário
+      if (obra.status === 'aprovado_preposto' || obra.status === 'enviado_admin' || obra.status === 'concluido') {
+        const formData = await getFormByObraId(obra.id);
+        if (formData && formData.assinaturaPreposto && formData.prepostoConfirmado) {
+          const notificationId = `form_signed_${obra.id}`;
+          newNotifications.push({
+            id: notificationId,
+            type: 'form_signed',
+            obraId: obra.id,
+            obraNome: `${obra.cliente} - ${obra.obra}`,
+            userName: obra.prepostoNome || 'Preposto',
+            timestamp: formData.prepostoReviewedAt || obra.updatedAt,
+            read: storedReadIds.includes(notificationId)
+          });
+        }
+      }
+    }
+    
+    setNotifications(newNotifications);
   }, [obras, users]);
+  
+  const handleMarkAsRead = (notificationId: string) => {
+    const storedReadIds = JSON.parse(localStorage.getItem('readNotifications') || '[]') as string[];
+    if (!storedReadIds.includes(notificationId)) {
+      storedReadIds.push(notificationId);
+      localStorage.setItem('readNotifications', JSON.stringify(storedReadIds));
+      
+      setNotifications(prev => 
+        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+      );
+    }
+  };
+  
+  const unreadNotificationsCount = notifications.filter(n => !n.read).length;
+
+  const handleDeleteObra = async (id: string) => {
+    try {
+      // Deletar do backend primeiro
+      const response = await obraApi.delete(id);
+      
+      if (response.success) {
+        // Deletar também do IndexedDB local
+        await deleteObra(id);
+        await deleteForm(id); // Deletar formulário associado
+        await loadData();
+        setDeletingObra(null);
+        showToast('Obra excluída com sucesso!', 'success');
+      } else {
+        showToast(`Erro ao excluir obra: ${response.error}`, 'error');
+      }
+    } catch (error: any) {
+      safeError('❌ Erro ao excluir obra:', error);
+      showToast(`Erro ao excluir obra: ${error.message}`, 'error');
+    }
+  };
+
+  const handleDeleteUser = async (id: string) => {
+    // ✅ CORREÇÃO #5: Validar se usuário é encarregado de alguma obra
+    const obrasDoUsuario = obras.filter(o => o.encarregadoId === id);
+    
+    if (obrasDoUsuario.length > 0) {
+      const nomeUsuario = deletingUser?.nome || 'Este usuário';
+      showToast(
+        `❌ Não é possível excluir ${nomeUsuario}. Ele é responsável por ${obrasDoUsuario.length} obra(s). ` +
+        `Reatribua as obras antes de excluir.`,
+        'error'
+      );
+      setDeletingUser(null);
+      return;
+    }
+    
+    try {
+      // Deletar do backend primeiro
+      const response = await userApi.delete(id);
+      
+      if (response.success) {
+        // Deletar também do IndexedDB local
+        await deleteUser(id);
+        await loadData();
+        setDeletingUser(null);
+        showToast('Usuário excluído com sucesso!', 'success');
+      } else {
+        // Extrair mensagem de erro adequada
+        const errorMessage = typeof response.error === 'string' 
+          ? response.error 
+          : (response.error as any)?.message || JSON.stringify(response.error) || 'Erro desconhecido';
+        showToast(`Erro ao excluir usuário: ${errorMessage}`, 'error');
+      }
+    } catch (error: any) {
+      safeError('❌ Erro ao excluir usuário:', error);
+      const errorMessage = error?.message || String(error) || 'Erro desconhecido';
+      showToast(`Erro ao excluir usuário: ${errorMessage}`, 'error');
+    }
+  };
+
+  const handleCloseModal = () => {
+    setViewingObra(null);
+    setViewingFormData(null);
+  };
+
+  // 🚀 OTIMIZAÇÃO #1: Memoizar filteredObras (recalcula apenas quando dependências mudarem)
+  const filteredObras = useMemo(() => {
+    return obras
+      .filter(obra => {
+        if (obraFilter === 'todas') return true;
+        if (obraFilter === 'novo') return obra.status === 'novo';
+        if (obraFilter === 'em_andamento') return obra.status === 'em_preenchimento' || obra.status === 'reprovado_preposto';
+        if (obraFilter === 'conferencia') return obra.status === 'enviado_preposto';
+        if (obraFilter === 'concluidas') return obra.status === 'enviado_admin' || obra.status === 'concluido';
+        return true;
+      })
+      .filter(obra => obra.cliente.toLowerCase().includes(searchObra.toLowerCase()) || obra.obra.toLowerCase().includes(searchObra.toLowerCase()))
+      .sort((a, b) => b.createdAt - a.createdAt);
+  }, [obras, obraFilter, searchObra]);
+
+  // 🚀 OTIMIZAÇÃO #1: Memoizar filteredUsers (recalcula apenas quando dependências mudarem)
+  const filteredUsers = useMemo(() => {
+    return users
+      .filter(user => {
+        if (userFilter === 'todos') return true;
+        return user.tipo === userFilter;
+      })
+      .filter(user => user.nome.toLowerCase().includes(searchUser.toLowerCase()))
+      .sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [users, userFilter, searchUser]);
+
+  // 🚀 PAGINAÇÃO: Limita renderização a 10 itens por página
+  const obrasPagination = usePagination(filteredObras, 10);
+  const usersPagination = usePagination(filteredUsers, 10);
+
+  // 🚀 OTIMIZAÇÃO #7: Memoizar Map de usuários para lookup O(1)
+  const usersMap = useMemo(() => {
+    return new Map(users.map(u => [u.id, u]));
+  }, [users]);
+
+  // 🚀 OTIMIZAÇÃO #1: Memoizar getUserName (evita re-render de componentes filhos)
+  const getUserName = useCallback((id: string) => {
+    return usersMap.get(id)?.nome || 'N/A'; // ✅ CORREÇÃO #7: O(1) lookup ao invés de O(n)
+  }, [usersMap]);
 
   const loadData = async () => {
+    if (isLoadingData) return; // 🆕 CORREÇÃO URGENTE #2: Prevenir loadData simultâneo
+    setIsLoadingData(true);
     try {
       // ✅ CORREÇÃO: Buscar dados local e remote simultaneamente
       const [localObras, localUsers] = await Promise.all([
@@ -136,6 +311,9 @@ const AdminDashboard: React.FC = () => {
             safeLog(`✅ ${mergedObras.length} obras sincronizadas (merge)`);
           }
 
+          // 🚀 OTIMIZAÇÃO #2: Chamar generateNotifications APENAS após carregar dados
+          await generateNotifications();
+          
           return; // Sucesso
         } catch (apiError) {
           safeWarn('⚠️ Erro ao buscar dados do backend, usando cache local:', apiError);
@@ -189,10 +367,15 @@ const AdminDashboard: React.FC = () => {
       
       setObras(obrasComStatusAtualizado);
       setUsers(localUsers);
+      
+      // 🚀 OTIMIZAÇÃO #2: Chamar generateNotifications APENAS após carregar dados locais
+      await generateNotifications();
     } catch (error) {
       safeError('❌ Erro ao carregar dados:', error);
       setObras([]);
       setUsers([]);
+    } finally {
+      setIsLoadingData(false);
     }
   };
 
@@ -200,161 +383,39 @@ const AdminDashboard: React.FC = () => {
     const form = await getFormByObraId(obraId);
     setViewingFormData(form || null);
   };
-  
-  const generateNotifications = async () => {
-    const newNotifications: Notification[] = [];
-    const storedReadIds = JSON.parse(localStorage.getItem('readNotifications') || '[]') as string[];
+
+  // ✅ CORREÇÃO BUG: Validar se existe formulário antes de abrir modal
+  const handleObraClick = async (obra: Obra) => {
+    // Verificar se obra está em status que deveria ter formulário
+    const statusesComFormulario = ['enviado_preposto', 'aprovado_preposto', 'reprovado_preposto', 'enviado_admin', 'concluido'];
     
-    // ✅ CORREÇÃO #6: Filtrar apenas obras com status relevante ANTES de buscar formulários
-    // Evita chamadas desnecessárias ao IndexedDB
-    const obrasComNotificacao = obras.filter(o => 
-      ['enviado_preposto', 'aprovado_preposto', 'reprovado_preposto', 'enviado_admin', 'concluido'].includes(o.status)
-    );
-    
-    for (const obra of obrasComNotificacao) {
-      // Notificação quando encarregado responde o formulário
-      if (obra.status === 'enviado_preposto' || obra.status === 'aprovado_preposto' || 
-          obra.status === 'reprovado_preposto' || obra.status === 'enviado_admin' || obra.status === 'concluido') {
-        const formData = await getFormByObraId(obra.id);
-        if (formData && formData.assinaturaEncarregado) {
-          const encarregado = users.find(u => u.id === obra.encarregadoId);
-          const notificationId = `form_submitted_${obra.id}`;
-          newNotifications.push({
-            id: notificationId,
-            type: 'form_submitted',
-            obraId: obra.id,
-            obraNome: `${obra.cliente} - ${obra.obra}`,
-            userName: encarregado?.nome || 'Encarregado',
-            timestamp: formData.updatedAt || obra.updatedAt,
-            read: storedReadIds.includes(notificationId)
-          });
-        }
-      }
+    if (statusesComFormulario.includes(obra.status)) {
+      // Buscar formulário para validar se existe
+      const form = await getFormByObraId(obra.id);
       
-      // Notificação quando preposto assina o formulário
-      if (obra.status === 'aprovado_preposto' || obra.status === 'enviado_admin' || obra.status === 'concluido') {
-        const formData = await getFormByObraId(obra.id);
-        if (formData && formData.assinaturaPreposto && formData.prepostoConfirmado) {
-          const notificationId = `form_signed_${obra.id}`;
-          newNotifications.push({
-            id: notificationId,
-            type: 'form_signed',
-            obraId: obra.id,
-            obraNome: `${obra.cliente} - ${obra.obra}`,
-            userName: obra.prepostoNome || 'Preposto',
-            timestamp: formData.prepostoReviewedAt || obra.updatedAt,
-            read: storedReadIds.includes(notificationId)
-          });
-        }
+      if (!form) {
+        // ❌ Inconsistência de dados: Status indica formulário mas não existe
+        showToast(
+          `⚠️ Inconsistência detectada: Esta obra está marcada como "${getStatusDisplay(obra).label}" mas não possui formulário associado. Entre em contato com o suporte.`,
+          'error'
+        );
+        safeWarn(`🐛 Inconsistência de dados na obra ${obra.id}: status=${obra.status} mas formData não existe`);
+        return;
       }
     }
     
-    setNotifications(newNotifications);
+    // Tudo ok, abrir modal normalmente
+    setViewingObra(obra);
   };
   
   const handleNotificationClick = (notification: Notification) => {
     const obra = obras.find(o => o.id === notification.obraId);
     if (obra) {
-      setViewingObra(obra);
+      // Usar handleObraClick para validar formulário
+      handleObraClick(obra);
       setShowNotifications(false);
     }
   };
-  
-  const handleMarkAsRead = (notificationId: string) => {
-    const storedReadIds = JSON.parse(localStorage.getItem('readNotifications') || '[]') as string[];
-    if (!storedReadIds.includes(notificationId)) {
-      storedReadIds.push(notificationId);
-      localStorage.setItem('readNotifications', JSON.stringify(storedReadIds));
-      
-      setNotifications(prev => 
-        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
-      );
-    }
-  };
-  
-  const unreadNotificationsCount = notifications.filter(n => !n.read).length;
-
-  const handleDeleteObra = async (id: string) => {
-    try {
-      // Deletar do backend primeiro
-      const response = await obraApi.delete(id);
-      
-      if (response.success) {
-        // Deletar também do IndexedDB local
-        await deleteObra(id);
-        await loadData();
-        setDeletingObra(null);
-        showToast('Obra excluída com sucesso!', 'success');
-      } else {
-        showToast(`Erro ao excluir obra: ${response.error}`, 'error');
-      }
-    } catch (error: any) {
-      safeError('❌ Erro ao excluir obra:', error);
-      showToast(`Erro ao excluir obra: ${error.message}`, 'error');
-    }
-  };
-
-  const handleDeleteUser = async (id: string) => {
-    try {
-      // Deletar do backend primeiro
-      const response = await userApi.delete(id);
-      
-      if (response.success) {
-        // Deletar também do IndexedDB local
-        await deleteUser(id);
-        await loadData();
-        setDeletingUser(null);
-        showToast('Usuário excluído com sucesso!', 'success');
-      } else {
-        // Extrair mensagem de erro adequada
-        const errorMessage = typeof response.error === 'string' 
-          ? response.error 
-          : (response.error as any)?.message || JSON.stringify(response.error) || 'Erro desconhecido';
-        showToast(`Erro ao excluir usuário: ${errorMessage}`, 'error');
-      }
-    } catch (error: any) {
-      safeError('❌ Erro ao excluir usuário:', error);
-      const errorMessage = error?.message || String(error) || 'Erro desconhecido';
-      showToast(`Erro ao excluir usuário: ${errorMessage}`, 'error');
-    }
-  };
-
-  const handleCloseModal = () => {
-    setViewingObra(null);
-    setViewingFormData(null);
-  };
-
-  const filteredObras = obras
-    .filter(obra => {
-      if (obraFilter === 'todas') return true;
-      if (obraFilter === 'novo') return obra.status === 'novo';
-      if (obraFilter === 'em_andamento') return obra.status === 'em_preenchimento' || obra.status === 'reprovado_preposto';
-      if (obraFilter === 'conferencia') return obra.status === 'enviado_preposto';
-      if (obraFilter === 'concluidas') return obra.status === 'enviado_admin' || obra.status === 'concluido';
-      return true;
-    })
-    .filter(obra => obra.cliente.toLowerCase().includes(searchObra.toLowerCase()) || obra.obra.toLowerCase().includes(searchObra.toLowerCase()))
-    .sort((a, b) => b.createdAt - a.createdAt);
-
-  const filteredUsers = users
-    .filter(user => {
-      if (userFilter === 'todos') return true;
-      return user.tipo === userFilter;
-    })
-    .filter(user => user.nome.toLowerCase().includes(searchUser.toLowerCase()))
-    .sort((a, b) => a.nome.localeCompare(b.nome));
-
-  // 🚀 PAGINAÇÃO: Limita renderização a 10 itens por página
-  const obrasPagination = usePagination(filteredObras, 10);
-  const usersPagination = usePagination(filteredUsers, 10);
-
-  const getUserName = (id: string) => {
-    const user = users.find(u => u.id === id);
-    return user?.nome || 'N/A';
-  };
-
-  // Contar obras concluídas
-  const obrasConcluidas = obras.filter(o => o.status === 'concluido').length;
 
   return (
     <div className="min-h-screen bg-[#EDEFE4] dark:bg-gray-950">
@@ -398,7 +459,7 @@ const AdminDashboard: React.FC = () => {
                 )}
               </button>
               <button
-                onClick={logout}
+                onClick={handleLogout}
                 className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 
                          text-gray-600 dark:text-gray-400"
                 aria-label="Sair do sistema"
@@ -515,7 +576,7 @@ const AdminDashboard: React.FC = () => {
                   return (
                     <div
                       key={obra.id}
-                      onClick={() => setViewingObra(obra)}
+                      onClick={() => handleObraClick(obra)}
                       className="bg-white dark:bg-gray-900 rounded-xl p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all relative"
                     >
                       {/* Container com gradiente */}
@@ -686,7 +747,7 @@ const AdminDashboard: React.FC = () => {
                     return (
                       <div key={obra.id}>
                         <div
-                          onClick={() => setViewingObra(obra)}
+                          onClick={() => handleObraClick(obra)}
                           className="px-5 py-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                         >
                           <div className="flex items-center justify-between gap-4">
@@ -1057,6 +1118,18 @@ const AdminDashboard: React.FC = () => {
         onClose={() => setShowNotifications(false)}
         onNotificationClick={handleNotificationClick}
         onMarkAsRead={handleMarkAsRead}
+      />
+      
+      {/* 🔒 CORREÇÃO #7: Modal de confirmação de logout com dados pendentes */}
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        title="Dados não sincronizados"
+        message={`Você tem ${pendingCount} operação(ões) aguardando sincronização com o servidor. Se sair agora, esses dados podem ser perdidos. Deseja realmente sair?`}
+        confirmLabel="Sair mesmo assim"
+        cancelLabel="Cancelar"
+        variant="warning"
+        onConfirm={forceLogout}
+        onCancel={cancelLogout}
       />
       
       {/* Toast Component */}
