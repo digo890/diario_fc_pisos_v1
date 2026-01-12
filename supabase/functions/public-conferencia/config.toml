@@ -1,0 +1,5 @@
+# Configuração da Edge Function Pública - Conferência do Preposto
+# Esta função é 100% pública e não requer autenticação
+
+[function.public-conferencia]
+verify_jwt = false

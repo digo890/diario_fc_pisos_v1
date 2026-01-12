@@ -340,13 +340,14 @@ export const formularioApi = {
 // CONFERÊNCIA API (PÚBLICO)
 // ============================================
 
-const CONFERENCIA_BASE_URL = `https://${projectId}.supabase.co/functions/v1/make-server-1ff231a2/conferencia`;
+// 🔓 Edge Function PÚBLICA - Não requer autenticação
+const CONFERENCIA_BASE_URL = `https://${projectId}.supabase.co/functions/v1/public-conferencia/conferencia`;
 
 export const conferenciaApi = {
   // 📋 Buscar formulário + obra por ID do formulário
   async getFormulario(formularioId: string): Promise<ApiResponse> {
     const url = `${CONFERENCIA_BASE_URL}/${formularioId}`;
-    console.log('🔍 [CONFERÊNCIA] Buscando formulário:', url);
+    console.log('🔍 [CONFERÊNCIA PÚBLICA] Buscando formulário:', url);
     
     try {
       const response = await fetch(url, {
@@ -367,7 +368,7 @@ export const conferenciaApi = {
   // ✍️ Assinar formulário (aprovar/reprovar)
   async assinarFormulario(formularioId: string, data: any): Promise<ApiResponse> {
     const url = `${CONFERENCIA_BASE_URL}/${formularioId}/assinar`;
-    console.log('✍️ [CONFERÊNCIA] Assinando formulário:', url);
+    console.log('✍️ [CONFERÊNCIA PÚBLICA] Assinando formulário:', url);
     
     try {
       const response = await fetch(url, {
