@@ -252,6 +252,25 @@ const requireAuth = async (c: any, next: any) => {
 // Enable logger
 app.use("*", logger(console.log));
 
+// 🔍 DEBUG MIDDLEWARE: Logar TODAS as requisições
+app.use("*", async (c, next) => {
+  const path = c.req.path;
+  const method = c.req.method;
+  
+  if (path.includes("/conferencia/")) {
+    console.log("\n" + "=".repeat(70));
+    console.log(`🔍 [DEBUG GLOBAL] ${method} ${path}`);
+    console.log("📋 [DEBUG] Headers:", {
+      authorization: c.req.header("Authorization") ? "PRESENTE" : "AUSENTE",
+      xUserToken: c.req.header("X-User-Token") ? "PRESENTE" : "AUSENTE",
+      origin: c.req.header("Origin") || "NENHUM",
+    });
+    console.log("=".repeat(70) + "\n");
+  }
+  
+  await next();
+});
+
 // Enable CORS for all routes and methods
 // SEGURANÇA: Restrito a domínios específicos em produção
 const getAllowedOrigins = () => {
@@ -1640,6 +1659,8 @@ app.post(
         obraNome,
         formularioId,
       });
+      console.log("🔍 [DEBUG] Tipo do formularioId recebido:", typeof formularioId);
+      console.log("🔍 [DEBUG] Tamanho do formularioId:", formularioId?.length);
 
       // Validações
       if (!prepostoEmail || !obraNome || !formularioId) {
@@ -1655,6 +1676,7 @@ app.post(
 
       // ✅ SIMPLES: Link direto com ID do formulário
       const linkConferencia = `https://diario-fc-pisos-v1.vercel.app/conferencia/${formularioId}`;
+      console.log("🔗 [DEBUG] Link gerado:", linkConferencia);
 
       // Gerar HTML do email
       const htmlEmail =
@@ -1890,10 +1912,25 @@ app.get(
 app.get(
   "/make-server-1ff231a2/conferencia/:formularioId",
   async (c) => {
+    // 🔍 DEBUG: Logar TODOS os headers recebidos
+    console.log("=".repeat(60));
+    console.log("🔍 [CONFERÊNCIA] NOVA REQUISIÇÃO RECEBIDA");
+    console.log("=".repeat(60));
+    console.log("📋 Headers recebidos:", {
+      authorization: c.req.header("Authorization") || "NENHUM",
+      xUserToken: c.req.header("X-User-Token") || "NENHUM",
+      origin: c.req.header("Origin") || "NENHUM",
+      userAgent: c.req.header("User-Agent") || "NENHUM",
+      cookie: c.req.header("Cookie") ? "PRESENTE (ocultado)" : "NENHUM",
+    });
+    console.log("=".repeat(60));
+    
     try {
       const formularioId = c.req.param("formularioId");
 
       console.log("🔍 [CONFERÊNCIA] Buscando formulário:", formularioId);
+      console.log("🔍 [DEBUG] Tipo do formularioId:", typeof formularioId);
+      console.log("🔍 [DEBUG] Tamanho do formularioId:", formularioId?.length);
 
       // 1️⃣ SEGURANÇA: Validar UUID para prevenir ataques
       if (!validation.isValidUUID(formularioId)) {
@@ -1905,10 +1942,28 @@ app.get(
       }
 
       // 2️⃣ Buscar formulário
-      const formulario = await kv.get(`formulario:${formularioId}`);
+      const chave = `formulario:${formularioId}`;
+      console.log("🔍 [DEBUG] Buscando chave no KV:", chave);
+      const formulario = await kv.get(chave);
+      
+      console.log("🔍 [DEBUG] Resultado da busca:", formulario ? "ENCONTRADO" : "NÃO ENCONTRADO");
       
       if (!formulario) {
         console.warn("⚠️ Formulário não encontrado:", formularioId);
+        console.warn("⚠️ Chave buscada:", chave);
+        
+        // 🔍 DEBUG: Listar todos os formulários no banco
+        try {
+          const todosFormularios = await kv.getByPrefix("formulario:");
+          console.log("🔍 [DEBUG] Total de formulários no banco:", todosFormularios?.length || 0);
+          if (todosFormularios && todosFormularios.length > 0) {
+            console.log("🔍 [DEBUG] IDs dos formulários existentes:", 
+              todosFormularios.map((f: any) => f.id).slice(0, 5));
+          }
+        } catch (debugError) {
+          console.error("❌ Erro ao buscar formulários para debug:", debugError);
+        }
+        
         return c.json(
           { success: false, error: "Formulário não encontrado" },
           404,

@@ -279,11 +279,17 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
               } else {
                 // Criar novo formulário
                 formularioId = crypto.randomUUID();
-                await formularioApi.create({
+                safeLog(`🔑 [DEBUG] UUID gerado para formulário: ${formularioId}`);
+                safeLog(`🔍 [DEBUG] Tipo do UUID: ${typeof formularioId}, Tamanho: ${formularioId.length}`);
+                
+                const payload = {
                   id: formularioId,
                   obra_id: obra.id,
                   ...updatedForm
-                });
+                };
+                safeLog(`📤 [DEBUG] Payload para criar formulário:`, { id: formularioId, obra_id: obra.id });
+                
+                await formularioApi.create(payload);
                 safeLog(`✅ Formulário criado no backend com ID: ${formularioId}`);
               }
             } catch (formSyncError) {
@@ -315,6 +321,9 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
             let emailEnviado = false;
             if (obra.prepostoEmail) {
               safeLog('📧 Iniciando envio de email para preposto...');
+              safeLog(`🔑 [DEBUG] formularioId que será enviado no email: ${formularioId}`);
+              safeLog(`🔍 [DEBUG] Tipo: ${typeof formularioId}, Tamanho: ${formularioId?.length}`);
+              
               const emailResult = await sendPrepostoConferenciaEmail({
                 prepostoEmail: obra.prepostoEmail,
                 prepostoNome: obra.prepostoNome || 'Preposto',
