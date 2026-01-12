@@ -7,7 +7,7 @@ const API_URL = `https://${projectId}.supabase.co/functions/v1/make-server-1ff23
 interface SendPrepostoEmailParams {
   prepostoEmail: string;
   prepostoNome: string;
-  obraId: string;
+  formularioId: string; // ✅ CORRIGIDO: Era obraId
   obraNome: string;
   cliente: string;
   cidade: string;

@@ -229,9 +229,13 @@ export const useAuth = () => {
   // Retornar valores padrão em vez de quebrar a aplicação
   if (!context) {
     // ⚠️ Em desenvolvimento, o HMR pode causar re-renderizações antes do Provider estar pronto
-    // Apenas logar warning em vez de quebrar
     if (import.meta.env.DEV) {
-      console.warn('⚠️ useAuth chamado fora de AuthProvider (possivelmente durante HMR)');
+      // 🔧 SILENCIAR: Este warning é esperado durante HMR e não é um erro real
+      // Apenas logar em modo debug se necessário
+      if (import.meta.env.VITE_DEBUG_AUTH === 'true') {
+        console.debug('🔄 useAuth: aguardando AuthProvider (HMR reload)');
+      }
+      
       // Retornar valores padrão seguros durante HMR
       return {
         currentUser: null,

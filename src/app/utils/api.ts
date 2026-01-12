@@ -337,16 +337,16 @@ export const formularioApi = {
 };
 
 // ============================================
-// VALIDAÇÃO PÚBLICA DE PREPOSTO
+// CONFERÊNCIA API (PÚBLICO)
 // ============================================
 
-// ✅ CORREÇÃO: Usar rota do servidor principal (não há mais Edge Function separada)
-const VALIDATION_BASE_URL = `https://${projectId}.supabase.co/functions/v1/make-server-1ff231a2/validation`;
+const CONFERENCIA_BASE_URL = `https://${projectId}.supabase.co/functions/v1/make-server-1ff231a2/conferencia`;
 
-export const validationApi = {
-  async getObraByToken(token: string): Promise<ApiResponse> {
-    const url = `${VALIDATION_BASE_URL}/${token}`;
-    console.log('🔍 [VALIDATION API] Buscando obra:', url);
+export const conferenciaApi = {
+  // 📋 Buscar formulário + obra por ID do formulário
+  async getFormulario(formularioId: string): Promise<ApiResponse> {
+    const url = `${CONFERENCIA_BASE_URL}/${formularioId}`;
+    console.log('🔍 [CONFERÊNCIA] Buscando formulário:', url);
     
     try {
       const response = await fetch(url, {
@@ -359,14 +359,15 @@ export const validationApi = {
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error('❌ [VALIDATION API] Erro:', error);
+      console.error('❌ [CONFERÊNCIA] Erro:', error);
       return { success: false, error: error.message };
     }
   },
 
-  async submitPrepostoReview(token: string, data: any): Promise<ApiResponse> {
-    const url = `${VALIDATION_BASE_URL}/${token}/review`;
-    console.log('📝 [VALIDATION API] Submetendo review:', url);
+  // ✍️ Assinar formulário (aprovar/reprovar)
+  async assinarFormulario(formularioId: string, data: any): Promise<ApiResponse> {
+    const url = `${CONFERENCIA_BASE_URL}/${formularioId}/assinar`;
+    console.log('✍️ [CONFERÊNCIA] Assinando formulário:', url);
     
     try {
       const response = await fetch(url, {
@@ -380,28 +381,7 @@ export const validationApi = {
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error('❌ [VALIDATION API] Erro:', error);
-      return { success: false, error: error.message };
-    }
-  },
-
-  // ✅ CORREÇÃO: Rota correta para buscar FORMULÁRIO por token
-  async getByToken(token: string): Promise<ApiResponse> {
-    const url = `${VALIDATION_BASE_URL}/${token}/formulario`;
-    console.log('📋 [VALIDATION API] Buscando formulário:', url);
-    
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error('❌ [VALIDATION API] Erro:', error);
+      console.error('❌ [CONFERÊNCIA] Erro:', error);
       return { success: false, error: error.message };
     }
   },

@@ -259,6 +259,8 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
         try {
           if (navigator.onLine) {
             // 🔥 CRÍTICO: Sincronizar FORMULÁRIO com backend
+            let formularioId: string | undefined; // ✅ CORREÇÃO: Pode ser undefined inicialmente
+            
             try {
               // Verificar se formulário já existe no backend
               const existingFormularios = await formularioApi.list();
@@ -268,15 +270,15 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
 
               if (existingFormulario) {
                 // Atualizar formulário existente
-                await formularioApi.update(existingFormulario.id, {
+                formularioId = existingFormulario.id;
+                await formularioApi.update(formularioId, {
                   ...updatedForm,
                   obra_id: obra.id
                 });
                 safeLog('✅ Formulário atualizado no backend');
               } else {
-                // ✅ CORREÇÃO: Criar novo formulário com ID único
-                // O FormData só tem obraId, não tem campo id próprio
-                const formularioId = crypto.randomUUID();
+                // Criar novo formulário
+                formularioId = crypto.randomUUID();
                 await formularioApi.create({
                   id: formularioId,
                   obra_id: obra.id,
@@ -287,6 +289,11 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
             } catch (formSyncError) {
               safeError('❌ Erro ao sincronizar formulário:', formSyncError);
               throw formSyncError; // Propagar para o catch externo
+            }
+
+            // ✅ VALIDAÇÃO: Garantir que formularioId foi definido
+            if (!formularioId) {
+              throw new Error('ID do formulário não foi gerado corretamente');
             }
 
             // Sincronizar OBRA com backend
@@ -303,6 +310,46 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
               progress: obra.progress
             });
             safeLog('✅ Status sincronizado com backend: enviado_preposto');
+            
+            // ✅ Só envia email se sincronização funcionou
+            let emailEnviado = false;
+            if (obra.prepostoEmail) {
+              safeLog('📧 Iniciando envio de email para preposto...');
+              const emailResult = await sendPrepostoConferenciaEmail({
+                prepostoEmail: obra.prepostoEmail,
+                prepostoNome: obra.prepostoNome || 'Preposto',
+                formularioId, // ✅ Agora garantidamente definido
+                obraNome: obra.obra,
+                cliente: obra.cliente,
+                cidade: obra.cidade,
+                encarregadoNome: currentUser?.nome || 'Encarregado',
+              });
+              
+              if (emailResult.success) {
+                safeLog('✅ Email enviado com sucesso ao preposto');
+                emailEnviado = true;
+              } else {
+                safeError('⚠️ Erro ao enviar email ao preposto:', emailResult.error);
+                // ⚠️ Email falhou mas sync funcionou - avisar usuário
+                showToast('⚠️ Formulário enviado, mas houve erro ao enviar email. Por favor, envie o link manualmente.', 'warning');
+              }
+            }
+
+            setSaving(false);
+            
+            // ✅ Mensagem baseada no que REALMENTE aconteceu
+            if (emailEnviado && obra.prepostoEmail) {
+              showToast('Formulário enviado e email enviado ao preposto ✓', 'success');
+            } else if (obra.prepostoWhatsapp) {
+              showToast('Formulário enviado! Envie o link via WhatsApp ao preposto.', 'success');
+            } else {
+              showToast('Formulário enviado! Compartilhe o link de validação com o preposto.', 'success');
+            }
+            
+            // Aguardar um pouco para o usuário ver o toast antes de voltar
+            setTimeout(() => {
+              onBack();
+            }, 1500);
           } else {
             // ❌ Sem conexão - alertar usuário e reverter
             showToast('Sem conexão com a internet. Por favor, conecte-se e tente novamente.', 'error');
@@ -325,46 +372,6 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
           setSaving(false);
           return; // ❌ NÃO enviar email nem continuar
         }
-
-        // ✅ Só envia email se sincronização funcionou
-        let emailEnviado = false;
-        if (obra.prepostoEmail) {
-          safeLog('📧 Iniciando envio de email para preposto...');
-          const emailResult = await sendPrepostoConferenciaEmail({
-            prepostoEmail: obra.prepostoEmail,
-            prepostoNome: obra.prepostoNome || 'Preposto',
-            obraId: obra.id,
-            obraNome: obra.obra,
-            cliente: obra.cliente,
-            cidade: obra.cidade,
-            encarregadoNome: currentUser?.nome || 'Encarregado',
-          });
-          
-          if (emailResult.success) {
-            safeLog('✅ Email enviado com sucesso ao preposto');
-            emailEnviado = true;
-          } else {
-            safeError('⚠️ Erro ao enviar email ao preposto:', emailResult.error);
-            // ⚠️ Email falhou mas sync funcionou - avisar usuário
-            showToast('⚠️ Formulário enviado, mas houve erro ao enviar email. Por favor, envie o link manualmente.', 'warning');
-          }
-        }
-
-        setSaving(false);
-        
-        // ✅ Mensagem baseada no que REALMENTE aconteceu
-        if (emailEnviado && obra.prepostoEmail) {
-          showToast('Formulário enviado e email enviado ao preposto ✓', 'success');
-        } else if (obra.prepostoWhatsapp) {
-          showToast('Formulário enviado! Envie o link via WhatsApp ao preposto.', 'success');
-        } else {
-          showToast('Formulário enviado! Compartilhe o link de validação com o preposto.', 'success');
-        }
-        
-        // Aguardar um pouco para o usuário ver o toast antes de voltar
-        setTimeout(() => {
-          onBack();
-        }, 1500);
       }
     } catch (error) {
       safeError('❌ Erro ao enviar formulário:', error);

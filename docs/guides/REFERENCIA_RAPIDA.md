@@ -120,11 +120,11 @@ types/index.ts (interface FormData)
    ↓
 form-sections/CondicoesAmbientaisSection.tsx
    ↓
-ViewRespostasModal.tsx (~linha 375)
+ViewRespostasModal.tsx
    ↓
-pdfGenerator.ts (~linha 80)
+pdfGenerator.ts
    ↓
-excelGenerator.ts (~linha 30)
+excelGenerator.ts
 ```
 
 ### **DADOS DA OBRA:**
@@ -133,11 +133,11 @@ types/index.ts
    ↓
 form-sections/DadosObraSection.tsx
    ↓
-ViewRespostasModal.tsx (~linha 420)
+ViewRespostasModal.tsx
    ↓
-pdfGenerator.ts (~linha 120)
+pdfGenerator.ts
    ↓
-excelGenerator.ts (~linha 50)
+excelGenerator.ts
 ```
 
 ### **SERVIÇOS:**
@@ -146,29 +146,11 @@ types/index.ts (interface ServicoData)
    ↓
 form-sections/ServicosSection.tsx
    ↓
-ViewRespostasModal.tsx (~linha 450, loop)
+ViewRespostasModal.tsx (loop)
    ↓
-pdfGenerator.ts (~linha 150, loop)
+pdfGenerator.ts (loop)
    ↓
-excelGenerator.ts (~linha 80, loop)
-```
-
-### **ETAPAS (Checkboxes 1-37):**
-```
-form-sections/EtapasExecucaoSection.tsx (adicionar checkbox)
-   ↓
-ViewRespostasModal.tsx (renderiza automaticamente)
-   ↓
-pdfGenerator.ts (renderiza automaticamente)
-```
-
-### **REGISTROS (Condicionais com foto):**
-```
-form-sections/RegistrosSection.tsx (adicionar CondicionalField)
-   ↓
-ViewRespostasModal.tsx (renderiza automaticamente)
-   ↓
-pdfGenerator.ts (renderiza automaticamente)
+excelGenerator.ts (loop)
 ```
 
 ---
@@ -200,42 +182,11 @@ console.log('Salvando:', formData);
 // Verificar se updateFormData() está sendo chamado
 ```
 
-### **PDF/Excel sem campo:**
-```javascript
-// Adicionar no gerador:
-console.log('Gerando com:', formData.novoCampo);
-```
-
 ### **Formulário antigo quebra:**
 ```typescript
 // Sempre usar:
 const valor = formData.campo || 'padrão';
 {formData.campo && <Component />}
-```
-
----
-
-## 🔧 COMANDOS ÚTEIS (Console)
-
-### **Ver FormData:**
-```javascript
-console.log(formData);
-```
-
-### **Listar formulários salvos:**
-```javascript
-indexedDB.open('fc-pisos-db').onsuccess = (e) => {
-  const db = e.target.result;
-  db.transaction(['forms']).objectStore('forms').getAll().onsuccess = (e) => {
-    console.log('Formulários:', e.target.result);
-  };
-};
-```
-
-### **Limpar IndexedDB:**
-```javascript
-indexedDB.deleteDatabase('fc-pisos-db');
-location.reload();
 ```
 
 ---
@@ -252,55 +203,6 @@ location.reload();
 - `/src/app/components/FormularioPage.tsx` → Lógica principal
 - `/src/app/utils/pdfGenerator.ts` → Geração PDF
 - `/src/app/utils/excelGenerator.ts` → Geração Excel
-
----
-
-## 🎨 ÍCONES COMUNS
-
-```typescript
-import {
-  // Clima
-  Thermometer, Cloud, Wind, Droplets,
-  
-  // Medidas
-  Ruler, Maximize2,
-  
-  // Tempo
-  Clock, Calendar,
-  
-  // Outros
-  MapPin, Camera, FileText, User
-} from 'lucide-react';
-```
-
-**Ver todos:** https://lucide.dev/icons/
-
----
-
-## 📚 DOCUMENTAÇÃO COMPLETA
-
-Para casos complexos, consulte:
-
-1. **`GUIA_MANUTENCAO_FORMULARIOS.md`**
-   - Guia completo de manutenção
-   - Tipos de alterações
-   - Ordem de modificação
-   - Compatibilidade
-
-2. **`TEMPLATE_ADICIONAR_CAMPO.md`**
-   - Template passo a passo
-   - Código pronto para copiar
-   - Checklist detalhado
-
-3. **`EXEMPLO_MIGRACAO_DADOS.md`**
-   - Migrações de dados
-   - Versionamento de schema
-   - Cenários reais
-
-4. **`DEBUGGING_FORMULARIOS.md`**
-   - Técnicas de debug
-   - Scripts úteis
-   - Problemas comuns
 
 ---
 
@@ -348,19 +250,4 @@ git commit -m "feat: adicionar campo novoCampo"
 
 ---
 
-## 📞 PRECISA DE AJUDA?
-
-**Antes de pedir ajuda:**
-1. [ ] Consultou esta referência
-2. [ ] Verificou console (F12)
-3. [ ] Testou com dados antigos
-4. [ ] Leu documentação completa
-
-**Ao pedir ajuda, forneça:**
-- Erro exato do console
-- Código modificado
-- Passos para reproduzir
-
----
-
-**Versão:** 1.0 | **Última atualização:** 2026-01-09
+**Versão:** 1.0 | **Sistema:** v1.0.0 | **Data:** 2026-01-12

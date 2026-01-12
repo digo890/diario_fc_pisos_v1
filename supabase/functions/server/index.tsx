@@ -930,10 +930,6 @@ app.post(
       const obra = {
         id: obraId,
         ...validationResult.sanitized,
-        token_validacao: crypto.randomUUID(),
-        token_validacao_expiry: new Date(
-          Date.now() + 30 * 24 * 60 * 60 * 1000,
-        ).toISOString(), // 30 dias
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -1632,7 +1628,7 @@ app.post(
       const {
         prepostoEmail,
         prepostoNome,
-        obraId,
+        formularioId, // ✅ NOVO: Receber ID do formulário direto
         obraNome,
         cliente,
         cidade,
@@ -1642,31 +1638,23 @@ app.post(
       console.log("📤 Dados recebidos:", {
         prepostoEmail,
         obraNome,
+        formularioId,
       });
 
       // Validações
-      if (!prepostoEmail || !obraNome || !obraId) {
+      if (!prepostoEmail || !obraNome || !formularioId) {
         return c.json(
           {
             success: false,
             error:
-              "Email do preposto, nome da obra e ID são obrigatórios",
+              "Email do preposto, nome da obra e ID do formulário são obrigatórios",
           },
           400,
         );
       }
 
-      // Buscar a obra para pegar o token
-      const obra = await kv.get(`obra:${obraId}`);
-      if (!obra) {
-        return c.json(
-          { success: false, error: "Obra não encontrada" },
-          404,
-        );
-      }
-
-      // ✅ CORREÇÃO: Gerar link de conferência com URL hardcoded do Vercel
-      const linkConferencia = `https://diario-fc-pisos-v1.vercel.app/conferencia/${obra.token_validacao}`;
+      // ✅ SIMPLES: Link direto com ID do formulário
+      const linkConferencia = `https://diario-fc-pisos-v1.vercel.app/conferencia/${formularioId}`;
 
       // Gerar HTML do email
       const htmlEmail =
@@ -1874,289 +1862,199 @@ app.post(
 // VALIDAÇÃO DE TOKEN DO PREPOSTO (PÚBLICO)
 // ============================================
 
-// Validar token do preposto e retornar dados da obra
+// ⚠️ ROTA LEGACY: Compatibilidade com versões antigas em cache
+// Esta rota redireciona para a nova API de conferência
 app.get(
   "/make-server-1ff231a2/validation/:token",
   async (c) => {
-    try {
-      const token = c.req.param("token");
-
-      console.log(
-        "🔍 [PREPOSTO] Validando token:",
-        token?.substring(0, 10) + "...",
-      );
-      console.log("🔍 [PREPOSTO] Headers recebidos:", {
-        Authorization: c.req.header("Authorization")
-          ? "✅ PRESENTE"
-          : "❌ AUSENTE",
-        "X-User-Token": c.req.header("X-User-Token")
-          ? "✅ PRESENTE"
-          : "❌ AUSENTE",
-        "Content-Type": c.req.header("Content-Type"),
-        Origin: c.req.header("Origin"),
-      });
-
-      // Buscar obra pelo token usando getByPrefix
-      const obras = await kv.getByPrefix("obra:");
-      const obraEncontrada = obras.find(
-        (o: any) => o.token_validacao === token,
-      );
-
-      if (!obraEncontrada) {
-        console.warn("⚠️ Token não encontrado");
-        return c.json(
-          {
-            success: false,
-            error: "Link inválido ou expirado",
-          },
-          404,
-        );
-      }
-
-      // Verificar expiração do token (30 dias)
-      if (obraEncontrada.token_validacao_expiry) {
-        const expiryDate = new Date(
-          obraEncontrada.token_validacao_expiry,
-        );
-        const now = new Date();
-
-        if (expiryDate < now) {
-          console.warn(
-            "⚠️ Token expirado para obra:",
-            obraEncontrada.id,
-          );
-          return c.json(
-            {
-              success: false,
-              error:
-                "Link expirado. Este link é válido por apenas 30 dias.",
-            },
-            410,
-          );
-        }
-      }
-
-      // ✅ AUDITORIA: Registrar acesso ao token
-      const now = new Date().toISOString();
-      obraEncontrada.token_validacao_last_access = now;
-      await kv.set(`obra:${obraEncontrada.id}`, obraEncontrada);
-
-      console.log(
-        "✅ Token validado com sucesso. Acesso registrado.",
-      );
-
-      return c.json({
-        success: true,
-        data: obraEncontrada,
-      });
-    } catch (error: any) {
-      console.error("❌ Erro ao validar token:", error);
-      return c.json(
-        {
-          success: false,
-          error: "Erro ao validar token",
-        },
-        500,
-      );
-    }
+    console.log("⚠️ [LEGACY] Requisição para rota antiga /validation/:token");
+    console.log("🔄 [LEGACY] Esta rota foi substituída por /conferencia/:formularioId");
+    
+    return c.json(
+      {
+        success: false,
+        error: "Link inválido ou expirado",
+        message: "Por favor, solicite um novo link de conferência. Esta versão do link não é mais suportada.",
+      },
+      410, // 410 Gone - Recurso não existe mais
+    );
   },
 );
 
-// ✅ NOVA ROTA: Buscar FORMULÁRIO por token (público)
+// Validar token do preposto e retornar dados da obra
+// ============================================
+// CONFERÊNCIA DO PREPOSTO (PÚBLICO - SIMPLIFICADO)
+// ============================================
+
+// 📋 Buscar formulário para conferência (PÚBLICO)
 app.get(
-  "/make-server-1ff231a2/validation/:token/formulario",
+  "/make-server-1ff231a2/conferencia/:formularioId",
   async (c) => {
     try {
-      const token = c.req.param("token");
+      const formularioId = c.req.param("formularioId");
 
-      console.log(
-        "🔍 [PREPOSTO] Buscando formulário por token:",
-        token?.substring(0, 10) + "...",
-      );
+      console.log("🔍 [CONFERÊNCIA] Buscando formulário:", formularioId);
 
-      // 1. Buscar obra pelo token
-      const obras = await kv.getByPrefix("obra:");
-      const obra = obras.find(
-        (o: any) => o.token_validacao === token,
-      );
-
-      if (!obra) {
-        console.warn("⚠️ Obra não encontrada para token");
+      // 1️⃣ SEGURANÇA: Validar UUID para prevenir ataques
+      if (!validation.isValidUUID(formularioId)) {
+        console.warn("⚠️ ID inválido:", formularioId);
         return c.json(
-          {
-            success: false,
-            error: "Link inválido ou expirado",
-          },
-          404,
+          { success: false, error: "Link inválido" },
+          400,
         );
       }
 
-      console.log("✅ Obra encontrada:", obra.id);
-
-      // 2. Buscar formulário pelo obra_id (precisa varrer todos os formulários)
-      console.log("🔍 Buscando todos os formulários...");
-      const todosFormularios =
-        await kv.getByPrefix("formulario:");
-      console.log(
-        `📊 Total de formulários encontrados: ${todosFormularios.length}`,
-      );
-
-      const formulario = todosFormularios.find(
-        (f: any) => f.obra_id === obra.id,
-      );
-
+      // 2️⃣ Buscar formulário
+      const formulario = await kv.get(`formulario:${formularioId}`);
+      
       if (!formulario) {
-        console.warn(
-          "⚠️ Formulário não encontrado para obra:",
-          obra.id,
-        );
-        console.log(
-          "📊 IDs de obras dos formulários existentes:",
-          todosFormularios
-            .map((f: any) => f.obra_id)
-            .join(", "),
-        );
+        console.warn("⚠️ Formulário não encontrado:", formularioId);
         return c.json(
-          {
-            success: false,
-            error:
-              "Formulário não encontrado ou ainda não foi preenchido",
-          },
+          { success: false, error: "Formulário não encontrado" },
           404,
         );
       }
 
-      console.log("✅ Formulário encontrado:", formulario.id);
+      // 3️⃣ Buscar dados da obra
+      const obra = await kv.get(`obra:${formulario.obra_id}`);
+      
+      if (!obra) {
+        console.warn("⚠️ Obra não encontrada:", formulario.obra_id);
+        return c.json(
+          { success: false, error: "Obra não encontrada" },
+          404,
+        );
+      }
+
+      console.log("✅ Formulário e obra encontrados");
 
       return c.json({
         success: true,
-        data: formulario,
+        data: {
+          formulario,
+          obra,
+        },
       });
     } catch (error: any) {
       console.error("❌ Erro ao buscar formulário:", error);
       return c.json(
-        {
-          success: false,
-          error: "Erro ao buscar formulário",
-        },
+        { success: false, error: "Erro ao buscar formulário" },
         500,
       );
     }
   },
 );
 
-// ✅ NOVA ROTA: Submeter aprovação/reprovação do preposto (público)
+// ✍️ Assinar formulário (PÚBLICO)
 app.post(
-  "/make-server-1ff231a2/validation/:token/review",
+  "/make-server-1ff231a2/conferencia/:formularioId/assinar",
   async (c) => {
     try {
-      const token = c.req.param("token");
+      const formularioId = c.req.param("formularioId");
       const body = await c.req.json();
 
-      console.log(
-        "📝 [PREPOSTO] Submetendo review para token:",
-        token?.substring(0, 10) + "...",
-      );
-      console.log("📝 [PREPOSTO] Dados recebidos:", {
+      console.log("✍️ [CONFERÊNCIA] Assinando formulário:", formularioId);
+      console.log("📝 Dados recebidos:", {
         aprovado: body.aprovado,
         temAssinatura: !!body.assinatura,
+        temMotivo: !!body.motivo,
       });
 
-      // 1. Buscar obra pelo token
-      const obras = await kv.getByPrefix("obra:");
-      const obra = obras.find(
-        (o: any) => o.token_validacao === token,
-      );
-
-      if (!obra) {
-        console.warn("⚠️ Obra não encontrada para token");
+      // 1️⃣ SEGURANÇA: Validar UUID
+      if (!validation.isValidUUID(formularioId)) {
+        console.warn("⚠️ ID inválido:", formularioId);
         return c.json(
-          {
-            success: false,
-            error: "Link inválido ou expirado",
-          },
-          404,
+          { success: false, error: "Link inválido" },
+          400,
         );
       }
 
-      console.log("✅ Obra encontrada:", obra.id);
-
-      // 2. Buscar formulário pelo obra_id (varrer todos)
-      console.log("🔍 Buscando formulário...");
-      const todosFormularios =
-        await kv.getByPrefix("formulario:");
-      const formulario = todosFormularios.find(
-        (f: any) => f.obra_id === obra.id,
-      );
-
+      // 2️⃣ Buscar formulário
+      const formulario = await kv.get(`formulario:${formularioId}`);
+      
       if (!formulario) {
-        console.warn(
-          "⚠️ Formulário não encontrado para obra:",
-          obra.id,
-        );
+        console.warn("⚠️ Formulário não encontrado:", formularioId);
         return c.json(
-          {
-            success: false,
-            error: "Formulário não encontrado",
-          },
+          { success: false, error: "Formulário não encontrado" },
           404,
         );
       }
 
-      console.log("✅ Formulário encontrado:", formulario.id);
-
-      // 3. Verificar se já foi assinado
-      if (formulario.prepostoConfirmado) {
-        console.warn(
-          "⚠️ Formulário já foi assinado anteriormente",
-        );
+      // 3️⃣ TRAVA DE STATUS: Verificar se já foi assinado
+      if (formulario.prepostoConfirmado === true) {
+        console.warn("⚠️ Formulário já foi assinado anteriormente");
         return c.json(
           {
             success: false,
-            error:
-              "Este formulário já foi assinado anteriormente",
+            error: "Este formulário já foi assinado anteriormente",
           },
           400,
         );
       }
 
-      // 4. Atualizar formulário com a assinatura (salvar com ID correto!)
+      // 4️⃣ Buscar obra
+      const obra = await kv.get(`obra:${formulario.obra_id}`);
+      
+      if (!obra) {
+        console.warn("⚠️ Obra não encontrada:", formulario.obra_id);
+        return c.json(
+          { success: false, error: "Obra não encontrada" },
+          404,
+        );
+      }
+
+      // 5️⃣ Validar dados recebidos
+      if (body.aprovado === undefined) {
+        return c.json(
+          { success: false, error: "Campo 'aprovado' é obrigatório" },
+          400,
+        );
+      }
+
+      if (!body.assinatura) {
+        return c.json(
+          { success: false, error: "Assinatura é obrigatória" },
+          400,
+        );
+      }
+
+      if (!body.aprovado && !body.motivo) {
+        return c.json(
+          { success: false, error: "Motivo da reprovação é obrigatório" },
+          400,
+        );
+      }
+
+      // 6️⃣ Atualizar formulário
       const now = new Date().toISOString();
+      const clientIp = c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "unknown";
+      
       const updatedFormulario = {
         ...formulario,
         prepostoConfirmado: true,
         assinaturaPreposto: body.assinatura,
-        prepostoMotivoReprovacao: body.aprovado
-          ? null
-          : body.motivo,
+        prepostoMotivoReprovacao: body.aprovado ? null : body.motivo,
         prepostoReviewedAt: now,
         prepostoReviewedBy: obra.preposto_nome,
-        status: body.aprovado
-          ? "enviado_admin"
-          : "reprovado_preposto",
+        prepostoReviewedIp: clientIp, // 🔒 Auditoria
+        status: body.aprovado ? "enviado_admin" : "reprovado_preposto",
         updated_at: now,
       };
 
-      // ✅ CORREÇÃO: Salvar com o ID correto do formulário, não o obra.id!
-      await kv.set(
-        `formulario:${formulario.id}`,
-        updatedFormulario,
-      );
-      console.log("✅ Formulário atualizado:", formulario.id);
+      await kv.set(`formulario:${formularioId}`, updatedFormulario);
+      console.log("✅ Formulário atualizado");
 
-      // 5. Atualizar status da obra
+      // 7️⃣ Atualizar status da obra
       const updatedObra = {
         ...obra,
-        status: body.aprovado
-          ? "enviado_admin"
-          : "reprovado_preposto",
+        status: body.aprovado ? "enviado_admin" : "reprovado_preposto",
         updated_at: now,
       };
 
       await kv.set(`obra:${obra.id}`, updatedObra);
-      console.log("✅ Obra atualizada:", obra.id);
+      console.log("✅ Obra atualizada");
 
-      console.log("✅ Review submetido com sucesso");
+      console.log("✅ Assinatura registrada com sucesso");
 
       return c.json({
         success: true,
@@ -2166,12 +2064,9 @@ app.post(
         },
       });
     } catch (error: any) {
-      console.error("❌ Erro ao submeter review:", error);
+      console.error("❌ Erro ao assinar formulário:", error);
       return c.json(
-        {
-          success: false,
-          error: "Erro ao submeter aprovação",
-        },
+        { success: false, error: "Erro ao processar assinatura" },
         500,
       );
     }

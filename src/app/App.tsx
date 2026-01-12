@@ -47,6 +47,8 @@ const AppContent: React.FC = () => {
         // O usuário ainda pode usar funcionalidades online
       }
     };
+    
+    // 🔧 CORREÇÃO HMR: Só inicializar após o componente estar montado
     init();
   }, []);
 
@@ -83,7 +85,7 @@ const AppContent: React.FC = () => {
     );
   }
 
-  // Loading state
+  // 🔧 CORREÇÃO HMR: Mostrar loading enquanto isLoading for true
   if (isLoading) {
     return (
       <div className="min-h-screen bg-white dark:bg-gray-950 flex items-center justify-center">
@@ -92,7 +94,7 @@ const AppContent: React.FC = () => {
     );
   }
 
-  // Login se não autenticado
+  // Se não houver usuário logado, mostrar tela de login
   if (!currentUser) {
     return (
       <Suspense fallback={

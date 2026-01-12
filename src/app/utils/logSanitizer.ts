@@ -189,11 +189,42 @@ export function safeWarn(message: string, data?: any): void {
 
 /**
  * Versão safe do console.error que sanitiza automaticamente
+ * MELHORADO: Extrai informações úteis de objetos Error
  */
 export function safeError(message: string, data?: any): void {
   // Erros sempre são logados
   if (data) {
-    console.error(message, sanitizeForLog(data));
+    // Se for um objeto Error nativo, extrair informações úteis
+    if (data instanceof Error) {
+      console.error(message, {
+        name: data.name,
+        message: data.message,
+        stack: data.stack,
+      });
+    }
+    // Se for um objeto com propriedades de erro
+    else if (data && typeof data === 'object') {
+      const errorInfo: any = {};
+      
+      // Capturar propriedades comuns de erro
+      if (data.message) errorInfo.message = data.message;
+      if (data.error) errorInfo.error = data.error;
+      if (data.status) errorInfo.status = data.status;
+      if (data.statusText) errorInfo.statusText = data.statusText;
+      if (data.code) errorInfo.code = data.code;
+      if (data.details) errorInfo.details = data.details;
+      
+      // Se não capturou nada útil, logar o objeto completo (sanitizado)
+      if (Object.keys(errorInfo).length === 0) {
+        console.error(message, sanitizeForLog(data));
+      } else {
+        console.error(message, errorInfo);
+      }
+    }
+    // Para outros tipos, logar diretamente
+    else {
+      console.error(message, data);
+    }
   } else {
     console.error(message);
   }
