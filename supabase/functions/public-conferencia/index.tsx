@@ -1,5 +1,5 @@
 /**
- * Edge Function Pública - Conferência do Preposto
+ * Edge Function PÚBLICA - Conferência do Preposto
  * 
  * Esta Edge Function é 100% pública e não requer autenticação.
  * Permite que o preposto acesse e assine formulários via link direto.
@@ -7,310 +7,538 @@
  * Rotas disponíveis:
  * - GET  /conferencia/:formularioId         → Buscar formulário para conferência
  * - POST /conferencia/:formularioId/assinar → Assinar formulário (aprovar/reprovar)
+ * - GET  /health                           → Health check
+ * - GET  /debug/obra/:obraId                → Debug: Buscar formulários por obra_id
  * 
- * @version 1.0.0
+ * @version 1.0.2-debug
  * @security verify_jwt = false (configurado em config.toml)
  */
 
-import { Hono } from "npm:hono@4";
-import { cors } from "npm:hono/cors";
-import { logger } from "npm:hono/logger";
-import * as kv from "../server/kv_store.tsx";
-import * as validation from "../server/validation.tsx";
-
-// Criar aplicação Hono
-const app = new Hono();
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 // ============================================
-// CONFIGURAÇÃO DE CORS
+// CONFIGURAÇÃO DO SUPABASE
 // ============================================
+const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-const getAllowedOrigins = () => {
-  const allowedOrigins = [
-    "https://diario-fc-pisos-v1.vercel.app",
-    "http://localhost:5173",
-    "http://localhost:3000",
-  ];
-
-  // Adicionar qualquer domínio .figma.com para desenvolvimento
-  return allowedOrigins;
-};
-
-// ============================================
-// MIDDLEWARES
-// ============================================
-
-// Logger para debug
-app.use("*", logger(console.log));
-
-// CORS para permitir requisições do frontend
-app.use(
-  "/*",
-  cors({
-    origin: (origin) => {
-      const allowedOrigins = getAllowedOrigins();
-
-      // Permitir requisições sem origin (mobile apps, Postman, etc)
-      if (!origin) {
-        return "*";
-      }
-
-      // Se a origem está na lista de permitidos, retorná-la
-      if (allowedOrigins.includes(origin)) {
-        return origin;
-      }
-
-      // Permitir qualquer subdomínio .figma.com
-      if (origin.endsWith(".figma.com")) {
-        return origin;
-      }
-
-      // Caso contrário, bloquear
-      console.warn("⚠️ Origem bloqueada por CORS:", origin);
-      return allowedOrigins[0]; // Retornar primeira origem válida
-    },
-    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization", "X-User-Token"],
-    credentials: true,
-  }),
-);
-
-// ============================================
-// ROTAS DE SAÚDE
-// ============================================
-
-app.get("/health", (c) => {
-  return c.json({ 
-    status: "ok",
-    service: "public-conferencia",
-    version: "1.0.0",
-    public: true,
-  });
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false,
+  },
 });
 
 // ============================================
-// ROTAS DE CONFERÊNCIA (100% PÚBLICAS)
+// UTILITÁRIOS
 // ============================================
 
-// 📋 Buscar formulário para conferência (PÚBLICO)
-app.get("/conferencia/:formularioId", async (c) => {
-  // 🔍 DEBUG: Logar requisição
-  console.log("=" .repeat(60));
-  console.log("🔍 [CONFERÊNCIA PÚBLICA] Nova requisição");
-  console.log("=" .repeat(60));
-  console.log("📋 Headers:", {
-    origin: c.req.header("Origin") || "NENHUM",
-    userAgent: c.req.header("User-Agent") || "NENHUM",
-  });
-  console.log("=" .repeat(60));
+/**
+ * Validar UUID v4
+ */
+function isValidUUID(uuid: string): boolean {
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
+}
 
+/**
+ * Buscar valor no KV Store
+ */
+async function kvGet(key: string): Promise<any | null> {
   try {
-    const formularioId = c.req.param("formularioId");
+    const { data, error } = await supabase
+      .from("kv_store_1ff231a2")
+      .select("value")
+      .eq("key", key)
+      .single();
 
-    console.log("🔍 Buscando formulário:", formularioId);
-
-    // 1️⃣ SEGURANÇA: Validar UUID para prevenir ataques
-    if (!validation.isValidUUID(formularioId)) {
-      console.warn("⚠️ ID inválido:", formularioId);
-      return c.json(
-        { success: false, error: "Link inválido" },
-        400,
-      );
-    }
-
-    // 2️⃣ Buscar formulário
-    const chave = `formulario:${formularioId}`;
-    console.log("🔍 Buscando chave no KV:", chave);
-    const formulario = await kv.get(chave);
-
-    console.log("🔍 Resultado:", formulario ? "ENCONTRADO" : "NÃO ENCONTRADO");
-
-    if (!formulario) {
-      console.warn("⚠️ Formulário não encontrado:", formularioId);
-
-      // 🔍 DEBUG: Listar formulários no banco
-      try {
-        const todosFormularios = await kv.getByPrefix("formulario:");
-        console.log("🔍 Total de formulários no banco:", todosFormularios?.length || 0);
-        if (todosFormularios && todosFormularios.length > 0) {
-          console.log(
-            "🔍 IDs existentes:",
-            todosFormularios.map((f: any) => f.id).slice(0, 5),
-          );
-        }
-      } catch (debugError) {
-        console.error("❌ Erro ao buscar formulários para debug:", debugError);
+    if (error) {
+      if (error.code === "PGRST116") {
+        return null; // Não encontrado
       }
-
-      return c.json(
-        { success: false, error: "Formulário não encontrado" },
-        404,
-      );
+      throw error;
     }
 
-    // 3️⃣ Buscar dados da obra
-    const obra = await kv.get(`obra:${formulario.obra_id}`);
+    return data?.value || null;
+  } catch (error) {
+    console.error(`❌ Erro ao buscar KV (${key}):`, error);
+    return null;
+  }
+}
 
-    if (!obra) {
-      console.warn("⚠️ Obra não encontrada:", formulario.obra_id);
-      return c.json(
-        { success: false, error: "Obra não encontrada" },
-        404,
-      );
+/**
+ * Salvar valor no KV Store
+ */
+async function kvSet(key: string, value: any): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from("kv_store_1ff231a2")
+      .upsert({ key, value }, { onConflict: "key" });
+
+    if (error) {
+      throw error;
     }
+  } catch (error) {
+    console.error(`❌ Erro ao salvar KV (${key}):`, error);
+    throw error;
+  }
+}
 
-    console.log("✅ Formulário e obra encontrados");
+// ============================================
+// SERVIDOR HTTP NATIVO
+// ============================================
 
-    return c.json({
-      success: true,
-      data: {
-        formulario,
-        obra,
-      },
-    });
-  } catch (error: any) {
-    console.error("❌ Erro ao buscar formulário:", error);
-    return c.json(
-      { success: false, error: "Erro ao buscar formulário" },
-      500,
+Deno.serve(async (req: Request) => {
+  const url = new URL(req.url);
+  let path = url.pathname;
+
+  // REMOVER o prefixo /public-conferencia se existir
+  path = path.replace(/^\/public-conferencia/, "") || "/";
+
+  console.log(`📥 ${req.method} ${path}`);
+
+  // CORS headers
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  };
+
+  // Handle OPTIONS (preflight)
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  // ============================================
+  // ROTAS
+  // ============================================
+
+  // Health check
+  if (path === "/health" && req.method === "GET") {
+    return new Response(
+      JSON.stringify({
+        status: "ok",
+        service: "public-conferencia",
+        version: "1.0.2-debug",
+        timestamp: new Date().toISOString(),
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   }
-});
 
-// ✍️ Assinar formulário (PÚBLICO)
-app.post("/conferencia/:formularioId/assinar", async (c) => {
-  try {
-    const formularioId = c.req.param("formularioId");
-    const body = await c.req.json();
-
-    console.log("✍️ [CONFERÊNCIA PÚBLICA] Assinando formulário:", formularioId);
-    console.log("📝 Dados recebidos:", {
-      aprovado: body.aprovado,
-      temAssinatura: !!body.assinatura,
-      temMotivo: !!body.motivo,
-    });
-
-    // 1️⃣ SEGURANÇA: Validar UUID
-    if (!validation.isValidUUID(formularioId)) {
-      console.warn("⚠️ ID inválido:", formularioId);
-      return c.json(
-        { success: false, error: "Link inválido" },
-        400,
-      );
-    }
-
-    // 2️⃣ Buscar formulário
-    const formulario = await kv.get(`formulario:${formularioId}`);
-
-    if (!formulario) {
-      console.warn("⚠️ Formulário não encontrado:", formularioId);
-      return c.json(
-        { success: false, error: "Formulário não encontrado" },
-        404,
-      );
-    }
-
-    // 3️⃣ TRAVA DE STATUS: Verificar se já foi assinado
-    if (formulario.prepostoConfirmado === true) {
-      console.warn("⚠️ Formulário já foi assinado anteriormente");
-      return c.json(
+  // 🔍 DEBUG: Buscar formulários por obra_id
+  if (path.startsWith("/debug/obra/") && req.method === "GET") {
+    try {
+      const obraId = path.split("/debug/obra/")[1];
+      
+      console.log("🔍 [DEBUG] Buscando formulários da obra:", obraId);
+      
+      // Buscar todos os formulários
+      const { data: allFormularios, error } = await supabase
+        .from("kv_store_1ff231a2")
+        .select("key, value")
+        .like("key", "formulario:%");
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Filtrar formulários da obra
+      const formulariosObra = allFormularios?.filter((f: any) => 
+        f.value?.obra_id === obraId
+      ) || [];
+      
+      console.log("📋 Formulários encontrados:", formulariosObra.length);
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          obraId,
+          total: formulariosObra.length,
+          formularios: formulariosObra.map((f: any) => ({
+            id: f.value.id,
+            key: f.key,
+            created_at: f.value.created_at,
+            status: f.value.status,
+          })),
+        }),
         {
-          success: false,
-          error: "Este formulário já foi assinado anteriormente",
-        },
-        400,
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    } catch (error: any) {
+      console.error("❌ Erro no debug:", error);
+      return new Response(
+        JSON.stringify({ success: false, error: error.message }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
       );
     }
+  }
 
-    // 4️⃣ Buscar obra
-    const obra = await kv.get(`obra:${formulario.obra_id}`);
-
-    if (!obra) {
-      console.warn("⚠️ Obra não encontrada:", formulario.obra_id);
-      return c.json(
-        { success: false, error: "Obra não encontrada" },
-        404,
-      );
-    }
-
-    // 5️⃣ Validar dados recebidos
-    if (body.aprovado === undefined) {
-      return c.json(
-        { success: false, error: "Campo 'aprovado' é obrigatório" },
-        400,
-      );
-    }
-
-    if (!body.assinatura) {
-      return c.json(
-        { success: false, error: "Assinatura é obrigatória" },
-        400,
-      );
-    }
-
-    if (!body.aprovado && !body.motivo) {
-      return c.json(
-        { success: false, error: "Motivo da reprovação é obrigatório" },
-        400,
-      );
-    }
-
-    // 6️⃣ Atualizar formulário
-    const now = new Date().toISOString();
-    const clientIp = c.req.header("x-forwarded-for") || 
-                     c.req.header("x-real-ip") || 
-                     "unknown";
-
-    const updatedFormulario = {
-      ...formulario,
-      prepostoConfirmado: true,
-      assinaturaPreposto: body.assinatura,
-      prepostoMotivoReprovacao: body.aprovado ? null : body.motivo,
-      prepostoReviewedAt: now,
-      prepostoReviewedBy: obra.preposto_nome,
-      prepostoReviewedIp: clientIp, // 🔒 Auditoria
-      status: body.aprovado ? "enviado_admin" : "reprovado_preposto",
-      updated_at: now,
-    };
-
-    await kv.set(`formulario:${formularioId}`, updatedFormulario);
-    console.log("✅ Formulário atualizado");
-
-    // 7️⃣ Atualizar status da obra
-    const updatedObra = {
-      ...obra,
-      status: body.aprovado ? "enviado_admin" : "reprovado_preposto",
-      updated_at: now,
-    };
-
-    await kv.set(`obra:${obra.id}`, updatedObra);
-    console.log("✅ Obra atualizada");
-
-    console.log("✅ Assinatura registrada com sucesso");
-
-    return c.json({
-      success: true,
-      data: {
-        formulario: updatedFormulario,
-        obra: updatedObra,
-      },
-    });
-  } catch (error: any) {
-    console.error("❌ Erro ao assinar formulário:", error);
-    return c.json(
-      { success: false, error: "Erro ao processar assinatura" },
-      500,
+  // Rota raiz
+  if (path === "/" && req.method === "GET") {
+    return new Response(
+      JSON.stringify({
+        message: "Edge Function pública - Conferência do Preposto",
+        version: "1.0.0",
+        routes: [
+          "GET /health",
+          "GET /conferencia/:formularioId",
+          "POST /conferencia/:formularioId/assinar",
+        ],
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   }
+
+  // 📋 GET /conferencia/:formularioId - Buscar formulário para conferência
+  if (path.startsWith("/conferencia/") && req.method === "GET" && !path.includes("/assinar")) {
+    try {
+      const formularioId = path.split("/conferencia/")[1]?.split("/")[0];
+
+      console.log("=".repeat(60));
+      console.log("🔍 [CONFERÊNCIA PÚBLICA] Buscando formulário:", formularioId);
+      console.log("=".repeat(60));
+
+      // 1️⃣ Validar UUID
+      if (!isValidUUID(formularioId)) {
+        console.warn("⚠️ ID inválido:", formularioId);
+        return new Response(
+          JSON.stringify({ success: false, error: "Link inválido" }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      // 2️⃣ Buscar formulário no KV Store
+      const chave = `formulario:${formularioId}`;
+      console.log("🔍 Buscando chave:", chave);
+      
+      const formulario = await kvGet(chave);
+
+      // 🔍 DEBUG: Se não encontrou, listar formulários existentes
+      if (!formulario) {
+        console.warn("⚠️ Formulário não encontrado:", formularioId);
+        console.warn("🔍 [DEBUG] Tentando listar formulários existentes...");
+        
+        try {
+          // Buscar todos os formulários para debug
+          const { data: allFormularios, error: listError } = await supabase
+            .from("kv_store_1ff231a2")
+            .select("key")
+            .like("key", "formulario:%")
+            .limit(10);
+          
+          if (listError) {
+            console.error("❌ Erro ao listar formulários:", listError);
+          } else {
+            console.log("📋 Formulários encontrados no banco:", allFormularios?.length || 0);
+            if (allFormularios && allFormularios.length > 0) {
+              console.log("🔑 Primeiras chaves:", allFormularios.map(f => f.key).slice(0, 5));
+            } else {
+              console.log("⚠️ NENHUM formulário encontrado no banco!");
+            }
+          }
+        } catch (debugError) {
+          console.error("❌ Erro no debug:", debugError);
+        }
+        
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Formulário não encontrado",
+            debug: {
+              formularioId,
+              chave,
+              message: "Verifique os logs do Supabase para mais detalhes"
+            }
+          }),
+          {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      console.log("✅ Formulário encontrado:", formulario.id);
+
+      // 3️⃣ Buscar dados da obra
+      const obra = await kvGet(`obra:${formulario.obra_id}`);
+
+      if (!obra) {
+        console.warn("⚠️ Obra não encontrada:", formulario.obra_id);
+        console.warn("🔍 [DEBUG] Tentando listar obras existentes...");
+        
+        try {
+          // Buscar todas as obras para debug
+          const { data: allObras, error: listError } = await supabase
+            .from("kv_store_1ff231a2")
+            .select("key, value")
+            .like("key", "obra:%")
+            .limit(10);
+          
+          if (listError) {
+            console.error("❌ Erro ao listar obras:", listError);
+          } else {
+            console.log("📋 Obras encontradas no banco:", allObras?.length || 0);
+            if (allObras && allObras.length > 0) {
+              console.log("🔑 Primeiras chaves de obras:", allObras.map(o => o.key).slice(0, 5));
+              console.log("📊 Primeira obra (exemplo):", JSON.stringify(allObras[0]?.value, null, 2));
+            } else {
+              console.log("⚠️ NENHUMA obra encontrada no banco!");
+            }
+          }
+          
+          // Mostrar o obra_id que estamos buscando
+          console.log("🔍 Buscando obra_id:", formulario.obra_id);
+          console.log("🔍 Chave tentada:", `obra:${formulario.obra_id}`);
+          
+        } catch (debugError) {
+          console.error("❌ Erro no debug de obras:", debugError);
+        }
+        
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Obra não encontrada",
+            debug: {
+              formularioId: formulario.id,
+              obraId: formulario.obra_id,
+              chaveObra: `obra:${formulario.obra_id}`,
+              message: "Verifique os logs do Supabase para mais detalhes"
+            }
+          }),
+          {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      console.log("✅ Obra encontrada:", obra.nome);
+      console.log("=".repeat(60));
+
+      // 4️⃣ Retornar dados
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: {
+            formulario,
+            obra,
+          },
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    } catch (error: any) {
+      console.error("❌ Erro ao buscar formulário:", error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Erro ao buscar formulário",
+          details: error.message,
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+  }
+
+  // ✍️ POST /conferencia/:formularioId/assinar - Assinar formulário
+  if (path.includes("/conferencia/") && path.includes("/assinar") && req.method === "POST") {
+    try {
+      const formularioId = path.split("/conferencia/")[1]?.split("/assinar")[0];
+      const body = await req.json();
+
+      console.log("=".repeat(60));
+      console.log("✍️ [CONFERÊNCIA PÚBLICA] Assinando formulário:", formularioId);
+      console.log("📝 Dados recebidos:", {
+        aprovado: body.aprovado,
+        temAssinatura: !!body.assinatura,
+        temMotivo: !!body.motivo,
+      });
+      console.log("=".repeat(60));
+
+      // 1️⃣ Validar UUID
+      if (!isValidUUID(formularioId)) {
+        console.warn("⚠️ ID inválido:", formularioId);
+        return new Response(
+          JSON.stringify({ success: false, error: "Link inválido" }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      // 2️⃣ Buscar formulário
+      const chave = `formulario:${formularioId}`;
+      const formulario = await kvGet(chave);
+
+      if (!formulario) {
+        console.warn("⚠️ Formulário não encontrado:", formularioId);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Formulário não encontrado",
+          }),
+          {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      // 3️⃣ Verificar se já foi assinado
+      if (formulario.prepostoConfirmado === true) {
+        console.warn("⚠️ Formulário já foi assinado anteriormente");
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Este formulário já foi assinado anteriormente",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      // 4️⃣ Validar dados recebidos
+      if (body.aprovado === undefined) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Campo 'aprovado' é obrigatório",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      if (!body.assinatura) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Assinatura é obrigatória",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      if (!body.aprovado && !body.motivo) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Motivo da reprovação é obrigatório",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      // 5️⃣ Atualizar formulário
+      const now = new Date().toISOString();
+      const clientIp = req.headers.get("x-forwarded-for") || 
+                       req.headers.get("x-real-ip") || 
+                       "unknown";
+
+      const updatedFormulario = {
+        ...formulario,
+        prepostoConfirmado: true,
+        assinaturaPreposto: body.assinatura,
+        dataAssinaturaPreposto: now,
+        statusPreposto: body.aprovado ? "aprovado" : "reprovado",
+        motivoReprovacaoPreposto: body.motivo || null,
+        ipAssinaturaPreposto: clientIp,
+        updated_at: now,
+      };
+
+      // 6️⃣ Salvar no KV Store
+      await kvSet(chave, updatedFormulario);
+
+      console.log("✅ Formulário assinado com sucesso!");
+      console.log("📊 Status:", body.aprovado ? "APROVADO" : "REPROVADO");
+      console.log("🕒 Data/Hora:", now);
+      console.log("🌐 IP:", clientIp);
+      console.log("=".repeat(60));
+
+      // 7️⃣ Retornar sucesso
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: body.aprovado
+            ? "Formulário aprovado com sucesso!"
+            : "Formulário reprovado com sucesso!",
+          data: {
+            id: formularioId,
+            status: updatedFormulario.statusPreposto,
+            dataAssinatura: now,
+          },
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    } catch (error: any) {
+      console.error("❌ Erro ao assinar formulário:", error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Erro ao assinar formulário",
+          details: error.message,
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+  }
+
+  // 404 - Rota não encontrada
+  console.warn("⚠️ Rota não encontrada:", path);
+  return new Response(
+    JSON.stringify({
+      error: "Rota não encontrada",
+      path: path,
+      method: req.method,
+      availableRoutes: [
+        "GET /health",
+        "GET /conferencia/:formularioId",
+        "POST /conferencia/:formularioId/assinar",
+      ],
+    }),
+    {
+      status: 404,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    }
+  );
 });
 
-// ============================================
-// INICIAR SERVIDOR
-// ============================================
-
-console.log("🚀 Edge Function pública iniciada: public-conferencia");
-console.log("📋 Rotas disponíveis:");
-console.log("   GET  /conferencia/:formularioId");
-console.log("   POST /conferencia/:formularioId/assinar");
-
-Deno.serve(app.fetch);
+console.log("🚀 Edge Function pública iniciada - Conferência do Preposto v1.0.0");

@@ -1239,14 +1239,21 @@ app.post(
   async (c) => {
     try {
       const body = await c.req.json();
-      const formularioId = crypto.randomUUID();
+      
+      // ✅ CORREÇÃO: Usar ID do frontend se fornecido, senão gerar novo
+      const formularioId = body.id || crypto.randomUUID();
+      
       const formulario = {
-        id: formularioId,
         ...body,
+        id: formularioId, // ✅ Usar ID correto (do frontend ou gerado)
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
+      
       await kv.set(`formulario:${formularioId}`, formulario);
+      
+      console.log(`✅ Formulário criado/salvo com ID: ${formularioId}`);
+      
       return c.json({ success: true, data: formulario });
     } catch (error) {
       console.error("Erro ao criar formulário:", error);

@@ -36,12 +36,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshSession = async () => {
     try {
       safeLog('🔄 Renovando sessão...');
+      
+      // ✅ CORREÇÃO: Verificar se há sessão antes de tentar renovar
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      
+      if (!currentSession) {
+        safeLog('⚠️ Nenhuma sessão ativa para renovar. Usuário precisa fazer login novamente.');
+        return;
+      }
+      
       const { data: { session }, error } = await supabase.auth.refreshSession();
       
       if (error) {
         safeError('❌ Erro ao renovar sessão:', error.message);
-        // Se falhar ao renovar, fazer logout
-        await logout();
+        
+        // ✅ CORREÇÃO: Só fazer logout se o erro for crítico (não Auth session missing)
+        if (error.message !== 'Auth session missing!') {
+          // Se falhar ao renovar, fazer logout
+          await logout();
+        }
         return;
       }
 
@@ -66,9 +79,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // ✅ CORREÇÃO: Renovar a cada 45 minutos (token expira em 1h)
     // Isso garante renovação preventiva antes da expiração
-    refreshTimeoutRef.current = setTimeout(() => {
+    refreshTimeoutRef.current = setTimeout(async () => {
       safeLog('⏰ Renovação preventiva de token agendada');
-      refreshSession();
+      
+      // ✅ VERIFICAR: Confirmar que ainda há sessão ativa antes de renovar
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        refreshSession();
+      } else {
+        safeLog('⚠️ Renovação cancelada - sem sessão ativa');
+      }
     }, 45 * 60 * 1000); // 45 minutos
   };
 
@@ -118,6 +138,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userData = await fetchUserData(session.access_token);
           if (userData) {
             setCurrentUser(userData);
+            // ✅ CORREÇÃO: Agendar renovação preventiva ao carregar sessão existente
+            scheduleTokenRefresh();
           }
         }
       } catch (error) {
@@ -195,6 +217,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const responseText = await response.text();
         const { data: userData } = JSON.parse(responseText);
         setCurrentUser(userData);
+        
+        // ✅ CORREÇÃO: Agendar renovação preventiva após login
+        scheduleTokenRefresh();
       } else {
         throw new Error('Sessão não criada');
       }
