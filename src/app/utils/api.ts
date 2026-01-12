@@ -337,11 +337,11 @@ export const formularioApi = {
 };
 
 // ============================================
-// Validation API (Public - No Auth)
+// VALIDAÇÃO PÚBLICA DE PREPOSTO
 // ============================================
 
-// 🆕 URL da nova Edge Function isolada (pública)
-const VALIDATION_BASE_URL = `https://${projectId}.supabase.co/functions/v1/preposto-validation`;
+// ✅ CORREÇÃO: Usar rota do servidor principal (não há mais Edge Function separada)
+const VALIDATION_BASE_URL = `https://${projectId}.supabase.co/functions/v1/make-server-1ff231a2/validation`;
 
 export const validationApi = {
   async getObraByToken(token: string): Promise<ApiResponse> {

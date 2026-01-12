@@ -3,9 +3,9 @@
 // ============================================
 // Função PÚBLICA (sem autenticação JWT) para validação de preposto
 // Rotas:
-// - GET /:token - Buscar obra por token
-// - POST /:token/review - Submeter review do preposto
-// - GET /:token/formulario - Buscar formulário por token
+// - GET /preposto-validation/:token - Buscar obra por token
+// - POST /preposto-validation/:token/review - Submeter review do preposto
+// - GET /preposto-validation/:token/formulario - Buscar formulário por token
 // ============================================
 
 import { Hono } from 'npm:hono';
@@ -35,49 +35,44 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // ============================================
-// GET /:token - Buscar obra por token
+// GET /preposto-validation/:token - Buscar obra por token
 // ============================================
-app.get('/:token', async (c) => {
+app.get('/preposto-validation/:token', async (c) => {
   const token = c.req.param('token');
   
   console.log('🔍 [PREPOSTO-VALIDATION] Buscando obra com token:', token);
 
   try {
-    // Buscar lista de obras
+    // Buscar TODAS as obras (key começa com 'obra:')
     const { data: obrasData, error } = await supabase
       .from('kv_store_1ff231a2')
-      .select('value')
-      .eq('key', 'obras')
-      .single();
+      .select('key, value')
+      .like('key', 'obra:%');
 
     if (error) {
       console.error('❌ Erro ao buscar obras:', error);
       return c.json({ success: false, error: 'Erro ao buscar obras' }, 500);
     }
 
-    if (!obrasData?.value) {
+    if (!obrasData || obrasData.length === 0) {
       console.error('❌ Nenhuma obra encontrada');
       return c.json({ success: false, error: 'Nenhuma obra encontrada' }, 404);
     }
 
-    // Parse do array de obras
-    const obrasArray = Array.isArray(obrasData.value) ? obrasData.value : [];
+    console.log(`📊 Total de obras: ${obrasData.length}`);
     
-    console.log(`📊 Total de obras: ${obrasArray.length}`);
-    
-    // Buscar obra pelo preposto_token
-    const obra = obrasArray.find((o: any) => o.preposto_token === token);
+    // Buscar obra pelo token_validacao (não preposto_token!)
+    const obraRecord = obrasData.find((record: any) => record.value?.token_validacao === token);
 
-    if (!obra) {
-      console.error('❌ Obra não encontrada para token:', token);
-      return c.json({ success: false, error: 'Obra não encontrada' }, 404);
+    if (!obraRecord) {
+      return c.json({ error: 'Obra não encontrada' }, 404);
     }
 
-    console.log('✅ Obra encontrada:', obra.nome_obra || obra.cliente);
+    console.log('✅ Obra encontrada:', obraRecord.value.nome_obra || obraRecord.value.cliente);
     
     return c.json({
       success: true,
-      data: obra,
+      data: obraRecord.value,
     });
   } catch (err) {
     console.error('❌ Erro na busca:', err);
@@ -86,9 +81,9 @@ app.get('/:token', async (c) => {
 });
 
 // ============================================
-// POST /:token/review - Submeter review do preposto
+// POST /preposto-validation/:token/review - Submeter review do preposto
 // ============================================
-app.post('/:token/review', async (c) => {
+app.post('/preposto-validation/:token/review', async (c) => {
   const token = c.req.param('token');
   
   console.log('📝 [PREPOSTO-VALIDATION] Submetendo review com token:', token);
@@ -102,46 +97,45 @@ app.post('/:token/review', async (c) => {
       return c.json({ error: 'Status e assinatura são obrigatórios' }, 400);
     }
 
-    // Buscar obra pelo token
-    const { data: obras, error: fetchError } = await supabase
+    // Buscar TODAS as obras
+    const { data: obrasData, error: fetchError } = await supabase
       .from('kv_store_1ff231a2')
-      .select('value')
-      .eq('key', 'obras')
-      .single();
+      .select('key, value')
+      .like('key', 'obra:%');
 
-    if (fetchError || !obras?.value) {
+    if (fetchError || !obrasData || obrasData.length === 0) {
       console.error('❌ Erro ao buscar obras:', fetchError);
       return c.json({ error: 'Erro ao buscar obras' }, 500);
     }
 
-    const obrasArray = Array.isArray(obras.value) ? obras.value : [];
-    const obraIndex = obrasArray.findIndex((o: any) => o.preposto_token === token);
+    // Encontrar a obra pelo token
+    const obraRecord = obrasData.find((record: any) => record.value?.preposto_token === token);
 
-    if (obraIndex === -1) {
+    if (!obraRecord) {
       return c.json({ error: 'Obra não encontrada' }, 404);
     }
 
     // Atualizar obra com review do preposto
-    obrasArray[obraIndex] = {
-      ...obrasArray[obraIndex],
+    const obraAtualizada = {
+      ...obraRecord.value,
       preposto_status: status,
       preposto_observacoes: observacoes || '',
       preposto_assinatura: assinatura,
       preposto_validado_em: new Date().toISOString(),
     };
 
-    // Salvar no banco
+    // Salvar no banco (update individual)
     const { error: updateError } = await supabase
       .from('kv_store_1ff231a2')
-      .update({ value: obrasArray })
-      .eq('key', 'obras');
+      .update({ value: obraAtualizada })
+      .eq('key', obraRecord.key);
 
     if (updateError) {
       console.error('❌ Erro ao atualizar obra:', updateError);
       return c.json({ error: 'Erro ao salvar review' }, 500);
     }
 
-    console.log('✅ Review salvo com sucesso para obra:', obrasArray[obraIndex].nome_obra);
+    console.log('✅ Review salvo com sucesso para obra:', obraAtualizada.nome_obra);
 
     return c.json({
       success: true,
@@ -154,32 +148,31 @@ app.post('/:token/review', async (c) => {
 });
 
 // ============================================
-// GET /:token/formulario - Buscar formulário por token
+// GET /preposto-validation/:token/formulario - Buscar formulário por token
 // ============================================
-app.get('/:token/formulario', async (c) => {
+app.get('/preposto-validation/:token/formulario', async (c) => {
   const token = c.req.param('token');
   
   console.log('📋 [PREPOSTO-VALIDATION] Buscando formulário com token:', token);
 
   try {
-    // Buscar formulários
-    const { data: formularios, error } = await supabase
+    // Buscar TODOS os formulários (key começa com 'formulario:')
+    const { data: formulariosData, error } = await supabase
       .from('kv_store_1ff231a2')
-      .select('value')
-      .eq('key', 'formularios')
-      .single();
+      .select('key, value')
+      .like('key', 'formulario:%');
 
-    if (error || !formularios?.value) {
+    if (error || !formulariosData || formulariosData.length === 0) {
       console.error('❌ Erro ao buscar formulários:', error);
       return c.json({ error: 'Erro ao buscar formulários' }, 500);
     }
 
-    const formulariosArray = Array.isArray(formularios.value) ? formularios.value : [];
+    console.log(`📊 Total de formulários: ${formulariosData.length}`);
     
-    // Buscar formulário pelo preposto_token
-    const formulario = formulariosArray.find((f: any) => f.preposto_token === token);
+    // Buscar formulário pelo token_validacao (não preposto_token!)
+    const formularioRecord = formulariosData.find((record: any) => record.value?.token_validacao === token);
 
-    if (!formulario) {
+    if (!formularioRecord) {
       console.error('❌ Formulário não encontrado para token:', token);
       return c.json({ error: 'Formulário não encontrado' }, 404);
     }
@@ -188,7 +181,7 @@ app.get('/:token/formulario', async (c) => {
     
     return c.json({
       success: true,
-      data: formulario,
+      data: formularioRecord.value,
     });
   } catch (err) {
     console.error('❌ Erro na busca:', err);
