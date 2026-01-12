@@ -340,27 +340,69 @@ export const formularioApi = {
 // Validation API (Public - No Auth)
 // ============================================
 
+// 🆕 URL da nova Edge Function isolada (pública)
+const VALIDATION_BASE_URL = `https://${projectId}.supabase.co/functions/v1/preposto-validation`;
+
 export const validationApi = {
   async getObraByToken(token: string): Promise<ApiResponse> {
-    return request(`/validation/${token}`, {
-      method: 'GET',
-      requireAuth: false,
-    });
+    const url = `${VALIDATION_BASE_URL}/${token}`;
+    console.log('🔍 [VALIDATION API] Buscando obra:', url);
+    
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('❌ [VALIDATION API] Erro:', error);
+      return { success: false, error: error.message };
+    }
   },
 
   async submitPrepostoReview(token: string, data: any): Promise<ApiResponse> {
-    return request(`/validation/${token}/review`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-      requireAuth: false,
-    });
+    const url = `${VALIDATION_BASE_URL}/${token}/review`;
+    console.log('📝 [VALIDATION API] Submetendo review:', url);
+    
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+      
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('❌ [VALIDATION API] Erro:', error);
+      return { success: false, error: error.message };
+    }
   },
 
   // ✅ CORREÇÃO: Rota correta para buscar FORMULÁRIO por token
   async getByToken(token: string): Promise<ApiResponse> {
-    return request(`/validation/${token}/formulario`, { 
-      method: 'GET',
-      requireAuth: false // Rota pública para preposto
-    });
+    const url = `${VALIDATION_BASE_URL}/${token}/formulario`;
+    console.log('📋 [VALIDATION API] Buscando formulário:', url);
+    
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('❌ [VALIDATION API] Erro:', error);
+      return { success: false, error: error.message };
+    }
   },
 };

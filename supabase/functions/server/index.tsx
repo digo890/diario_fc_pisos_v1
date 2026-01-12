@@ -261,6 +261,7 @@ const getAllowedOrigins = () => {
     "http://127.0.0.1:5173",
     "https://cjwuooaappcnsqxgdpta.supabase.co",
     "https://figma-make.vercel.app", // Figma Make preview
+    "https://diario-fc-pisos-v1.vercel.app", // Produção
   ];
 
   // Adicionar domínio customizado se configurado
@@ -314,6 +315,17 @@ app.use(
 // Health check endpoint
 app.get("/make-server-1ff231a2/health", (c) => {
   return c.json({ status: "ok" });
+});
+
+// 🧪 ROTA DE TESTE PÚBLICA (diagnóstico)
+app.get("/make-server-1ff231a2/test-public", (c) => {
+  return c.json({ 
+    success: true, 
+    message: "Rota pública funcionando!",
+    timestamp: new Date().toISOString(),
+    origin: c.req.header("Origin") || "no-origin",
+    userAgent: c.req.header("User-Agent") || "no-ua"
+  });
 });
 
 // ============================================
