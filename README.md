@@ -39,7 +39,7 @@ O Diário de Obras é uma aplicação Progressive Web App (PWA) desenvolvida par
 ## 🔄 Fluxo de Status
 
 ```
-novo → em_preenchimento → enviado_preposto → aprovado_preposto → enviado_admin → concluido
+novo → em_preenchimento → enviado_preposto → concluido
                                            → reprovado_preposto ↩
 ```
 

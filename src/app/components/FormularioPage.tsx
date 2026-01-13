@@ -217,7 +217,7 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
 
         const updatedForm = {
           ...formData,
-          status: 'enviado_admin' as const,
+          status: 'concluido' as const,
           prepostoReviewedAt: Date.now(),
           prepostoReviewedBy: currentUser?.id,
           updatedAt: Date.now()
@@ -226,7 +226,7 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
         await saveForm(updatedForm);
         await saveObra({
           ...obra,
-          status: 'enviado_admin',
+          status: 'concluido',
           progress: 100
         });
 
@@ -302,18 +302,11 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
               throw new Error('ID do formulário não foi gerado corretamente');
             }
 
-            // Sincronizar OBRA com backend
+            // ✅ CORREÇÃO: Encarregado só pode atualizar STATUS e PROGRESS
+            // Backend rejeita tentativas de mudar outros campos (RLS)
             await obraApi.update(obra.id, {
-              cliente: obra.cliente,
-              obra: obra.obra,
-              cidade: obra.cidade,
-              data: obra.data,
-              encarregado_id: obra.encarregadoId,
-              preposto_nome: obra.prepostoNome,
-              preposto_email: obra.prepostoEmail,
-              preposto_whatsapp: obra.prepostoWhatsapp,
               status: 'enviado_preposto',
-              progress: obra.progress
+              progress: obra.progress || 0
             });
             safeLog('✅ Status sincronizado com backend: enviado_preposto');
             
@@ -537,13 +530,13 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
                       obra.status === 'novo' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300' :
                       obra.status === 'em_preenchimento' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' :
                       obra.status === 'enviado_preposto' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300' :
-                      obra.status === 'enviado_admin' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' :
+                      obra.status === 'concluido' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' :
                       'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
                     }`}>
                       {obra.status === 'novo' ? 'Novo' :
                        obra.status === 'em_preenchimento' ? 'Em andamento' :
                        obra.status === 'enviado_preposto' ? 'Enviado ao Preposto' :
-                       obra.status === 'enviado_admin' ? 'Validado' :
+                       obra.status === 'concluido' ? 'Concluído' :
                        obra.status}
                     </span>
                   </>

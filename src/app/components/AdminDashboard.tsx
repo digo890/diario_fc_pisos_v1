@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { getObras, getUsers, saveObra, deleteObra, saveUser, deleteUser, getAllForms, getFormByObraId, deleteForm } from '../utils/database';
 import { obraApi, userApi } from '../utils/api';
-import { getStatusDisplay } from '../utils/diarioHelpers'; // ✅ CORREÇÃO #4: contarObrasConcluidas removido (não usado aqui)
+import { getStatusDisplay } from '../utils/diarioHelpers';
 import { mergeObras, mergeUsers } from '../utils/dataSync';
 import { safeLog, safeError, safeWarn } from '../utils/logSanitizer';
 import type { Obra, User, UserRole, FormData } from '../types';
@@ -108,13 +108,13 @@ const AdminDashboard: React.FC = () => {
     // ✅ CORREÇÃO #6: Filtrar apenas obras com status relevante ANTES de buscar formulários
     // Evita chamadas desnecessárias ao IndexedDB
     const obrasComNotificacao = obras.filter(o => 
-      ['enviado_preposto', 'aprovado_preposto', 'reprovado_preposto', 'enviado_admin', 'concluido'].includes(o.status)
+      ['enviado_preposto', 'reprovado_preposto', 'concluido'].includes(o.status)
     );
     
     for (const obra of obrasComNotificacao) {
       // Notificação quando encarregado responde o formulário
-      if (obra.status === 'enviado_preposto' || obra.status === 'aprovado_preposto' || 
-          obra.status === 'reprovado_preposto' || obra.status === 'enviado_admin' || obra.status === 'concluido') {
+      if (obra.status === 'enviado_preposto' || obra.status === 'reprovado_preposto' || 
+          obra.status === 'concluido') {
         const formData = await getFormByObraId(obra.id);
         if (formData && formData.assinaturaEncarregado) {
           const encarregado = users.find(u => u.id === obra.encarregadoId);
@@ -132,7 +132,7 @@ const AdminDashboard: React.FC = () => {
       }
       
       // Notificação quando preposto assina o formulário
-      if (obra.status === 'aprovado_preposto' || obra.status === 'enviado_admin' || obra.status === 'concluido') {
+      if (obra.status === 'concluido' || obra.status === 'reprovado_preposto') {
         const formData = await getFormByObraId(obra.id);
         if (formData && formData.assinaturaPreposto && formData.prepostoConfirmado) {
           const notificationId = `form_signed_${obra.id}`;
@@ -239,7 +239,7 @@ const AdminDashboard: React.FC = () => {
         if (obraFilter === 'novo') return obra.status === 'novo';
         if (obraFilter === 'em_andamento') return obra.status === 'em_preenchimento' || obra.status === 'reprovado_preposto';
         if (obraFilter === 'conferencia') return obra.status === 'enviado_preposto';
-        if (obraFilter === 'concluidas') return obra.status === 'enviado_admin' || obra.status === 'concluido';
+        if (obraFilter === 'concluidas') return obra.status === 'concluido';
         return true;
       })
       .filter(obra => obra.cliente.toLowerCase().includes(searchObra.toLowerCase()) || obra.obra.toLowerCase().includes(searchObra.toLowerCase()))
@@ -387,7 +387,7 @@ const AdminDashboard: React.FC = () => {
   // ✅ CORREÇÃO BUG: Validar se existe formulário antes de abrir modal
   const handleObraClick = async (obra: Obra) => {
     // Verificar se obra está em status que deveria ter formulário
-    const statusesComFormulario = ['enviado_preposto', 'aprovado_preposto', 'reprovado_preposto', 'enviado_admin', 'concluido'];
+    const statusesComFormulario = ['enviado_preposto', 'reprovado_preposto', 'concluido'];
     
     if (statusesComFormulario.includes(obra.status)) {
       // Buscar formulário para validar se existe
@@ -395,12 +395,33 @@ const AdminDashboard: React.FC = () => {
       
       if (!form) {
         // ❌ Inconsistência de dados: Status indica formulário mas não existe
-        showToast(
-          `⚠️ Inconsistência detectada: Esta obra está marcada como "${getStatusDisplay(obra).label}" mas não possui formulário associado. Entre em contato com o suporte.`,
-          'error'
-        );
         safeWarn(`🐛 Inconsistência de dados na obra ${obra.id}: status=${obra.status} mas formData não existe`);
-        return;
+        
+        // 🔧 REPARO AUTOMÁTICO IMEDIATO: Reverter status para "em_preenchimento"
+        // 🔄 Inconsistência detectada: limpar cache e re-sincronizar
+        safeWarn(`⚠️ Inconsistência detectada: obra "${obra.status}" sem formulário. Limpando cache...`);
+        
+        try {
+          // Limpar obra do cache local
+          await deleteObra(obra.id);
+          
+          // Re-sincronizar do backend
+          await loadData();
+          
+          showToast(
+            `⚠️ Inconsistência detectada. Cache limpo e dados re-sincronizados do servidor.`,
+            'warning'
+          );
+          
+          return;
+        } catch (error) {
+          safeError('❌ Erro ao re-sincronizar dados:', error);
+          showToast(
+            `❌ Erro ao re-sincronizar dados. Tente novamente ou recarregue a página.`,
+            'error'
+          );
+          return;
+        }
       }
     }
     
@@ -585,7 +606,7 @@ const AdminDashboard: React.FC = () => {
                           ? 'bg-gradient-to-r from-[#fff5df] to-[#f7e3cc] dark:from-gray-800 dark:to-gray-800'
                           : obra.status === 'enviado_preposto' 
                           ? 'bg-gradient-to-r from-[#dbf3f3] to-[#ccdbf7] dark:from-gray-800 dark:to-gray-800'
-                          : obra.status === 'enviado_admin' || obra.status === 'concluido'
+                          : obra.status === 'concluido'
                           ? 'bg-gradient-to-r from-[#afffb5] to-[#c1f3ff] dark:from-gray-800 dark:to-gray-800'
                           : 'bg-gradient-to-r from-[#e7f3db] to-[#ccf7f3] dark:from-gray-800 dark:to-gray-800'
                       }`}>

@@ -1,15 +1,102 @@
-import { Hono } from "npm:hono";
+import { Hono } from "npm:hono@4.0.2";
 import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
-import { createClient } from "jsr:@supabase/supabase-js@2.49.8";
-import * as kv from "./kv_store.tsx";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 import * as emailService from "./email.tsx";
+import * as kv from "./kv_store.tsx";
 import * as validation from "./validation.tsx";
-import {
-  safeLog,
-  safeError,
-  safeWarn,
-} from "./logSanitizer.ts";
+
+// ============================================
+// UTILITÁRIOS DE LOGGING SEGUROS
+// ============================================
+
+/**
+ * Console.log seguro que não quebra se houver erro de serialização
+ */
+function safeLog(...args: any[]) {
+  try {
+    console.log(...args);
+  } catch (error) {
+    console.log("[LOG ERROR]", String(error));
+  }
+}
+
+/**
+ * Console.error seguro que não quebra se houver erro de serialização
+ */
+function safeError(...args: any[]) {
+  try {
+    console.error(...args);
+  } catch (error) {
+    console.error("[ERROR LOG ERROR]", String(error));
+  }
+}
+
+/**
+ * Console.warn seguro que não quebra se houver erro de serialização
+ */
+function safeWarn(...args: any[]) {
+  try {
+    console.warn(...args);
+  } catch (error) {
+    console.warn("[WARN LOG ERROR]", String(error));
+  }
+}
+
+/**
+ * Extrai mensagem de erro de forma segura
+ */
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String((error as any).message);
+  }
+  return 'Erro desconhecido';
+}
+
+// ============================================
+// 🔧 UTILITÁRIOS: NORMALIZAÇÃO DE CAMPOS
+// ============================================
+
+/**
+ * Normaliza campos snake_case para camelCase em objetos de obra
+ * Garante consistência interna no backend (sempre camelCase no KV)
+ */
+function normalizeObraFields(data: any): any {
+  const normalized = { ...data };
+  
+  // Mapeamento de campos snake_case → camelCase
+  const fieldMap: Record<string, string> = {
+    'encarregado_id': 'encarregadoId',
+    'preposto_nome': 'prepostoNome',
+    'preposto_email': 'prepostoEmail',
+    'preposto_whatsapp': 'prepostoWhatsapp',
+    'validation_token': 'validationToken',
+    'validation_token_expiry': 'validationTokenExpiry',
+    'created_at': 'created_at', // Manter snake_case (padrão de timestamps)
+    'updated_at': 'updated_at', // Manter snake_case (padrão de timestamps)
+  };
+  
+  // Converter campos snake_case para camelCase
+  for (const [snakeCase, camelCase] of Object.entries(fieldMap)) {
+    if (snakeCase in normalized && snakeCase !== camelCase) {
+      normalized[camelCase] = normalized[snakeCase];
+      delete normalized[snakeCase]; // Remover duplicata
+    }
+  }
+  
+  return normalized;
+}
+
+// ============================================
+// INICIALIZAÇÃO DO SERVIDOR HONO
+// ============================================
+
 const app = new Hono();
 
 // Supabase client with service role (for admin operations)
@@ -209,6 +296,16 @@ const requireAuth = async (c: any, next: any) => {
         // Attach user to context
         c.set("userId", userData.user.id);
         c.set("userEmail", userData.user.email);
+        
+        // 🔧 CORREÇÃO: Buscar tipo do usuário no KV
+        const userRecord = await kv.get(`user:${userData.user.id}`);
+        if (userRecord) {
+          c.set("userRole", userRecord.tipo);
+          safeLog(`✅ [AUTH] Tipo do usuário: ${userRecord.tipo}`);
+        } else {
+          safeWarn(`⚠️ [AUTH] Usuário ${userData.user.id} não encontrado no KV`);
+          c.set("userRole", "Encarregado"); // Default para segurança
+        }
 
         await next();
       } catch (fallbackError: any) {
@@ -234,13 +331,23 @@ const requireAuth = async (c: any, next: any) => {
       // Attach user to context
       c.set("userId", user.id);
       c.set("userEmail", user.email);
+      
+      // 🔧 CORREÇÃO: Buscar tipo do usuário no KV
+      const userRecord = await kv.get(`user:${user.id}`);
+      if (userRecord) {
+        c.set("userRole", userRecord.tipo);
+        safeLog(`✅ [AUTH] Tipo do usuário: ${userRecord.tipo}`);
+      } else {
+        safeWarn(`⚠️ [AUTH] Usuário ${user.id} não encontrado no KV`);
+        c.set("userRole", "Encarregado"); // Default para segurança
+      }
 
       await next();
     }
   } catch (error: any) {
     safeError(
       "❌ [AUTH] Erro inesperado ao validar token:",
-      error.message,
+      getErrorMessage(error),
     );
     return c.json(
       { success: false, error: "Erro ao validar autenticação" },
@@ -254,19 +361,7 @@ app.use("*", logger(console.log));
 
 // 🔍 DEBUG MIDDLEWARE: Logar TODAS as requisições
 app.use("*", async (c, next) => {
-  const path = c.req.path;
-  const method = c.req.method;
-  
-  if (path.includes("/conferencia/")) {
-    console.log("\n" + "=".repeat(70));
-    console.log(`🔍 [DEBUG GLOBAL] ${method} ${path}`);
-    console.log("📋 [DEBUG] Headers:", {
-      authorization: c.req.header("Authorization") ? "PRESENTE" : "AUSENTE",
-      xUserToken: c.req.header("X-User-Token") ? "PRESENTE" : "AUSENTE",
-      origin: c.req.header("Origin") || "NENHUM",
-    });
-    console.log("=".repeat(70) + "\n");
-  }
+  // 🔍 Middleware de debug removido (rotas de conferência foram isoladas)
   
   await next();
 });
@@ -457,7 +552,7 @@ app.post(
     } catch (error) {
       safeError("❌ Erro ao criar usuário master:", error);
       return c.json(
-        { success: false, error: error.message },
+        { success: false, error: getErrorMessage(error) },
         500,
       );
     }
@@ -520,7 +615,7 @@ app.get(
     } catch (error) {
       safeError("Erro ao buscar dados do usuário:", error);
       return c.json(
-        { success: false, error: error.message },
+        { success: false, error: getErrorMessage(error) },
         500,
       );
     }
@@ -542,7 +637,7 @@ app.get(
     } catch (error) {
       safeError("Erro ao listar usuários:", error);
       return c.json(
-        { success: false, error: error.message },
+        { success: false, error: getErrorMessage(error) },
         500,
       );
     }
@@ -656,7 +751,7 @@ app.post(
     } catch (error) {
       safeError("Erro ao criar usuário:", error);
       return c.json(
-        { success: false, error: error.message },
+        { success: false, error: getErrorMessage(error) },
         500,
       );
     }
@@ -693,7 +788,7 @@ app.get(
     } catch (error) {
       safeError("Erro ao buscar usuário:", error);
       return c.json(
-        { success: false, error: error.message },
+        { success: false, error: getErrorMessage(error) },
         500,
       );
     }
@@ -810,7 +905,7 @@ app.put(
     } catch (error) {
       safeError("❌ Erro ao atualizar usuário:", error);
       return c.json(
-        { success: false, error: error.message },
+        { success: false, error: getErrorMessage(error) },
         500,
       );
     }
@@ -895,7 +990,7 @@ app.get(
     } catch (error) {
       console.error("Erro ao listar obras:", error);
       return c.json(
-        { success: false, error: error.message },
+        { success: false, error: getErrorMessage(error) },
         500,
       );
     }
@@ -946,17 +1041,17 @@ app.post(
       }
 
       const obraId = crypto.randomUUID();
-      const obra = {
+      const obra = normalizeObraFields({
         id: obraId,
         ...validationResult.sanitized,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      };
+      });
       await kv.set(`obra:${obraId}`, obra);
 
       // ✅ CORREÇÃO: Buscar dados do encarregado para retornar ao frontend
       const encarregado = await kv.get(
-        `user:${obra.encarregado_id}`,
+        `user:${obra.encarregadoId}`,
       );
 
       return c.json({
@@ -970,7 +1065,7 @@ app.post(
     } catch (error) {
       console.error("Erro ao criar obra:", error);
       return c.json(
-        { success: false, error: error.message },
+        { success: false, error: getErrorMessage(error) },
         500,
       );
     }
@@ -1007,7 +1102,7 @@ app.get(
     } catch (error) {
       console.error("Erro ao buscar obra:", error);
       return c.json(
-        { success: false, error: error.message },
+        { success: false, error: getErrorMessage(error) },
         500,
       );
     }
@@ -1042,6 +1137,9 @@ app.put(
         );
       }
 
+      // 🔧 CORREÇÃO: Normalizar obra recuperada do KV (pode ter campos em snake_case)
+      const obraNormalizada = normalizeObraFields(obra);
+
       // 🔒 VALIDAÇÃO DE ESTADO: Verificar se a obra pode ser editada
       const userId = c.get("userId");
       const user = await kv.get(`user:${userId}`);
@@ -1057,7 +1155,7 @@ app.put(
       // 🔒 REGRA DE NEGÓCIO: Permissões por tipo de usuário
       const isAdmin = user.tipo === "Administrador";
       const isEncarregado = user.tipo === "Encarregado";
-      const isOwnObra = obra.encarregado_id === userId;
+      const isOwnObra = obraNormalizada.encarregadoId === userId;
 
       // ✅ PERMISSÃO #1: Administradores podem editar qualquer obra
       // ✅ PERMISSÃO #2: Encarregados podem atualizar STATUS da própria obra
@@ -1079,7 +1177,7 @@ app.put(
         // Encarregado só pode editar a própria obra
         if (!isOwnObra) {
           safeWarn(
-            `⚠️ Encarregado ${userId} tentou editar obra de outro encarregado: ${obra.encarregado_id}`,
+            `⚠️ Encarregado ${userId} tentou editar obra de outro encarregado: ${obraNormalizada.encarregadoId}`,
           );
           return c.json(
             {
@@ -1094,7 +1192,7 @@ app.put(
         const allowedFields = ["status", "progress"];
         const changedFields = Object.keys(body).filter(
           (key) =>
-            body[key] !== obra[key] && key !== "updated_at",
+            body[key] !== obraNormalizada[key] && key !== "updated_at",
         );
         const hasDisallowedChanges = changedFields.some(
           (field) => !allowedFields.includes(field),
@@ -1116,49 +1214,49 @@ app.put(
       }
 
       // 🔒 VALIDAÇÃO DE TRANSIÇÃO DE ESTADO: Regras de mudança de status
-      if (body.status && body.status !== obra.status) {
+      if (body.status && body.status !== obraNormalizada.status) {
         const validTransitions: Record<string, string[]> = {
           novo: ["em_preenchimento", "enviado_preposto"], // ✅ CORREÇÃO: Permitir envio direto ao preposto
           em_preenchimento: ["enviado_preposto", "novo"],
           enviado_preposto: [
-            "enviado_admin",
+            "concluido",
             "reprovado_preposto",
           ],
           reprovado_preposto: [
             "em_preenchimento",
             "enviado_preposto",
           ], // ✅ CORREÇÃO: Permitir reenvio ao preposto
-          enviado_admin: ["concluida"],
-          concluida: [], // Estado final, não pode mudar
+          concluido: [], // Estado final, não pode mudar
         };
 
         const allowedNextStates =
-          validTransitions[obra.status] || [];
+          validTransitions[obraNormalizada.status] || [];
 
         if (!allowedNextStates.includes(body.status)) {
           safeWarn(
-            `⚠️ Transição de estado inválida: ${obra.status} → ${body.status}`,
+            `⚠️ Transição de estado inválida: ${obraNormalizada.status} → ${body.status}`,
           );
           return c.json(
             {
               success: false,
-              error: `Não é possível mudar status de "${obra.status}" para "${body.status}"`,
+              error: `Não é possível mudar status de "${obraNormalizada.status}" para "${body.status}"`,
             },
             400,
           );
         }
       }
 
-      const updatedObra = {
-        ...obra,
+      // ✅ CORREÇÃO: Normalizar campos snake_case antes de salvar
+      const updatedObra = normalizeObraFields({
+        ...obraNormalizada,
         ...body,
         updated_at: new Date().toISOString(),
-      };
+      });
       await kv.set(`obra:${id}`, updatedObra);
 
       // ✅ CORREÇÃO: Buscar dados do encarregado para retornar ao frontend
       const encarregado = await kv.get(
-        `user:${updatedObra.encarregado_id}`,
+        `user:${updatedObra.encarregadoId}`,
       );
 
       return c.json({
@@ -1172,7 +1270,7 @@ app.put(
     } catch (error) {
       console.error("Erro ao atualizar obra:", error);
       return c.json(
-        { success: false, error: error.message },
+        { success: false, error: getErrorMessage(error) },
         500,
       );
     }
@@ -1203,7 +1301,7 @@ app.delete(
     } catch (error) {
       console.error("Erro ao deletar obra:", error);
       return c.json(
-        { success: false, error: error.message },
+        { success: false, error: getErrorMessage(error) },
         500,
       );
     }
@@ -1225,7 +1323,7 @@ app.get(
     } catch (error) {
       console.error("Erro ao listar formulários:", error);
       return c.json(
-        { success: false, error: error.message },
+        { success: false, error: getErrorMessage(error) },
         500,
       );
     }
@@ -1258,7 +1356,7 @@ app.post(
     } catch (error) {
       console.error("Erro ao criar formulário:", error);
       return c.json(
-        { success: false, error: error.message },
+        { success: false, error: getErrorMessage(error) },
         500,
       );
     }
@@ -1301,7 +1399,7 @@ app.get(
     } catch (error) {
       console.error("Erro ao buscar formulário:", error);
       return c.json(
-        { success: false, error: error.message },
+        { success: false, error: getErrorMessage(error) },
         500,
       );
     }
@@ -1517,7 +1615,7 @@ app.put(
       }
 
       // 🔒 REGRA 1: Formulário já validado pelo preposto não pode ser editado
-      if (formulario.preposto_confirmado === true) {
+      if (formulario.prepostoConfirmado === true) {
         safeWarn(
           `⚠️ Tentativa de editar formulário já validado: ${id}`,
         );
@@ -1534,14 +1632,17 @@ app.put(
       // 🔒 REGRA 2: Apenas encarregado atribuído ou admin podem editar
       const obra = await kv.get(`obra:${formulario.obra_id}`);
       if (obra) {
+        // 🔧 CORREÇÃO: Normalizar obra recuperada do KV (pode ter campos em snake_case)
+        const obraNormalizada = normalizeObraFields(obra);
+        
         const isEncarregadoAtribuido =
           user.tipo === "Encarregado" &&
-          obra.encarregado_id === userId;
+          obraNormalizada.encarregadoId === userId;
         const isAdmin = user.tipo === "Administrador";
 
         if (!isEncarregadoAtribuido && !isAdmin) {
           safeWarn(
-            `⚠️ Tentativa de editar formulário sem permissão: userId=${userId}, encarregadoId=${obra.encarregado_id}`,
+            `⚠️ Tentativa de editar formulário sem permissão: userId=${userId}, encarregadoId=${obraNormalizada.encarregadoId}`,
           );
           return c.json(
             {
@@ -1559,11 +1660,10 @@ app.put(
         const validFormTransitions: Record<string, string[]> = {
           rascunho: ["enviado_preposto"],
           enviado_preposto: [
-            "enviado_admin",
+            "concluido",
             "reprovado_preposto",
           ],
           reprovado_preposto: ["rascunho", "enviado_preposto"],
-          enviado_admin: ["concluido"],
           concluido: [], // Estado final
         };
 
@@ -1595,7 +1695,7 @@ app.put(
     } catch (error) {
       console.error("Erro ao atualizar formulário:", error);
       return c.json(
-        { success: false, error: error.message },
+        { success: false, error: getErrorMessage(error) },
         500,
       );
     }
@@ -1629,7 +1729,7 @@ app.delete(
     } catch (error) {
       console.error("Erro ao deletar formulário:", error);
       return c.json(
-        { success: false, error: error.message },
+        { success: false, error: getErrorMessage(error) },
         500,
       );
     }
@@ -1888,251 +1988,21 @@ app.post(
 );
 
 // ============================================
-// VALIDAÇÃO DE TOKEN DO PREPOSTO (PÚBLICO)
+// ROTAS DE CONFERÊNCIA: REMOVIDAS
 // ============================================
-
-// ⚠️ ROTA LEGACY: Compatibilidade com versões antigas em cache
-// Esta rota redireciona para a nova API de conferência
-app.get(
-  "/make-server-1ff231a2/validation/:token",
-  async (c) => {
-    console.log("⚠️ [LEGACY] Requisição para rota antiga /validation/:token");
-    console.log("🔄 [LEGACY] Esta rota foi substituída por /conferencia/:formularioId");
-    
-    return c.json(
-      {
-        success: false,
-        error: "Link inválido ou expirado",
-        message: "Por favor, solicite um novo link de conferência. Esta versão do link não é mais suportada.",
-      },
-      410, // 410 Gone - Recurso não existe mais
-    );
-  },
-);
-
-// Validar token do preposto e retornar dados da obra
+// 
+// ✅ As rotas de conferência foram movidas para a Edge Function pública:
+//    /supabase/functions/public-conferencia/index.tsx
+// 
+// Motivos:
+// 1. Conferência é 100% pública (não requer autenticação)
+// 2. Reduz complexidade do backend principal
+// 3. Evita duplicação de código
+// 4. Menor chance de chamar rota errada
+// 
+// Edge Function pública disponível em:
+// https://{PROJECT_ID}.supabase.co/functions/v1/public-conferencia/conferencia/:formularioId
+// 
 // ============================================
-// CONFERÊNCIA DO PREPOSTO (PÚBLICO - SIMPLIFICADO)
-// ============================================
-
-// 📋 Buscar formulário para conferência (PÚBLICO)
-app.get(
-  "/make-server-1ff231a2/conferencia/:formularioId",
-  async (c) => {
-    // 🔍 DEBUG: Logar TODOS os headers recebidos
-    console.log("=".repeat(60));
-    console.log("🔍 [CONFERÊNCIA] NOVA REQUISIÇÃO RECEBIDA");
-    console.log("=".repeat(60));
-    console.log("📋 Headers recebidos:", {
-      authorization: c.req.header("Authorization") || "NENHUM",
-      xUserToken: c.req.header("X-User-Token") || "NENHUM",
-      origin: c.req.header("Origin") || "NENHUM",
-      userAgent: c.req.header("User-Agent") || "NENHUM",
-      cookie: c.req.header("Cookie") ? "PRESENTE (ocultado)" : "NENHUM",
-    });
-    console.log("=".repeat(60));
-    
-    try {
-      const formularioId = c.req.param("formularioId");
-
-      console.log("🔍 [CONFERÊNCIA] Buscando formulário:", formularioId);
-      console.log("🔍 [DEBUG] Tipo do formularioId:", typeof formularioId);
-      console.log("🔍 [DEBUG] Tamanho do formularioId:", formularioId?.length);
-
-      // 1️⃣ SEGURANÇA: Validar UUID para prevenir ataques
-      if (!validation.isValidUUID(formularioId)) {
-        console.warn("⚠️ ID inválido:", formularioId);
-        return c.json(
-          { success: false, error: "Link inválido" },
-          400,
-        );
-      }
-
-      // 2️⃣ Buscar formulário
-      const chave = `formulario:${formularioId}`;
-      console.log("🔍 [DEBUG] Buscando chave no KV:", chave);
-      const formulario = await kv.get(chave);
-      
-      console.log("🔍 [DEBUG] Resultado da busca:", formulario ? "ENCONTRADO" : "NÃO ENCONTRADO");
-      
-      if (!formulario) {
-        console.warn("⚠️ Formulário não encontrado:", formularioId);
-        console.warn("⚠️ Chave buscada:", chave);
-        
-        // 🔍 DEBUG: Listar todos os formulários no banco
-        try {
-          const todosFormularios = await kv.getByPrefix("formulario:");
-          console.log("🔍 [DEBUG] Total de formulários no banco:", todosFormularios?.length || 0);
-          if (todosFormularios && todosFormularios.length > 0) {
-            console.log("🔍 [DEBUG] IDs dos formulários existentes:", 
-              todosFormularios.map((f: any) => f.id).slice(0, 5));
-          }
-        } catch (debugError) {
-          console.error("❌ Erro ao buscar formulários para debug:", debugError);
-        }
-        
-        return c.json(
-          { success: false, error: "Formulário não encontrado" },
-          404,
-        );
-      }
-
-      // 3️⃣ Buscar dados da obra
-      const obra = await kv.get(`obra:${formulario.obra_id}`);
-      
-      if (!obra) {
-        console.warn("⚠️ Obra não encontrada:", formulario.obra_id);
-        return c.json(
-          { success: false, error: "Obra não encontrada" },
-          404,
-        );
-      }
-
-      console.log("✅ Formulário e obra encontrados");
-
-      return c.json({
-        success: true,
-        data: {
-          formulario,
-          obra,
-        },
-      });
-    } catch (error: any) {
-      console.error("❌ Erro ao buscar formulário:", error);
-      return c.json(
-        { success: false, error: "Erro ao buscar formulário" },
-        500,
-      );
-    }
-  },
-);
-
-// ✍️ Assinar formulário (PÚBLICO)
-app.post(
-  "/make-server-1ff231a2/conferencia/:formularioId/assinar",
-  async (c) => {
-    try {
-      const formularioId = c.req.param("formularioId");
-      const body = await c.req.json();
-
-      console.log("✍️ [CONFERÊNCIA] Assinando formulário:", formularioId);
-      console.log("📝 Dados recebidos:", {
-        aprovado: body.aprovado,
-        temAssinatura: !!body.assinatura,
-        temMotivo: !!body.motivo,
-      });
-
-      // 1️⃣ SEGURANÇA: Validar UUID
-      if (!validation.isValidUUID(formularioId)) {
-        console.warn("⚠️ ID inválido:", formularioId);
-        return c.json(
-          { success: false, error: "Link inválido" },
-          400,
-        );
-      }
-
-      // 2️⃣ Buscar formulário
-      const formulario = await kv.get(`formulario:${formularioId}`);
-      
-      if (!formulario) {
-        console.warn("⚠️ Formulário não encontrado:", formularioId);
-        return c.json(
-          { success: false, error: "Formulário não encontrado" },
-          404,
-        );
-      }
-
-      // 3️⃣ TRAVA DE STATUS: Verificar se já foi assinado
-      if (formulario.prepostoConfirmado === true) {
-        console.warn("⚠️ Formulário já foi assinado anteriormente");
-        return c.json(
-          {
-            success: false,
-            error: "Este formulário já foi assinado anteriormente",
-          },
-          400,
-        );
-      }
-
-      // 4️⃣ Buscar obra
-      const obra = await kv.get(`obra:${formulario.obra_id}`);
-      
-      if (!obra) {
-        console.warn("⚠️ Obra não encontrada:", formulario.obra_id);
-        return c.json(
-          { success: false, error: "Obra não encontrada" },
-          404,
-        );
-      }
-
-      // 5️⃣ Validar dados recebidos
-      if (body.aprovado === undefined) {
-        return c.json(
-          { success: false, error: "Campo 'aprovado' é obrigatório" },
-          400,
-        );
-      }
-
-      if (!body.assinatura) {
-        return c.json(
-          { success: false, error: "Assinatura é obrigatória" },
-          400,
-        );
-      }
-
-      if (!body.aprovado && !body.motivo) {
-        return c.json(
-          { success: false, error: "Motivo da reprovação é obrigatório" },
-          400,
-        );
-      }
-
-      // 6️⃣ Atualizar formulário
-      const now = new Date().toISOString();
-      const clientIp = c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "unknown";
-      
-      const updatedFormulario = {
-        ...formulario,
-        prepostoConfirmado: true,
-        assinaturaPreposto: body.assinatura,
-        prepostoMotivoReprovacao: body.aprovado ? null : body.motivo,
-        prepostoReviewedAt: now,
-        prepostoReviewedBy: obra.preposto_nome,
-        prepostoReviewedIp: clientIp, // 🔒 Auditoria
-        status: body.aprovado ? "enviado_admin" : "reprovado_preposto",
-        updated_at: now,
-      };
-
-      await kv.set(`formulario:${formularioId}`, updatedFormulario);
-      console.log("✅ Formulário atualizado");
-
-      // 7️⃣ Atualizar status da obra
-      const updatedObra = {
-        ...obra,
-        status: body.aprovado ? "enviado_admin" : "reprovado_preposto",
-        updated_at: now,
-      };
-
-      await kv.set(`obra:${obra.id}`, updatedObra);
-      console.log("✅ Obra atualizada");
-
-      console.log("✅ Assinatura registrada com sucesso");
-
-      return c.json({
-        success: true,
-        data: {
-          formulario: updatedFormulario,
-          obra: updatedObra,
-        },
-      });
-    } catch (error: any) {
-      console.error("❌ Erro ao assinar formulário:", error);
-      return c.json(
-        { success: false, error: "Erro ao processar assinatura" },
-        500,
-      );
-    }
-  },
-);
 
 Deno.serve(app.fetch);

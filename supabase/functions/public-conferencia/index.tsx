@@ -478,8 +478,20 @@ Deno.serve(async (req: Request) => {
         updated_at: now,
       };
 
-      // 6️⃣ Salvar no KV Store
+      // 6️⃣ Salvar formulário no KV Store
       await kvSet(chave, updatedFormulario);
+
+      // 7️⃣ Atualizar status da obra
+      const obra = await kvGet(`obra:${formulario.obra_id}`);
+      if (obra) {
+        const updatedObra = {
+          ...obra,
+          status: body.aprovado ? "concluido" : "reprovado_preposto",
+          updatedAt: now,
+        };
+        await kvSet(`obra:${formulario.obra_id}`, updatedObra);
+        console.log(`✅ Obra atualizada para status: ${updatedObra.status}`);
+      }
 
       console.log("✅ Formulário assinado com sucesso!");
       console.log("📊 Status:", body.aprovado ? "APROVADO" : "REPROVADO");
@@ -487,7 +499,7 @@ Deno.serve(async (req: Request) => {
       console.log("🌐 IP:", clientIp);
       console.log("=".repeat(60));
 
-      // 7️⃣ Retornar sucesso
+      // 8️⃣ Retornar sucesso
       return new Response(
         JSON.stringify({
           success: true,

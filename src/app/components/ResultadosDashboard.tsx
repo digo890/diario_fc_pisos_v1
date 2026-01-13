@@ -54,7 +54,7 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
 
     // Calcular estatísticas com base no status REAL das obras
     const formulariosPreenchidos = validForms.length;
-    const formulariosValidados = obras.filter(o => o.status === 'enviado_admin' || o.status === 'concluido').length;
+    const formulariosValidados = obras.filter(o => o.status === 'concluido').length;
     const formulariosEmRevisao = obras.filter(o => o.status === 'enviado_preposto').length;
     const obrasNovas = obras.filter(o => o.status === 'novo').length;
     

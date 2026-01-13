@@ -138,17 +138,33 @@ export function isValidUserType(tipo: string | undefined | null): tipo is UserTy
 // VALIDAÇÃO DE STATUS
 // ============================================
 
-const VALID_STATUS = [
-  'Rascunho',
-  'Aguardando Preposto',
-  'Aprovado',
-  'Reprovado',
-  'Cancelado',
+/**
+ * ✅ CORREÇÃO: Status atualizados para v1.0.0
+ * Separados por entidade (Obra vs Formulário)
+ */
+const VALID_OBRA_STATUS = [
+  'novo',
+  'em_preenchimento',
+  'enviado_preposto',
+  'reprovado_preposto',
+  'concluido',
 ] as const;
 
-export function isValidStatus(status: string | undefined | null): boolean {
+const VALID_FORMULARIO_STATUS = [
+  'rascunho',
+  'enviado_preposto',
+  'reprovado_preposto',
+  'concluido',
+] as const;
+
+export function isValidObraStatus(status: string | undefined | null): boolean {
   if (!status) return false;
-  return VALID_STATUS.includes(status as any);
+  return VALID_OBRA_STATUS.includes(status as any);
+}
+
+export function isValidFormularioStatus(status: string | undefined | null): boolean {
+  if (!status) return false;
+  return VALID_FORMULARIO_STATUS.includes(status as any);
 }
 
 // ============================================
@@ -211,28 +227,33 @@ export function validateObraData(data: ObraValidation): {
     }
   }
   
-  // Preposto (opcional, mas se fornecido deve ser válido)
-  if (data.preposto_nome) {
-    sanitized.preposto_nome = sanitizeString(data.preposto_nome);
+  // ✅ CORREÇÃO: Aceitar tanto prepostoNome quanto preposto_nome
+  const prepostoNome = data.prepostoNome || data.preposto_nome;
+  if (prepostoNome) {
+    sanitized.prepostoNome = sanitizeString(prepostoNome);
   }
   
-  if (data.preposto_email) {
-    if (!isValidEmail(data.preposto_email)) {
+  // ✅ CORREÇÃO: Aceitar tanto prepostoEmail quanto preposto_email
+  const prepostoEmail = data.prepostoEmail || data.preposto_email;
+  if (prepostoEmail) {
+    if (!isValidEmail(prepostoEmail)) {
       errors.push('Email do preposto inválido');
     } else {
-      sanitized.preposto_email = sanitizeString(data.preposto_email).toLowerCase();
+      sanitized.prepostoEmail = sanitizeString(prepostoEmail).toLowerCase();
     }
   }
   
-  if (data.preposto_telefone) {
-    if (!isValidPhone(data.preposto_telefone)) {
+  // ✅ CORREÇÃO: Aceitar tanto prepostoWhatsapp/prepostoTelefone quanto preposto_whatsapp/preposto_telefone
+  const prepostoTelefone = data.prepostoWhatsapp || data.prepostoTelefone || data.preposto_whatsapp || data.preposto_telefone;
+  if (prepostoTelefone) {
+    if (!isValidPhone(prepostoTelefone)) {
       errors.push('Telefone do preposto inválido');
     } else {
-      sanitized.preposto_telefone = sanitizePhone(data.preposto_telefone);
+      sanitized.prepostoWhatsapp = sanitizePhone(prepostoTelefone);
     }
   }
   
-  // Copiar outros campos (sanitizados)
+  // Copiar outros campos (sanitizados) usando camelCase
   for (const key in data) {
     if (!sanitized.hasOwnProperty(key) && typeof data[key] === 'string') {
       sanitized[key] = sanitizeString(data[key]);

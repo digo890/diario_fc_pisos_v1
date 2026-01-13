@@ -44,7 +44,7 @@ const EncarregadoDashboard: React.FC = () => {
         const formData = allFormsData.find(f => f.obraId === obra.id);
         
         // IMPORTANTE: Só atualizar status se for 'novo' → 'em_preenchimento'
-        // NÃO sobrescrever status de obras já enviadas (enviado_preposto, aprovado_preposto, etc)
+        // NÃO sobrescrever status de obras já enviadas (enviado_preposto, concluido, etc)
         if (obra.status === 'novo' && formData && Object.keys(formData).length > 0) {
           const obraAtualizada = { ...obra, status: 'em_preenchimento' as const };
           await saveObra(obraAtualizada);
@@ -70,7 +70,7 @@ const EncarregadoDashboard: React.FC = () => {
     if (filtroStatus === 'novo') return obra.status === 'novo';
     if (filtroStatus === 'em_andamento') return obra.status === 'em_preenchimento';
     if (filtroStatus === 'enviado_preposto') return obra.status === 'enviado_preposto';
-    if (filtroStatus === 'concluidas') return obra.status === 'enviado_admin' || obra.status === 'concluido';
+    if (filtroStatus === 'concluidas') return obra.status === 'concluido';
     return true;
   }).sort((a, b) => b.createdAt - a.createdAt); // Ordenar por data de criação, mais recentes primeiro
 
@@ -80,7 +80,7 @@ const EncarregadoDashboard: React.FC = () => {
     novo: obras.filter(o => o.status === 'novo').length,
     em_andamento: obras.filter(o => o.status === 'em_preenchimento').length,
     enviado_preposto: obras.filter(o => o.status === 'enviado_preposto').length,
-    concluidas: obras.filter(o => o.status === 'enviado_admin' || o.status === 'concluido').length
+    concluidas: obras.filter(o => o.status === 'concluido').length
   };
 
   return (
@@ -225,7 +225,7 @@ const EncarregadoDashboard: React.FC = () => {
                   if (obra.status === 'novo') borderColor = 'border-l-yellow-500 dark:border-l-yellow-600';
                   if (obra.status === 'em_preenchimento') borderColor = 'border-l-blue-500 dark:border-l-blue-600';
                   if (obra.status === 'enviado_preposto') borderColor = 'border-l-purple-500 dark:border-l-purple-600';
-                  if (obra.status === 'enviado_admin') borderColor = 'border-l-green-500 dark:border-l-green-600';
+                  if (obra.status === 'concluido') borderColor = 'border-l-green-500 dark:border-l-green-600';
                   
                   return (
                     <motion.div

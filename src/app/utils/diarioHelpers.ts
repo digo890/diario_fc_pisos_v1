@@ -65,12 +65,6 @@ export function getStatusDisplay(obra: Obra): {
         color: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
       };
     
-    case 'enviado_admin':
-      return {
-        label: 'Validado',
-        color: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-      };
-    
     case 'concluido':
       return {
         label: 'Concluída',
@@ -87,10 +81,10 @@ export function getStatusDisplay(obra: Obra): {
 
 /**
  * ✅ CORREÇÃO #4: Função padronizada para contar obras concluídas
- * Considera tanto 'enviado_admin' quanto 'concluido' como concluídas
+ * Considera apenas 'concluido' como concluída
  */
 export function contarObrasConcluidas(obras: Obra[]): number {
   return obras.filter(o => 
-    o.status === 'enviado_admin' || o.status === 'concluido'
+    o.status === 'concluido'
   ).length;
 }
