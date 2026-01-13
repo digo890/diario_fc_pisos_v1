@@ -118,8 +118,9 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
       
       if (!form) {
         // Criar formulário inicial
+        // ✅ CORREÇÃO CRÍTICA: Usar obra_id (snake_case) para consistência com backend
         form = {
-          obraId: obra.id,
+          obra_id: obra.id,
           clima: {},
           temperaturaMin: '',
           temperaturaMax: '',

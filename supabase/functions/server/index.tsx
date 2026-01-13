@@ -93,6 +93,77 @@ function normalizeObraFields(data: any): any {
   return normalized;
 }
 
+/**
+ * Converte campos camelCase para snake_case para resposta de API
+ * Garante consistência na API REST (sempre snake_case nas respostas)
+ */
+function toSnakeCase(data: any): any {
+  const converted = { ...data };
+  
+  // Mapeamento de campos camelCase → snake_case
+  const fieldMap: Record<string, string> = {
+    'encarregadoId': 'encarregado_id',
+    'prepostoNome': 'preposto_nome',
+    'prepostoEmail': 'preposto_email',
+    'prepostoWhatsapp': 'preposto_whatsapp',
+    'validationToken': 'token_validacao',
+    'validationTokenExpiry': 'token_validacao_expiry',
+    'validationTokenLastAccess': 'validation_token_last_access',
+    'createdAt': 'created_at',
+    'createdBy': 'created_by',
+    'updatedAt': 'updated_at',
+  };
+  
+  // Converter campos camelCase para snake_case
+  for (const [camelCase, snakeCase] of Object.entries(fieldMap)) {
+    if (camelCase in converted) {
+      converted[snakeCase] = converted[camelCase];
+      delete converted[camelCase]; // Remover duplicata camelCase
+    }
+  }
+  
+  return converted;
+}
+
+/**
+ * Normaliza campos de formulário para snake_case interno consistente
+ * ✅ CORREÇÃO CRÍTICA: Garantir que obraId → obra_id sempre
+ */
+function normalizeFormularioFields(data: any): any {
+  const normalized = { ...data };
+  
+  // ✅ CRÍTICO: Sempre normalizar obraId → obra_id
+  if ('obraId' in normalized) {
+    normalized.obra_id = normalized.obraId;
+    delete normalized.obraId;
+  }
+  
+  // Normalizar outros campos comuns
+  const fieldMap: Record<string, string> = {
+    'createdAt': 'created_at',
+    'updatedAt': 'updated_at',
+    'createdBy': 'created_by',
+    'enviadoPrepostoAt': 'enviado_preposto_at',
+    'prepostoReviewedAt': 'preposto_reviewed_at',
+    'prepostoReviewedBy': 'preposto_reviewed_by',
+    'completedAt': 'completed_at',
+    'emailsEnviados': 'emails_enviados',
+    'assinaturaEncarregado': 'assinatura_encarregado',
+    'assinaturaPreposto': 'assinatura_preposto',
+    'prepostoConfirmado': 'preposto_confirmado',
+    'prepostoMotivoReprovacao': 'preposto_motivo_reprovacao',
+  };
+  
+  for (const [camelCase, snakeCase] of Object.entries(fieldMap)) {
+    if (camelCase in normalized) {
+      normalized[snakeCase] = normalized[camelCase];
+      delete normalized[camelCase];
+    }
+  }
+  
+  return normalized;
+}
+
 // ============================================
 // INICIALIZAÇÃO DO SERVIDOR HONO
 // ============================================
@@ -986,7 +1057,9 @@ app.get(
   async (c) => {
     try {
       const obras = await kv.getByPrefix("obra:");
-      return c.json({ success: true, data: obras });
+      // ✅ CORREÇÃO: Converter camelCase → snake_case para consistência de API
+      const obrasFormatted = obras.map((obra: any) => toSnakeCase(obra));
+      return c.json({ success: true, data: obrasFormatted });
     } catch (error) {
       console.error("Erro ao listar obras:", error);
       return c.json(
@@ -1056,11 +1129,11 @@ app.post(
 
       return c.json({
         success: true,
-        data: {
+        data: toSnakeCase({
           ...obra,
           encarregado_email: encarregado?.email,
           encarregado_nome: encarregado?.nome,
-        },
+        }),
       });
     } catch (error) {
       console.error("Erro ao criar obra:", error);
@@ -1098,7 +1171,8 @@ app.get(
           404,
         );
       }
-      return c.json({ success: true, data: obra });
+      // ✅ CORREÇÃO: Converter camelCase → snake_case para consistência de API
+      return c.json({ success: true, data: toSnakeCase(obra) });
     } catch (error) {
       console.error("Erro ao buscar obra:", error);
       return c.json(
@@ -1261,11 +1335,11 @@ app.put(
 
       return c.json({
         success: true,
-        data: {
+        data: toSnakeCase({
           ...updatedObra,
           encarregado_email: encarregado?.email,
           encarregado_nome: encarregado?.nome,
-        },
+        }),
       });
     } catch (error) {
       console.error("Erro ao atualizar obra:", error);
@@ -1341,8 +1415,11 @@ app.post(
       // ✅ CORREÇÃO: Usar ID do frontend se fornecido, senão gerar novo
       const formularioId = body.id || crypto.randomUUID();
       
+      // ✅ CORREÇÃO CRÍTICA: Normalizar campos (obraId → obra_id, etc)
+      const normalizedBody = normalizeFormularioFields(body);
+      
       const formulario = {
-        ...body,
+        ...normalizedBody,
         id: formularioId, // ✅ Usar ID correto (do frontend ou gerado)
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -1351,6 +1428,7 @@ app.post(
       await kv.set(`formulario:${formularioId}`, formulario);
       
       console.log(`✅ Formulário criado/salvo com ID: ${formularioId}`);
+      console.log(`🔍 obra_id no formulário: ${formulario.obra_id}`);
       
       return c.json({ success: true, data: formulario });
     } catch (error) {
@@ -1614,6 +1692,9 @@ app.put(
         );
       }
 
+      // ✅ CORREÇÃO CRÍTICA: Normalizar campos do body antes de merge
+      const normalizedBody = normalizeFormularioFields(body);
+
       // 🔒 REGRA 1: Formulário já validado pelo preposto não pode ser editado
       if (formulario.prepostoConfirmado === true) {
         safeWarn(
@@ -1656,7 +1737,7 @@ app.put(
       }
 
       // 🔒 REGRA 3: Validar transições de status do formulário
-      if (body.status && body.status !== formulario.status) {
+      if (normalizedBody.status && normalizedBody.status !== formulario.status) {
         const validFormTransitions: Record<string, string[]> = {
           rascunho: ["enviado_preposto"],
           enviado_preposto: [
@@ -1671,14 +1752,14 @@ app.put(
         const allowedNextStates =
           validFormTransitions[currentStatus] || [];
 
-        if (!allowedNextStates.includes(body.status)) {
+        if (!allowedNextStates.includes(normalizedBody.status)) {
           safeWarn(
-            `⚠️ Transição de status inválida no formulário: ${currentStatus} → ${body.status}`,
+            `⚠️ Transição de status inválida no formulário: ${currentStatus} → ${normalizedBody.status}`,
           );
           return c.json(
             {
               success: false,
-              error: `Não é possível mudar status do formulário de "${currentStatus}" para "${body.status}"`,
+              error: `Não é possível mudar status do formulário de "${currentStatus}" para "${normalizedBody.status}"`,
             },
             400,
           );
@@ -1687,10 +1768,12 @@ app.put(
 
       const updatedFormulario = {
         ...formulario,
-        ...body,
+        ...normalizedBody,
         updated_at: new Date().toISOString(),
       };
       await kv.set(`formulario:${id}`, updatedFormulario);
+      console.log(`✅ Formulário atualizado com ID: ${id}`);
+      console.log(`🔍 obra_id no formulário: ${updatedFormulario.obra_id}`);
       return c.json({ success: true, data: updatedFormulario });
     } catch (error) {
       console.error("Erro ao atualizar formulário:", error);
