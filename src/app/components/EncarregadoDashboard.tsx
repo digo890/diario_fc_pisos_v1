@@ -3,7 +3,10 @@ import { Moon, Sun, LogOut, ChevronRight, FolderOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { getObras, getUsers, getAllForms, saveObra } from '../utils/database';
+import { getObras, getUsers, getAllForms, saveObra, getFormByObraId, saveForm } from '../utils/database';
+import { obraApi, formularioApi } from '../utils/api';
+import { safeLog, safeError, safeWarn } from '../utils/logSanitizer';
+import { useToast } from './Toast';
 import { getStatusDisplay } from '../utils/diarioHelpers';
 import type { Obra, User } from '../types';
 import FcLogo from '../../imports/FcLogo';
@@ -17,6 +20,7 @@ const FormularioPage = lazy(() => import('./FormularioPage'));
 const EncarregadoDashboard: React.FC = () => {
   const { currentUser } = useAuth(); // 🔒 CORREÇÃO #7: logout removido daqui
   const { theme, toggleTheme } = useTheme();
+  const { showToast, ToastComponent } = useToast();
   
   // 🔒 CORREÇÃO #7: Hook de logout seguro v1.1.0
   const { handleLogout, forceLogout, cancelLogout, showLogoutConfirm, pendingCount } = useSafeLogout();
@@ -30,6 +34,97 @@ const EncarregadoDashboard: React.FC = () => {
     loadData();
   }, []);
 
+  // ✅ CORREÇÃO: Validar e corrigir inconsistências antes de abrir formulário
+  const handleObraClick = async (obra: Obra) => {
+    // Verificar se obra está em status que deveria ter formulário
+    const statusesComFormulario = ['enviado_preposto', 'reprovado_preposto', 'concluido'];
+    
+    if (statusesComFormulario.includes(obra.status)) {
+      const form = await getFormByObraId(obra.id);
+      
+      if (!form) {
+        safeWarn(`🐛 Inconsistência de dados na obra ${obra.id}: status=${obra.status} mas formData não existe`);
+        safeWarn(`⚠️ Inconsistência detectada: obra "${obra.status}" sem formulário. Tentando recuperar do backend...`);
+        
+        try {
+          // 1️⃣ Tentar buscar formulário do backend
+          if (navigator.onLine) {
+            safeLog(`🔍 Buscando todos os formulários no backend...`);
+            const formularioResponse = await formularioApi.list();
+            
+            safeLog(`📊 Resposta da API:`, {
+              success: formularioResponse.success,
+              hasData: !!formularioResponse.data,
+              dataLength: formularioResponse.data?.length,
+              error: formularioResponse.error
+            });
+            
+            if (formularioResponse.success && formularioResponse.data) {
+              safeLog(`🔎 Procurando formulário com obra_id: ${obra.id}`);
+              safeLog(`📋 IDs de obras nos formulários:`, formularioResponse.data.map((f: any) => f.obra_id));
+              
+              const formularioBackend = formularioResponse.data.find((f: any) => f.obra_id === obra.id);
+              
+              if (formularioBackend) {
+                safeLog(`✅ Formulário encontrado no backend:`, formularioBackend);
+                await saveForm(formularioBackend);
+                
+                showToast('✅ Dados recuperados do servidor com sucesso!', 'success');
+                setSelectedObra(obra);
+                return;
+              } else {
+                safeWarn(`❌ Formulário com obra_id ${obra.id} não encontrado na lista`);
+              }
+            } else {
+              safeWarn(`❌ Falha ao buscar formulários:`, formularioResponse.error);
+            }
+          } else {
+            safeWarn(`❌ Sem conexão com internet`);
+          }
+          
+          // 2️⃣ Formulário NÃO existe nem no backend - REVERTER STATUS
+          safeWarn(`❌ Formulário não encontrado no backend. Revertendo status da obra...`);
+          
+          const obraCorrigida = {
+            ...obra,
+            status: 'em_preenchimento' as const,
+            progress: 0
+          };
+          
+          await saveObra(obraCorrigida);
+          
+          if (navigator.onLine) {
+            try {
+              await obraApi.update(obra.id, {
+                status: 'em_preenchimento',
+                progress: 0
+              });
+              safeLog(`✅ Status revertido no backend com sucesso`);
+            } catch (backendError) {
+              safeError('⚠️ Erro ao atualizar backend:', backendError);
+            }
+          }
+          
+          await loadData();
+          
+          showToast(
+            '⚠️ Inconsistência corrigida. Status revertido para "Em Preenchimento". Por favor, preencha e envie o formulário novamente.',
+            'warning'
+          );
+          
+          return;
+        } catch (error) {
+          safeError('❌ Erro ao corrigir inconsistência:', error);
+          showToast('❌ Erro ao corrigir dados. Tente novamente ou recarregue a página.', 'error');
+          return;
+        }
+      }
+    }
+    
+    // Tudo ok, abrir formulário normalmente
+    setSelectedObra(obra);
+  };
+
   const loadData = async () => {
     const obrasData = await getObras();
     const usersData = await getUsers();
@@ -41,7 +136,7 @@ const EncarregadoDashboard: React.FC = () => {
     // Verificar status das obras e atualizar se necessário
     const obrasComStatusAtualizado = await Promise.all(
       minhasObras.map(async (obra: Obra) => {
-        const formData = allFormsData.find(f => f.obraId === obra.id);
+        const formData = allFormsData.find(f => f.obra_id === obra.id); // ✅ CORREÇÃO: obra_id em vez de obraId
         
         // IMPORTANTE: Só atualizar status se for 'novo' → 'em_preenchimento'
         // NÃO sobrescrever status de obras já enviadas (enviado_preposto, concluido, etc)
@@ -85,6 +180,9 @@ const EncarregadoDashboard: React.FC = () => {
 
   return (
     <>
+      {/* Toast Messages */}
+      {ToastComponent}
+      
       <AnimatePresence mode="wait">
         {selectedObra ? (
           <motion.div
@@ -233,7 +331,7 @@ const EncarregadoDashboard: React.FC = () => {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3, delay: index * 0.05 }}
-                      onClick={() => setSelectedObra(obra)}
+                      onClick={() => handleObraClick(obra)}
                       className={`p-5 cursor-pointer transition-all duration-200 border-l-4 ${borderColor} rounded-xl dark:border dark:border-gray-800 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800`}
                     >
                       {/* Cabeçalho com título e status */}

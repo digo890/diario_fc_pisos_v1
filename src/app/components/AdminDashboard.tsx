@@ -3,8 +3,8 @@ import { Plus, Edit2, Trash2, FileText, Moon, Sun, LogOut, Download, Building2, 
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { getObras, getUsers, saveObra, deleteObra, saveUser, deleteUser, getAllForms, getFormByObraId, deleteForm } from '../utils/database';
-import { obraApi, userApi } from '../utils/api';
+import { getObras, getUsers, saveObra, deleteObra, saveUser, deleteUser, getAllForms, getFormByObraId, deleteForm, saveForm } from '../utils/database';
+import { obraApi, userApi, formularioApi } from '../utils/api';
 import { getStatusDisplay } from '../utils/diarioHelpers';
 import { mergeObras, mergeUsers } from '../utils/dataSync';
 import { safeLog, safeError, safeWarn } from '../utils/logSanitizer';
@@ -122,7 +122,7 @@ const AdminDashboard: React.FC = () => {
           newNotifications.push({
             id: notificationId,
             type: 'form_submitted',
-            obraId: obra.id,
+            obra_id: obra.id, // ✅ CORREÇÃO: obra_id em vez de obraId
             obraNome: `${obra.cliente} - ${obra.obra}`,
             userName: encarregado?.nome || 'Encarregado',
             timestamp: formData.updatedAt || obra.updatedAt,
@@ -139,7 +139,7 @@ const AdminDashboard: React.FC = () => {
           newNotifications.push({
             id: notificationId,
             type: 'form_signed',
-            obraId: obra.id,
+            obra_id: obra.id, // ✅ CORREÇÃO: obra_id em vez de obraId
             obraNome: `${obra.cliente} - ${obra.obra}`,
             userName: obra.prepostoNome || 'Preposto',
             timestamp: formData.prepostoReviewedAt || obra.updatedAt,
@@ -397,27 +397,90 @@ const AdminDashboard: React.FC = () => {
         // ❌ Inconsistência de dados: Status indica formulário mas não existe
         safeWarn(`🐛 Inconsistência de dados na obra ${obra.id}: status=${obra.status} mas formData não existe`);
         
-        // 🔧 REPARO AUTOMÁTICO IMEDIATO: Reverter status para "em_preenchimento"
-        // 🔄 Inconsistência detectada: limpar cache e re-sincronizar
-        safeWarn(`⚠️ Inconsistência detectada: obra "${obra.status}" sem formulário. Limpando cache...`);
+        // 🔧 CORREÇÃO CRÍTICA: Tentar recuperar do backend primeiro
+        safeWarn(`⚠️ Inconsistência detectada: obra "${obra.status}" sem formulário. Tentando recuperar do backend...`);
         
         try {
-          // Limpar obra do cache local
-          await deleteObra(obra.id);
+          // 1️⃣ Tentar buscar formulário do backend
+          if (navigator.onLine) {
+            safeLog(`🔍 Buscando todos os formulários no backend...`);
+            const formularioResponse = await formularioApi.list();
+            
+            safeLog(`📊 Resposta da API:`, {
+              success: formularioResponse.success,
+              hasData: !!formularioResponse.data,
+              dataLength: formularioResponse.data?.length,
+              error: formularioResponse.error
+            });
+            
+            if (formularioResponse.success && formularioResponse.data) {
+              safeLog(`🔎 Procurando formulário com obra_id: ${obra.id}`);
+              safeLog(`📋 IDs de obras nos formulários:`, formularioResponse.data.map((f: any) => f.obra_id));
+              
+              const formularioBackend = formularioResponse.data.find((f: any) => f.obra_id === obra.id);
+              
+              if (formularioBackend) {
+                // ✅ Formulário existe no backend! Salvar localmente
+                safeLog(`✅ Formulário encontrado no backend:`, formularioBackend);
+                await saveForm(formularioBackend);
+                
+                showToast(
+                  `✅ Dados recuperados do servidor com sucesso!`,
+                  'success'
+                );
+                
+                // Abrir modal normalmente
+                setViewingObra(obra);
+                return;
+              } else {
+                safeWarn(`❌ Formulário com obra_id ${obra.id} não encontrado na lista`);
+              }
+            } else {
+              safeWarn(`❌ Falha ao buscar formulários:`, formularioResponse.error);
+            }
+          } else {
+            safeWarn(`❌ Sem conexão com internet`);
+          }
           
-          // Re-sincronizar do backend
+          // 2️⃣ Formulário NÃO existe nem no backend - REVERTER STATUS
+          safeWarn(`❌ Formulário não encontrado no backend. Revertendo status da obra...`);
+          
+          // Reverter status para em_preenchimento
+          const obraCorrigida = {
+            ...obra,
+            status: 'em_preenchimento' as const,
+            progress: 0
+          };
+          
+          // Salvar localmente
+          await saveObra(obraCorrigida);
+          
+          // Tentar sincronizar com backend
+          if (navigator.onLine) {
+            try {
+              await obraApi.update(obra.id, {
+                status: 'em_preenchimento',
+                progress: 0
+              });
+              safeLog(`✅ Status revertido no backend com sucesso`);
+            } catch (backendError) {
+              safeError('⚠️ Erro ao atualizar backend (correção salva localmente):', backendError);
+            }
+          }
+          
+          // Recarregar dados
           await loadData();
           
           showToast(
-            `⚠️ Inconsistência detectada. Cache limpo e dados re-sincronizados do servidor.`,
+            `⚠️ Inconsistência corrigida. Status da obra revertido para "Em Preenchimento". Por favor, preencha e envie o formulário novamente.`,
             'warning'
           );
           
           return;
         } catch (error) {
-          safeError('❌ Erro ao re-sincronizar dados:', error);
+          safeError('❌ Erro ao corrigir inconsistência:', error);
           showToast(
-            `❌ Erro ao re-sincronizar dados. Tente novamente ou recarregue a página.`,
+            `❌ Erro ao corrigir dados. Tente novamente ou recarregue a página.`,
             'error'
           );
           return;
@@ -430,7 +493,7 @@ const AdminDashboard: React.FC = () => {
   };
   
   const handleNotificationClick = (notification: Notification) => {
-    const obra = obras.find(o => o.id === notification.obraId);
+    const obra = obras.find(o => o.id === notification.obra_id); // ✅ CORREÇÃO: obra_id em vez de obraId
     if (obra) {
       // Usar handleObraClick para validar formulário
       handleObraClick(obra);

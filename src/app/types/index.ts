@@ -68,7 +68,7 @@ export interface CondicionalItem {
 }
 
 export interface FormData {
-  obraId: string;
+  obra_id: string; // ✅ CORREÇÃO: Padronizado para snake_case (consistente com backend)
   
   // Condições Ambientais
   clima: ClimaData;

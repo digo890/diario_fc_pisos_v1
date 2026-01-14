@@ -231,7 +231,7 @@ async function detectInconsistencies(): Promise<boolean> {
     
     for (const obra of obras) {
       if (statusesComFormulario.includes(obra.status)) {
-        const form = forms.find(f => f.obraId === obra.id);
+        const form = forms.find(f => f.obra_id === obra.id); // ✅ CORREÇÃO: obra_id em vez de obraId
         if (!form) {
           safeWarn(`⚠️ Inconsistência: obra ${obra.id} (${obra.status}) sem formulário`);
           return true; // Inconsistência detectada

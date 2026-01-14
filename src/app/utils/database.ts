@@ -1,8 +1,9 @@
 // IndexedDB para persistência offline
 import type { User, Obra, FormData } from '../types';
+import { safeLog, safeWarn } from './logSanitizer';
 
 const DB_NAME = 'DiarioObrasDB';
-const DB_VERSION = 2; // ✅ Incrementar versão para adicionar syncQueue
+const DB_VERSION = 3; // ✅ Incrementar versão para corrigir keyPath obra_id
 
 let db: IDBDatabase | null = null;
 
@@ -23,6 +24,7 @@ export const initDB = (): Promise<IDBDatabase> => {
 
     request.onupgradeneeded = (event) => {
       const database = (event.target as IDBOpenDBRequest).result;
+      const transaction = (event.target as IDBOpenDBRequest).transaction;
 
       // Store de usuários
       if (!database.objectStoreNames.contains('users')) {
@@ -37,12 +39,17 @@ export const initDB = (): Promise<IDBDatabase> => {
         obraStore.createIndex('encarregadoId', 'encarregadoId', { unique: false });
       }
 
-      // Store de formulários
-      if (!database.objectStoreNames.contains('forms')) {
-        const formStore = database.createObjectStore('forms', { keyPath: 'obraId' });
-        formStore.createIndex('status', 'status', { unique: false });
-        formStore.createIndex('createdBy', 'createdBy', { unique: false });
+      // ✅ MIGRAÇÃO V3: Recriar store de formulários com keyPath correto
+      if (database.objectStoreNames.contains('forms')) {
+        // Deletar store antiga com keyPath 'obraId' (errado)
+        database.deleteObjectStore('forms');
+        console.log('🔄 Migração V3: Store "forms" deletada (keyPath antigo: obraId)');
       }
+      // Criar nova store com keyPath 'obra_id' (correto)
+      const formStore = database.createObjectStore('forms', { keyPath: 'obra_id' });
+      formStore.createIndex('status', 'status', { unique: false });
+      formStore.createIndex('createdBy', 'createdBy', { unique: false });
+      console.log('✅ Migração V3: Store "forms" criada (keyPath novo: obra_id)');
 
       // Store de configurações
       if (!database.objectStoreNames.contains('config')) {
@@ -189,10 +196,31 @@ export const saveForm = async (form: FormData): Promise<void> => {
   return new Promise((resolve, reject) => {
     const transaction = database.transaction(['forms'], 'readwrite');
     const store = transaction.objectStore('forms');
+    
+    // ✅ CORREÇÃO: KeyPath agora é obra_id (não precisa mais normalizar)
+    if (!form.obra_id) {
+      const error = new Error('FormData deve ter obra_id definido');
+      safeWarn(`❌ Erro ao salvar formulário: obra_id ausente`, error);
+      reject(error);
+      return;
+    }
+    
+    safeLog(`💾 Salvando formulário no IndexedDB:`, {
+      obra_id: form.obra_id,
+      formId: (form as any).id,
+      status: form.status
+    });
+    
     const request = store.put(form);
 
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      safeLog(`✅ Formulário salvo no IndexedDB com chave: ${form.obra_id}`);
+      resolve();
+    };
+    request.onerror = () => {
+      safeWarn(`❌ Erro ao salvar formulário no IndexedDB:`, request.error);
+      reject(request.error);
+    };
   });
 };
 

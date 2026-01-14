@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 export interface Notification {
   id: string;
   type: 'form_submitted' | 'form_signed';
-  obraId: string;
+  obra_id: string; // ✅ CORREÇÃO: Padronizado para snake_case
   obraNome: string;
   userName: string;
   timestamp: number;
