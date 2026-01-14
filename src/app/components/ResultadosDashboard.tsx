@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { FileText, CheckCircle2, Clock, AlertCircle, TrendingUp, Calendar } from 'lucide-react';
 import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { getAllForms } from '../utils/database';
-import { contarObrasConcluidas } from '../utils/diarioHelpers'; // ✅ CORREÇÃO #4: Importar função padronizada
+import { getObraStatusReal } from '../utils/diarioHelpers'; // 🎯 Usar apenas getObraStatusReal
 import { SkeletonDashboard } from './SkeletonCard';
 import type { Obra, FormData } from '../types';
 
@@ -52,19 +52,38 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
     const validForms = await getAllForms();
     setFormsData(validForms);
 
-    // Calcular estatísticas com base no status REAL das obras
+    // 🎯 REGRA DE DOMÍNIO: Calcular estatísticas usando status REAL das obras
+    // Criar mapa de formulários por obra_id para lookup rápido
+    const formsByObraId = new Map<string, FormData>();
+    validForms.forEach(form => {
+      formsByObraId.set(form.obra_id, form);
+    });
+
+    // Calcular contadores aplicando regra de domínio
+    let formulariosValidados = 0;
+    let formulariosEmRevisao = 0;
+    let obrasNovas = 0;
+    let obrasAndamento = 0;
+    let obrasConcluidas = 0;
+
+    obras.forEach(obra => {
+      const formulario = formsByObraId.get(obra.id);
+      const statusReal = getObraStatusReal(obra, formulario);
+      
+      // Contar por status real
+      if (statusReal === 'concluido') {
+        formulariosValidados++;
+        obrasConcluidas++;
+      } else if (statusReal === 'enviado_preposto') {
+        formulariosEmRevisao++;
+      } else if (statusReal === 'novo') {
+        obrasNovas++;
+      } else if (statusReal === 'em_preenchimento' || statusReal === 'reprovado_preposto') {
+        obrasAndamento++;
+      }
+    });
+
     const formulariosPreenchidos = validForms.length;
-    const formulariosValidados = obras.filter(o => o.status === 'concluido').length;
-    const formulariosEmRevisao = obras.filter(o => o.status === 'enviado_preposto').length;
-    const obrasNovas = obras.filter(o => o.status === 'novo').length;
-    
-    // Obras em andamento: em_preenchimento + reprovado_preposto
-    const obrasAndamento = obras.filter(o => 
-      o.status === 'em_preenchimento' || 
-      o.status === 'reprovado_preposto'
-    ).length;
-    
-    const obrasConcluidas = contarObrasConcluidas(obras); // ✅ CORREÇÃO #4: Usar função padronizada
 
     setDashboardData({
       totalObras: obras.length,

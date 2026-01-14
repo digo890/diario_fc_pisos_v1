@@ -562,7 +562,7 @@ export async function generateFormPDF(
       pdf.setFontSize(13);
       pdf.setFont("helvetica", "bold");
       pdf.text(
-        `Registros Importantes - Serviço ${index + 1} (Itens 35-56)`,
+        `Estado do Substrato - Serviço ${index + 1}`,
         margin,
         yPos,
       );

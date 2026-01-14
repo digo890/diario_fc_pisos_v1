@@ -3,16 +3,15 @@ import { Moon, Sun, LogOut, ChevronRight, FolderOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { getObras, getUsers, getAllForms, saveObra, getFormByObraId, saveForm } from '../utils/database';
-import { obraApi, formularioApi } from '../utils/api';
+import { getObras, getUsers, getAllForms, getFormByObraId } from '../utils/database';
 import { safeLog, safeError, safeWarn } from '../utils/logSanitizer';
 import { useToast } from './Toast';
-import { getStatusDisplay } from '../utils/diarioHelpers';
-import type { Obra, User } from '../types';
+import { getStatusDisplay, getStatusDisplayWithFormulario, getObraStatusReal } from '../utils/diarioHelpers';
+import type { Obra, User, FormData } from '../types';
 import FcLogo from '../../imports/FcLogo';
 import LoadingSpinner from './LoadingSpinner';
-import ConfirmModal from './ConfirmModal'; // 🔒 CORREÇÃO #7
-import { useSafeLogout } from '../hooks/useSafeLogout'; // 🔒 CORREÇÃO #7
+import ConfirmModal from './ConfirmModal';
+import { useSafeLogout } from '../hooks/useSafeLogout';
 
 // 🚀 LAZY LOADING: FormularioPage carregado sob demanda
 const FormularioPage = lazy(() => import('./FormularioPage'));
@@ -27,6 +26,7 @@ const EncarregadoDashboard: React.FC = () => {
   
   const [obras, setObras] = useState<Obra[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [formularios, setFormularios] = useState<FormData[]>([]);
   const [selectedObra, setSelectedObra] = useState<Obra | null>(null);
   const [filtroStatus, setFiltroStatus] = useState<'todas' | 'novo' | 'em_andamento' | 'enviado_preposto' | 'concluidas'>('todas');
 
@@ -34,7 +34,11 @@ const EncarregadoDashboard: React.FC = () => {
     loadData();
   }, []);
 
-  // ✅ CORREÇÃO: Validar e corrigir inconsistências antes de abrir formulário
+  // ✅ REMOVIDO: Sincronização automática obsoleta
+  // Estratégia nova v1.0.0: backend sempre vence no merge (getMostRecent sempre retorna backend)
+  // loadData() já faz revalidação automática quando online
+
+  // ✅ FASE 2: Simplificado - Apenas validar se formulário existe
   const handleObraClick = async (obra: Obra) => {
     // Verificar se obra está em status que deveria ter formulário
     const statusesComFormulario = ['enviado_preposto', 'reprovado_preposto', 'concluido'];
@@ -43,89 +47,12 @@ const EncarregadoDashboard: React.FC = () => {
       const form = await getFormByObraId(obra.id);
       
       if (!form) {
-        safeWarn(`🐛 Inconsistência de dados na obra ${obra.id}: status=${obra.status} mas formData não existe`);
-        safeWarn(`⚠️ Inconsistência detectada: obra "${obra.status}" sem formulário. Tentando recuperar do backend...`);
-        
-        try {
-          // 1️⃣ Tentar buscar formulário do backend
-          if (navigator.onLine) {
-            safeLog(`🔍 Buscando todos os formulários no backend...`);
-            const formularioResponse = await formularioApi.list();
-            
-            safeLog(`📊 Resposta da API:`, {
-              success: formularioResponse.success,
-              hasData: !!formularioResponse.data,
-              dataLength: formularioResponse.data?.length,
-              error: formularioResponse.error
-            });
-            
-            if (formularioResponse.success && formularioResponse.data) {
-              safeLog(`🔎 Procurando formulário com obra_id: ${obra.id}`);
-              safeLog(`📋 IDs de obras nos formulários:`, formularioResponse.data.map((f: any) => f.obra_id));
-              
-              const formularioBackend = formularioResponse.data.find((f: any) => f.obra_id === obra.id);
-              
-              if (formularioBackend) {
-                safeLog(`✅ Formulário encontrado no backend:`, formularioBackend);
-                await saveForm(formularioBackend);
-                
-                showToast('✅ Dados recuperados do servidor com sucesso!', 'success');
-                setSelectedObra(obra);
-                return;
-              } else {
-                safeWarn(`❌ Formulário com obra_id ${obra.id} não encontrado na lista`);
-              }
-            } else {
-              safeWarn(`❌ Falha ao buscar formulários:`, formularioResponse.error);
-            }
-          } else {
-            safeWarn(`❌ Sem conexão com internet`);
-          }
-          
-          // 2️⃣ Formulário NÃO existe nem no backend - REVERTER STATUS
-          safeWarn(`❌ Formulário não encontrado no backend. Revertendo status da obra...`);
-          
-          const obraCorrigida = {
-            ...obra,
-            status: 'em_preenchimento' as const,
-            progress: 0
-          };
-          
-          await saveObra(obraCorrigida);
-          
-          if (navigator.onLine) {
-            try {
-              safeLog(`🔧 Encarregado detectou inconsistência. Tentando reparo...`);
-              // Nota: encarregados não têm permissão para usar repair, então usamos update normal
-              // O backend vai rejeitar se a transição for inválida
-              await obraApi.update(obra.id, {
-                status: 'em_preenchimento',
-                progress: 0
-              });
-              safeLog(`✅ Status revertido no backend com sucesso`);
-            } catch (backendError) {
-              safeError('⚠️ Erro ao atualizar backend (encarregado não tem permissão de reparo):', backendError);
-              showToast('⚠️ Inconsistência detectada. Entre em contato com o administrador.', 'warning');
-            }
-          }
-          
-          await loadData();
-          
-          showToast(
-            '⚠️ Inconsistência corrigida. Status revertido para "Em Preenchimento". Por favor, preencha e envie o formulário novamente.',
-            'warning'
-          );
-          
-          return;
-        } catch (error) {
-          safeError('❌ Erro ao corrigir inconsistência:', error);
-          showToast('❌ Erro ao corrigir dados. Tente novamente ou recarregue a página.', 'error');
-          return;
-        }
+        showToast('⚠️ Formulário não encontrado. Recarregue a página (F5) ou contate o administrador.', 'warning');
+        return;
       }
     }
     
-    // Tudo ok, abrir formulário normalmente
+    // Abrir formulário normalmente
     setSelectedObra(obra);
   };
 
@@ -137,25 +64,11 @@ const EncarregadoDashboard: React.FC = () => {
     // Filtrar apenas obras atribuídas a este encarregado
     const minhasObras = obrasData.filter(o => o.encarregadoId === currentUser?.id);
     
-    // Verificar status das obras e atualizar se necessário
-    const obrasComStatusAtualizado = await Promise.all(
-      minhasObras.map(async (obra: Obra) => {
-        const formData = allFormsData.find(f => f.obra_id === obra.id); // ✅ CORREÇÃO: obra_id em vez de obraId
-        
-        // IMPORTANTE: Só atualizar status se for 'novo' → 'em_preenchimento'
-        // NÃO sobrescrever status de obras já enviadas (enviado_preposto, concluido, etc)
-        if (obra.status === 'novo' && formData && Object.keys(formData).length > 0) {
-          const obraAtualizada = { ...obra, status: 'em_preenchimento' as const };
-          await saveObra(obraAtualizada);
-          return obraAtualizada;
-        }
-        
-        return obra;
-      })
-    );
-    
-    setObras(obrasComStatusAtualizado);
+    // ✅ FASE 2: Removido loop de atualização automática de status
+    // Status agora é gerenciado exclusivamente pelo backend
+    setObras(minhasObras);
     setUsers(usersData);
+    setFormularios(allFormsData);
   };
 
   const getUserName = (id: string) => {
@@ -166,20 +79,38 @@ const EncarregadoDashboard: React.FC = () => {
   // Filtrar obras com base no status selecionado
   const obrasFiltradas = obras.filter(obra => {
     if (filtroStatus === 'todas') return true;
-    if (filtroStatus === 'novo') return obra.status === 'novo';
-    if (filtroStatus === 'em_andamento') return obra.status === 'em_preenchimento';
-    if (filtroStatus === 'enviado_preposto') return obra.status === 'enviado_preposto';
-    if (filtroStatus === 'concluidas') return obra.status === 'concluido';
+    
+    // 🎯 REGRA DE DOMÍNIO: Calcular status real baseado no formulário
+    const formulario = formularios.find(f => f.obra_id === obra.id);
+    const statusReal = getObraStatusReal(obra, formulario);
+    
+    if (filtroStatus === 'novo') return statusReal === 'novo';
+    if (filtroStatus === 'em_andamento') return statusReal === 'em_preenchimento' || statusReal === 'reprovado_preposto';
+    if (filtroStatus === 'enviado_preposto') return statusReal === 'enviado_preposto';
+    if (filtroStatus === 'concluidas') return statusReal === 'concluido';
     return true;
   }).sort((a, b) => b.createdAt - a.createdAt); // Ordenar por data de criação, mais recentes primeiro
 
   // Contar obras por status
   const contadores = {
     todas: obras.length,
-    novo: obras.filter(o => o.status === 'novo').length,
-    em_andamento: obras.filter(o => o.status === 'em_preenchimento').length,
-    enviado_preposto: obras.filter(o => o.status === 'enviado_preposto').length,
-    concluidas: obras.filter(o => o.status === 'concluido').length
+    novo: obras.filter(o => {
+      const formulario = formularios.find(f => f.obra_id === o.id);
+      return getObraStatusReal(o, formulario) === 'novo';
+    }).length,
+    em_andamento: obras.filter(o => {
+      const formulario = formularios.find(f => f.obra_id === o.id);
+      const statusReal = getObraStatusReal(o, formulario);
+      return statusReal === 'em_preenchimento' || statusReal === 'reprovado_preposto';
+    }).length,
+    enviado_preposto: obras.filter(o => {
+      const formulario = formularios.find(f => f.obra_id === o.id);
+      return getObraStatusReal(o, formulario) === 'enviado_preposto';
+    }).length,
+    concluidas: obras.filter(o => {
+      const formulario = formularios.find(f => f.obra_id === o.id);
+      return getObraStatusReal(o, formulario) === 'concluido';
+    }).length
   };
 
   return (
@@ -320,14 +251,17 @@ const EncarregadoDashboard: React.FC = () => {
                 className="space-y-3"
               >
                 {obrasFiltradas.map((obra, index) => {
-                  const status = getStatusDisplay(obra);
+                  // 🎯 REGRA DE DOMÍNIO: Aplicar status real baseado no formulário
+                  const formulario = formularios.find(f => f.obra_id === obra.id);
+                  const status = getStatusDisplayWithFormulario(obra, formulario);
+                  const statusReal = getObraStatusReal(obra, formulario);
                   
-                  // Determinar cor da borda
+                  // Determinar cor da borda baseado no status real
                   let borderColor = 'border-l-gray-300 dark:border-l-gray-700';
-                  if (obra.status === 'novo') borderColor = 'border-l-yellow-500 dark:border-l-yellow-600';
-                  if (obra.status === 'em_preenchimento') borderColor = 'border-l-blue-500 dark:border-l-blue-600';
-                  if (obra.status === 'enviado_preposto') borderColor = 'border-l-purple-500 dark:border-l-purple-600';
-                  if (obra.status === 'concluido') borderColor = 'border-l-green-500 dark:border-l-green-600';
+                  if (statusReal === 'novo') borderColor = 'border-l-yellow-500 dark:border-l-yellow-600';
+                  if (statusReal === 'em_preenchimento' || statusReal === 'reprovado_preposto') borderColor = 'border-l-blue-500 dark:border-l-blue-600';
+                  if (statusReal === 'enviado_preposto') borderColor = 'border-l-purple-500 dark:border-l-purple-600';
+                  if (statusReal === 'concluido') borderColor = 'border-l-green-500 dark:border-l-green-600';
                   
                   return (
                     <motion.div

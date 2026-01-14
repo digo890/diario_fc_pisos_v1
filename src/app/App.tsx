@@ -4,7 +4,6 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { initDB, seedInitialData } from './utils/database';
 import { initSyncQueue } from './utils/syncQueue';
-import { ensureLocalDataIsConsistent } from './utils/dataSync';
 import ErrorBoundary from './components/ErrorBoundary';
 import LoadingSpinner from './components/LoadingSpinner';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
@@ -42,7 +41,6 @@ const AppContent: React.FC = () => {
         await initDB();
         await seedInitialData();
         await initSyncQueue();
-        await ensureLocalDataIsConsistent();
       } catch (error) {
         console.error('❌ Erro ao inicializar aplicação:', error);
         // Não quebrar a aplicação, apenas logar

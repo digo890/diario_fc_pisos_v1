@@ -659,7 +659,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
             </button>
             <button
               onClick={() => handleValidate('aprovar')}
-              className="flex-1 px-6 py-4 rounded-xl bg-[#FD5521] text-white font-medium hover:bg-[#E54A1D] transition-colors flex items-center justify-center gap-2"
+              className="flex-1 px-6 py-4 rounded-xl bg-green-600 text-white font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
             >
               <CheckCircle className="w-5 h-5" />
               Aprovar
@@ -730,7 +730,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
                   onClick={handleConfirmValidation}
                   className={`flex-1 px-6 py-3 rounded-xl text-white font-medium transition-colors ${
                     validationType === 'aprovar'
-                      ? 'bg-[#FD5521] hover:bg-[#E54A1D]'
+                      ? 'bg-green-600 hover:bg-green-700'
                       : 'bg-red-500 hover:bg-red-600'
                   }`}
                   disabled={isSubmitting}

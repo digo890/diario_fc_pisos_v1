@@ -1,11 +1,11 @@
 import React, { useState, useEffect, lazy, Suspense, useMemo, useCallback } from 'react';
-import { Plus, Edit2, Trash2, FileText, Moon, Sun, LogOut, Download, Building2, Users, BarChart3, Bell, Filter, LayoutGrid, LayoutList, FolderOpen, Activity } from 'lucide-react';
+import { Plus, Edit2, Trash2, FileText, Moon, Sun, LogOut, Download, Building2, Users, BarChart3, Bell, Filter, LayoutGrid, LayoutList, FolderOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { getObras, getUsers, saveObra, deleteObra, saveUser, deleteUser, getAllForms, getFormByObraId, deleteForm, saveForm } from '../utils/database';
 import { obraApi, userApi, formularioApi } from '../utils/api';
-import { getStatusDisplay } from '../utils/diarioHelpers';
+import { getStatusDisplay, getStatusDisplayWithFormulario, getObraStatusReal } from '../utils/diarioHelpers';
 import { mergeObras, mergeUsers } from '../utils/dataSync';
 import { safeLog, safeError, safeWarn } from '../utils/logSanitizer';
 import type { Obra, User, UserRole, FormData } from '../types';
@@ -13,7 +13,7 @@ import ConfirmModal from './ConfirmModal';
 import FcLogo from '../../imports/FcLogo';
 import { useToast } from './Toast';
 import LoadingSpinner from './LoadingSpinner';
-import type { Notification } from './NotificationDrawer';
+import NotificationDrawer, { type Notification } from './NotificationDrawer';
 import { Pagination, usePagination } from './Pagination';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 import { useSafeLogout } from '../hooks/useSafeLogout'; // 🔒 CORREÇÃO #7
@@ -25,7 +25,6 @@ const EditObraPage = lazy(() => import('./EditObraPage'));
 const EditUserPage = lazy(() => import('./EditUserPage'));
 const ViewRespostasModal = lazy(() => import('./ViewRespostasModal'));
 const ResultadosDashboard = lazy(() => import('./ResultadosDashboard'));
-const NotificationDrawer = lazy(() => import('./NotificationDrawer'));
 const FilterModal = lazy(() => import('./FilterModal'));
 const ProductionMonitorDashboard = lazy(() => import('./ProductionMonitorDashboard')); // 🚨 MONITOR
 
@@ -68,6 +67,7 @@ const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('resultados');
   const [obras, setObras] = useState<Obra[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [formularios, setFormularios] = useState<FormData[]>([]); // 🎯 CORREÇÃO: Cache de formulários para regra de domínio
   const [obraFilter, setObraFilter] = useState<ObraFilter>('todas');
   const [userFilter, setUserFilter] = useState<UserFilter>('todos');
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
@@ -99,6 +99,10 @@ const AdminDashboard: React.FC = () => {
       loadFormData(viewingObra.id);
     }
   }, [viewingObra]);
+  
+  // ✅ REMOVIDO: Sincronização automática obsoleta
+  // Estratégia nova v1.0.0: backend sempre vence no merge (getMostRecent sempre retorna backend)
+  // loadData() já faz revalidação automática quando online
   
   // 🚀 OTIMIZAÇÃO #2: Memoizar generateNotifications para evitar loops infinitos
   const generateNotifications = useCallback(async () => {
@@ -232,19 +236,25 @@ const AdminDashboard: React.FC = () => {
   };
 
   // 🚀 OTIMIZAÇÃO #1: Memoizar filteredObras (recalcula apenas quando dependências mudarem)
+  // 🎯 CORREÇÃO: Aplicar regra de domínio no filtro (usar status real)
   const filteredObras = useMemo(() => {
     return obras
       .filter(obra => {
         if (obraFilter === 'todas') return true;
-        if (obraFilter === 'novo') return obra.status === 'novo';
-        if (obraFilter === 'em_andamento') return obra.status === 'em_preenchimento' || obra.status === 'reprovado_preposto';
-        if (obraFilter === 'conferencia') return obra.status === 'enviado_preposto';
-        if (obraFilter === 'concluidas') return obra.status === 'concluido';
+        
+        // 🎯 REGRA DE DOMÍNIO: Calcular status real baseado no formulário
+        const formulario = formularios.find(f => f.obra_id === obra.id);
+        const statusReal = getObraStatusReal(obra, formulario);
+        
+        if (obraFilter === 'novo') return statusReal === 'novo';
+        if (obraFilter === 'em_andamento') return statusReal === 'em_preenchimento' || statusReal === 'reprovado_preposto';
+        if (obraFilter === 'conferencia') return statusReal === 'enviado_preposto';
+        if (obraFilter === 'concluidas') return statusReal === 'concluido';
         return true;
       })
       .filter(obra => obra.cliente.toLowerCase().includes(searchObra.toLowerCase()) || obra.obra.toLowerCase().includes(searchObra.toLowerCase()))
       .sort((a, b) => b.createdAt - a.createdAt);
-  }, [obras, obraFilter, searchObra]);
+  }, [obras, formularios, obraFilter, searchObra]);
 
   // 🚀 OTIMIZAÇÃO #1: Memoizar filteredUsers (recalcula apenas quando dependências mudarem)
   const filteredUsers = useMemo(() => {
@@ -276,9 +286,10 @@ const AdminDashboard: React.FC = () => {
     setIsLoadingData(true);
     try {
       // ✅ CORREÇÃO: Buscar dados local e remote simultaneamente
-      const [localObras, localUsers] = await Promise.all([
+      const [localObras, localUsers, localFormularios] = await Promise.all([
         getObras(),
-        getUsers()
+        getUsers(),
+        getAllForms() // 🎯 Carregar formulários para regra de domínio
       ]);
 
       // Tentar buscar do backend (se online)
@@ -286,10 +297,11 @@ const AdminDashboard: React.FC = () => {
         try {
           safeLog('🔄 Buscando dados do backend...');
           
-          // Buscar usuários e obras do backend
-          const [usersResponse, obrasResponse] = await Promise.all([
+          // Buscar usuários, obras e formulários do backend
+          const [usersResponse, obrasResponse, formulariosResponse] = await Promise.all([
             userApi.list(),
-            obraApi.list()
+            obraApi.list(),
+            formularioApi.list() // 🎯 Carregar formulários para regra de domínio
           ]);
 
           // ✅ CORREÇÃO: Merge inteligente de usuários
@@ -309,6 +321,21 @@ const AdminDashboard: React.FC = () => {
             // O backend é a fonte da verdade para o status da obra
             setObras(mergedObras);
             safeLog(`✅ ${mergedObras.length} obras sincronizadas (merge)`);
+          }
+
+          // 🎯 CORREÇÃO: Carregar formulários do backend
+          if (formulariosResponse.success && formulariosResponse.data) {
+            const remoteFormularios = formulariosResponse.data;
+            // Salvar formulários localmente
+            for (const form of remoteFormularios) {
+              await saveForm(form);
+            }
+            setFormularios(remoteFormularios);
+            safeLog(`✅ ${remoteFormularios.length} formulários sincronizados`);
+          } else {
+            // Fallback: usar formulários locais
+            setFormularios(localFormularios);
+            safeLog(`📂 ${localFormularios.length} formulários locais carregados`);
           }
 
           // 🚀 OTIMIZAÇÃO #2: Chamar generateNotifications APENAS após carregar dados
@@ -350,23 +377,11 @@ const AdminDashboard: React.FC = () => {
         );
       }
       
-      // Verificar status das obras locais
-      const obrasComStatusAtualizado = await Promise.all(
-        obrasValidas.map(async (obra: Obra) => {
-          const formData = await getFormByObraId(obra.id);
-          
-          if (obra.status === 'novo' && formData && Object.keys(formData).length > 0) {
-            const obraAtualizada = { ...obra, status: 'em_preenchimento' as const };
-            await saveObra(obraAtualizada);
-            return obraAtualizada;
-          }
-          
-          return obra;
-        })
-      );
-      
-      setObras(obrasComStatusAtualizado);
+      // ✅ FASE 2: Removido loop de atualização automática de status
+      // Status agora é gerenciado exclusivamente pelo backend
+      setObras(obrasValidas);
       setUsers(localUsers);
+      setFormularios(localFormularios);
       
       // 🚀 OTIMIZAÇÃO #2: Chamar generateNotifications APENAS após carregar dados locais
       await generateNotifications();
@@ -384,112 +399,24 @@ const AdminDashboard: React.FC = () => {
     setViewingFormData(form || null);
   };
 
-  // ✅ CORREÇÃO BUG: Validar se existe formulário antes de abrir modal
+  // ✅ FASE 2: Simplificado - Apenas validar se formulário existe
   const handleObraClick = async (obra: Obra) => {
     // Verificar se obra está em status que deveria ter formulário
     const statusesComFormulario = ['enviado_preposto', 'reprovado_preposto', 'concluido'];
     
     if (statusesComFormulario.includes(obra.status)) {
-      // Buscar formulário para validar se existe
       const form = await getFormByObraId(obra.id);
       
       if (!form) {
-        // ❌ Inconsistência de dados: Status indica formulário mas não existe
-        safeWarn(`🐛 Inconsistência de dados na obra ${obra.id}: status=${obra.status} mas formData não existe`);
-        
-        // 🔧 CORREÇÃO CRÍTICA: Tentar recuperar do backend primeiro
-        safeWarn(`⚠️ Inconsistência detectada: obra "${obra.status}" sem formulário. Tentando recuperar do backend...`);
-        
-        try {
-          // 1️⃣ Tentar buscar formulário do backend
-          if (navigator.onLine) {
-            safeLog(`🔍 Buscando todos os formulários no backend...`);
-            const formularioResponse = await formularioApi.list();
-            
-            safeLog(`📊 Resposta da API:`, {
-              success: formularioResponse.success,
-              hasData: !!formularioResponse.data,
-              dataLength: formularioResponse.data?.length,
-              error: formularioResponse.error
-            });
-            
-            if (formularioResponse.success && formularioResponse.data) {
-              safeLog(`🔎 Procurando formulário com obra_id: ${obra.id}`);
-              safeLog(`📋 IDs de obras nos formulários:`, formularioResponse.data.map((f: any) => f.obra_id));
-              
-              const formularioBackend = formularioResponse.data.find((f: any) => f.obra_id === obra.id);
-              
-              if (formularioBackend) {
-                // ✅ Formulário existe no backend! Salvar localmente
-                safeLog(`✅ Formulário encontrado no backend:`, formularioBackend);
-                await saveForm(formularioBackend);
-                
-                showToast(
-                  `✅ Dados recuperados do servidor com sucesso!`,
-                  'success'
-                );
-                
-                // Abrir modal normalmente
-                setViewingObra(obra);
-                return;
-              } else {
-                safeWarn(`❌ Formulário com obra_id ${obra.id} não encontrado na lista`);
-              }
-            } else {
-              safeWarn(`❌ Falha ao buscar formulários:`, formularioResponse.error);
-            }
-          } else {
-            safeWarn(`❌ Sem conexão com internet`);
-          }
-          
-          // 2️⃣ Formulário NÃO existe nem no backend - REVERTER STATUS
-          safeWarn(`❌ Formulário não encontrado no backend. Revertendo status da obra...`);
-          
-          // Reverter status para em_preenchimento
-          const obraCorrigida = {
-            ...obra,
-            status: 'em_preenchimento' as const,
-            progress: 0
-          };
-          
-          // Salvar localmente
-          await saveObra(obraCorrigida);
-          
-          // Tentar sincronizar com backend usando rota de reparo
-          if (navigator.onLine) {
-            try {
-              safeLog(`🔧 Usando rota de reparo administrativo para reverter status...`);
-              await obraApi.repair(obra.id, {
-                status: 'em_preenchimento',
-                progress: 0
-              });
-              safeLog(`✅ Status revertido no backend com sucesso (via repair)`);
-            } catch (backendError) {
-              safeError('⚠️ Erro ao reparar no backend (correção salva localmente):', backendError);
-            }
-          }
-          
-          // Recarregar dados
-          await loadData();
-          
-          showToast(
-            `⚠️ Inconsistência corrigida. Status da obra revertido para "Em Preenchimento". Por favor, preencha e envie o formulário novamente.`,
-            'warning'
-          );
-          
-          return;
-        } catch (error) {
-          safeError('❌ Erro ao corrigir inconsistência:', error);
-          showToast(
-            `❌ Erro ao corrigir dados. Tente novamente ou recarregue a página.`,
-            'error'
-          );
-          return;
-        }
+        showToast(
+          `⚠️ Formulário não encontrado. Recarregue a página (F5) ou contate o suporte.`,
+          'warning'
+        );
+        return;
       }
     }
     
-    // Tudo ok, abrir modal normalmente
+    // Abrir modal normalmente
     setViewingObra(obra);
   };
   
@@ -656,7 +583,10 @@ const AdminDashboard: React.FC = () => {
               {/* Visualização em Cards - Sempre no mobile, opcional no desktop */}
               <div className={`space-y-3 ${viewMode === 'list' ? 'md:hidden' : ''}`}>
                 {obrasPagination.paginatedItems.map(obra => {
-                  const status = getStatusDisplay(obra);
+                  // 🎯 REGRA DE DOMÍNIO: Aplicar status real baseado no formulário
+                  const formulario = formularios.find(f => f.obra_id === obra.id);
+                  const status = getStatusDisplayWithFormulario(obra, formulario);
+                  const statusReal = getObraStatusReal(obra, formulario);
                   
                   return (
                     <div
@@ -666,11 +596,11 @@ const AdminDashboard: React.FC = () => {
                     >
                       {/* Container com gradiente */}
                       <div className={`rounded-xl px-5 py-4 mb-2.5 ${
-                        obra.status === 'novo'
+                        statusReal === 'novo'
                           ? 'bg-gradient-to-r from-[#fff5df] to-[#f7e3cc] dark:from-gray-800 dark:to-gray-800'
-                          : obra.status === 'enviado_preposto' 
+                          : statusReal === 'enviado_preposto' 
                           ? 'bg-gradient-to-r from-[#dbf3f3] to-[#ccdbf7] dark:from-gray-800 dark:to-gray-800'
-                          : obra.status === 'concluido'
+                          : statusReal === 'concluido'
                           ? 'bg-gradient-to-r from-[#afffb5] to-[#c1f3ff] dark:from-gray-800 dark:to-gray-800'
                           : 'bg-gradient-to-r from-[#e7f3db] to-[#ccf7f3] dark:from-gray-800 dark:to-gray-800'
                       }`}>
@@ -707,14 +637,30 @@ const AdminDashboard: React.FC = () => {
                         <div className="flex items-center gap-2.5">
                           <div className="relative w-2.5 h-2.5">
                             <svg className="absolute inset-0" viewBox="0 0 18 18" fill="none">
-                              <circle cx="9" cy="9" r="5" className={status.color.includes('blue') ? 'fill-blue-600' : status.color.includes('green') ? 'fill-green-600' : status.color.includes('yellow') ? 'fill-yellow-600' : 'fill-gray-400'} />
-                              <circle cx="9" cy="9" r="7" className={status.color.includes('blue') ? 'stroke-blue-600' : status.color.includes('green') ? 'stroke-green-600' : status.color.includes('yellow') ? 'stroke-yellow-600' : 'stroke-gray-400'} strokeOpacity="0.24" strokeWidth="4" />
+                              <circle cx="9" cy="9" r="5" className={
+                                status.color.includes('blue') ? 'fill-blue-600' : 
+                                status.color.includes('green') ? 'fill-green-600' : 
+                                status.color.includes('yellow') ? 'fill-yellow-600' : 
+                                status.color.includes('purple') ? 'fill-purple-600' :
+                                status.color.includes('orange') ? 'fill-orange-600' :
+                                'fill-gray-400'
+                              } />
+                              <circle cx="9" cy="9" r="7" className={
+                                status.color.includes('blue') ? 'stroke-blue-600' : 
+                                status.color.includes('green') ? 'stroke-green-600' : 
+                                status.color.includes('yellow') ? 'stroke-yellow-600' : 
+                                status.color.includes('purple') ? 'stroke-purple-600' :
+                                status.color.includes('orange') ? 'stroke-orange-600' :
+                                'stroke-gray-400'
+                              } strokeOpacity="0.24" strokeWidth="4" />
                             </svg>
                           </div>
                           <span className={`font-medium text-base leading-normal ${
                             status.color.includes('blue') ? 'text-blue-600' : 
                             status.color.includes('green') ? 'text-green-600' : 
                             status.color.includes('yellow') ? 'text-yellow-600' : 
+                            status.color.includes('purple') ? 'text-purple-600' :
+                            status.color.includes('orange') ? 'text-orange-600' :
                             'text-gray-600'
                           }`}>
                             {status.label}
@@ -726,10 +672,10 @@ const AdminDashboard: React.FC = () => {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              // Bloquear edição se obra estiver concluída ou aguardando conferência
-                              if (obra.status === 'concluido' || obra.status === 'enviado_preposto') {
+                              // Bloquear edição se obra estiver concluída ou aguardando conferência (usar status REAL)
+                              if (statusReal === 'concluido' || statusReal === 'enviado_preposto') {
                                 showToast(
-                                  `Obras ${obra.status === 'concluido' ? 'concluídas' : 'aguardando conferência'} não podem ser editadas`,
+                                  `Obras ${statusReal === 'concluido' ? 'concluídas' : 'aguardando conferência'} não podem ser editadas`,
                                   'error'
                                 );
                                 return;
@@ -737,13 +683,13 @@ const AdminDashboard: React.FC = () => {
                               setEditingObra(obra);
                             }}
                             className={`p-2 rounded-[10px] transition-colors ${
-                              obra.status === 'concluido' || obra.status === 'enviado_preposto'
+                              statusReal === 'concluido' || statusReal === 'enviado_preposto'
                                 ? 'opacity-40 cursor-not-allowed text-gray-400 dark:text-gray-600'
                                 : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
                             }`}
                             title={
-                              obra.status === 'concluido' || obra.status === 'enviado_preposto'
-                                ? `Obras ${obra.status === 'concluido' ? 'concluídas' : 'aguardando conferência'} não podem ser editadas`
+                              statusReal === 'concluido' || statusReal === 'enviado_preposto'
+                                ? `Obras ${statusReal === 'concluido' ? 'concluídas' : 'aguardando conferência'} não podem ser editadas`
                                 : 'Editar'
                             }
                           >
@@ -827,7 +773,9 @@ const AdminDashboard: React.FC = () => {
                 {filteredObras.length > 0 ? (
                   <>
                     {obrasPagination.paginatedItems.map((obra, index) => {
-                    const status = getStatusDisplay(obra);
+                    // 🎯 REGRA DE DOMÍNIO: Aplicar status real baseado no formulário
+                    const formulario = formularios.find(f => f.obra_id === obra.id);
+                    const status = getStatusDisplayWithFormulario(obra, formulario);
                     
                     return (
                       <div key={obra.id}>

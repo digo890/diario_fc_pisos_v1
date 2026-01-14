@@ -1,6 +1,17 @@
 import type { FormData } from '../types';
 import type { Obra, FormStatus } from '../types';
 
+/**
+ * Conta obras concluídas (apenas status 'concluido')
+ * ✅ Função padronizada para contar apenas obras com status 'concluido'
+ * 
+ * @param obras Array de obras
+ * @returns Quantidade de obras concluídas
+ */
+export function contarObrasConcluidas(obras: Obra[]): number {
+  return obras.filter(o => o.status === 'concluido').length;
+}
+
 export function generateNumeroDiario(): string {
   const date = new Date();
   const year = date.getFullYear();
@@ -80,11 +91,49 @@ export function getStatusDisplay(obra: Obra): {
 }
 
 /**
- * ✅ CORREÇÃO #4: Função padronizada para contar obras concluídas
- * Considera apenas 'concluido' como concluída
+ * 🎯 REGRA DE DOMÍNIO: Calcula status real da obra baseado no formulário
+ * 
+ * Se o preposto assinou, a obra está concluída - independente do cache da obra.
+ * Isso resolve dessincronização entre entidades (obra vs formulário).
+ * 
+ * @param obra Obra com status possivelmente desatualizado
+ * @param formulario Formulário associado (opcional)
+ * @returns Status real da obra
  */
-export function contarObrasConcluidas(obras: Obra[]): number {
-  return obras.filter(o => 
-    o.status === 'concluido'
-  ).length;
+export function getObraStatusReal(obra: Obra, formulario?: FormData | null): FormStatus {
+  // ✅ REGRA #1: Se formulário tem assinatura do preposto → obra concluída
+  if (formulario?.prepostoConfirmado === true) {
+    // Se foi aprovado → concluído
+    if (formulario.statusPreposto === 'aprovado') {
+      return 'concluido';
+    }
+    // Se foi reprovado → reprovado_preposto
+    if (formulario.statusPreposto === 'reprovado') {
+      return 'reprovado_preposto';
+    }
+  }
+  
+  // ✅ REGRA #2: Senão, usar status da obra (fonte: backend ou cache)
+  return obra.status;
+}
+
+/**
+ * 🎯 Wrapper que aplica regra de domínio antes de exibir status
+ * 
+ * @param obra Obra
+ * @param formulario Formulário associado (opcional)
+ * @returns Label e cor do status REAL
+ */
+export function getStatusDisplayWithFormulario(
+  obra: Obra,
+  formulario?: FormData | null
+): { label: string; color: string } {
+  // Calcular status real aplicando regra de domínio
+  const statusReal = getObraStatusReal(obra, formulario);
+  
+  // Criar obra temporária com status real
+  const obraComStatusReal: Obra = { ...obra, status: statusReal };
+  
+  // Retornar display do status real
+  return getStatusDisplay(obraComStatusReal);
 }

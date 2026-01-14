@@ -9,6 +9,7 @@ import { checkRateLimit } from '../utils/rateLimiter';
 import { safeLog, safeError } from '../utils/logSanitizer';
 import { useSessionCheck } from '../hooks/useSessionCheck';
 import { debounce } from '../utils/performance';
+import { getStatusDisplayWithFormulario } from '../utils/diarioHelpers';
 import type { Obra, FormData, ServicoData } from '../types';
 import CondicoesAmbientaisSection from './form-sections/CondicoesAmbientaisSection';
 import ServicosSection from './form-sections/ServicosSection';
@@ -483,6 +484,9 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
     );
   }
 
+  // 🎯 REGRA DE DOMÍNIO: Calcular status real baseado no formulário
+  const statusDisplay = getStatusDisplayWithFormulario(obra, formData);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Toast Messages */}
@@ -524,24 +528,10 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
               </h1>
               <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2 flex-wrap">
                 <span>{obra.cidade}</span>
-                {obra.status && (
-                  <>
-                    <span>•</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                      obra.status === 'novo' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300' :
-                      obra.status === 'em_preenchimento' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' :
-                      obra.status === 'enviado_preposto' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300' :
-                      obra.status === 'concluido' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' :
-                      'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
-                    }`}>
-                      {obra.status === 'novo' ? 'Novo' :
-                       obra.status === 'em_preenchimento' ? 'Em andamento' :
-                       obra.status === 'enviado_preposto' ? 'Enviado ao Preposto' :
-                       obra.status === 'concluido' ? 'Concluído' :
-                       obra.status}
-                    </span>
-                  </>
-                )}
+                <span>•</span>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusDisplay.color}`}>
+                  {statusDisplay.label}
+                </span>
                 {formData.createdAt && (
                   <>
                     <span>•</span>

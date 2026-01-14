@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { X, Download, Share2, Check, FileDown, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
-import { getStatusDisplay } from '../utils/diarioHelpers';
+import { getStatusDisplay, getStatusDisplayWithFormulario } from '../utils/diarioHelpers';
 import { copyToClipboard } from '../utils/clipboard';
 import { generateFormPDF } from '../utils/pdfGenerator';
 import { generateFormExcel } from '../utils/excelGenerator';
@@ -91,7 +91,7 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
   const downloadMenuRef = useRef<HTMLDivElement>(null);
   
-  const status = getStatusDisplay(obra);
+  const status = getStatusDisplayWithFormulario(obra, formData);
 
   // Fechar menu ao clicar fora
   useEffect(() => {
@@ -401,7 +401,7 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
                     {/* Etapas - Itens 1 a 34 - MOSTRAR TODOS */}
                     <div>
                       <h4 className="font-medium text-gray-900 dark:text-white mb-2 text-sm">
-                        Etapas de Execução (Itens 1-34) - Total: {ETAPAS.length} campos
+                        Etapas de Execução
                       </h4>
                       <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
                         <div className="space-y-2 text-sm">

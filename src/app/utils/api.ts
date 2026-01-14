@@ -157,7 +157,32 @@ async function request<T>(
       }
     }
 
-    const data = await response.json();
+    // ✅ CORREÇÃO: Verificar se resposta é JSON antes de parsear
+    const contentType = response.headers.get('content-type');
+    const isJson = contentType && contentType.includes('application/json');
+    
+    let data: any;
+    if (isJson) {
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        // Se falhar ao parsear JSON, retornar erro
+        const text = await response.text();
+        console.error('❌ [API] Resposta não é JSON válido:', text.substring(0, 200));
+        throw new Error(`Resposta inválida do servidor: ${text.substring(0, 100)}`);
+      }
+    } else {
+      // Se não é JSON, pegar como texto
+      const text = await response.text();
+      console.error('❌ [API] Resposta não é JSON:', text.substring(0, 200));
+      
+      // Se for erro 401 e não é JSON, provavelmente é erro de autenticação
+      if (response.status === 401) {
+        throw new Error('Sessão expirada. Por favor, faça login novamente.');
+      }
+      
+      throw new Error(`Erro do servidor: ${text.substring(0, 100)}`);
+    }
 
     if (!response.ok) {
       // 🚨 MONITOR: Reportar erro HTTP
@@ -228,14 +253,6 @@ export const obraApi = {
 
   async getById(id: string): Promise<ApiResponse> {
     return request(`/obras/${id}`, { method: 'GET' });
-  },
-
-  // 🔧 REPARO ADMINISTRATIVO: Permite reverter status sem validação de transição
-  async repair(id: string, data: any): Promise<ApiResponse> {
-    return request(`/obras/${id}/repair`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
   },
 };
 
