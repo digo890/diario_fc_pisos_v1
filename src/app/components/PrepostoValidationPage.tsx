@@ -87,41 +87,37 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    loadData();
-  }, [formularioId]);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      
-      console.log('🔍 [CONFERÊNCIA] Buscando formulário:', formularioId);
-      
-      // ✅ SIMPLES: Uma chamada, retorna formulário + obra
-      const response = await conferenciaApi.getFormulario(formularioId);
-      
-      if (!response.success) {
-        setError(response.error || 'Formulário não encontrado');
+    const loadFormulario = async () => {
+      if (!formularioId) {
+        setError('ID do formulário não fornecido');
         setLoading(false);
         return;
       }
 
-      console.log('✅ Dados recebidos:', response.data);
-      
-      setFormulario(response.data.formulario);
-      setObra(response.data.obra);
-      
-      // Verificar se já foi assinado
-      if (response.data.formulario.prepostoConfirmado) {
-        setValidated(true);
+      setLoading(true);
+      setError('');
+
+      try {
+        const response = await conferenciaApi.getFormulario(formularioId);
+
+        if (!response.success || !response.data) {
+          throw new Error(response.error || 'Formulário não encontrado');
+        }
+
+        const { formulario, obra } = response.data;
+
+        setFormulario(formulario);
+        setObra(obra);
+      } catch (error: any) {
+        console.error('❌ Erro ao carregar:', error);
+        setError('Erro ao carregar formulário');
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
-    } catch (error: any) {
-      console.error('❌ Erro ao carregar:', error);
-      setError('Erro ao carregar formulário');
-      setLoading(false);
-    }
-  };
+    };
+
+    loadFormulario();
+  }, [formularioId]);
 
   const handleValidate = (tipo: 'aprovar' | 'reprovar') => {
     setValidationType(tipo);
@@ -148,8 +144,6 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
 
       const assinatura = signatureRef.toDataURL();
 
-      console.log('✍️ Enviando assinatura...');
-
       // ✅ SIMPLES: Uma chamada POST para assinar
       const response = await conferenciaApi.assinarFormulario(formularioId, {
         aprovado: validationType === 'aprovar',
@@ -161,8 +155,6 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
         showToast(response.error || 'Erro ao processar assinatura', 'error');
         return;
       }
-
-      console.log('✅ Assinatura registrada com sucesso');
 
       // Recarregar dados do formulário para pegar o statusPreposto atualizado
       const responseReload = await conferenciaApi.getFormulario(formularioId);

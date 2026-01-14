@@ -113,7 +113,6 @@ async function request<T>(
   // ✅ CORREÇÃO: Apenas enviar Authorization se for requisição autenticada
   // Para rotas públicas (preposto), não enviar nenhum token
   if (requireAuth) {
-    console.log('🔐 [API] Requisição AUTENTICADA:', endpoint);
     // Sempre enviar publicAnonKey no Authorization para passar pelo CORS
     headers['Authorization'] = `Bearer ${publicAnonKey}`;
     
@@ -121,31 +120,14 @@ async function request<T>(
     const accessToken = tokenManager.getToken();
     if (accessToken) {
       headers['X-User-Token'] = accessToken;
-      console.log('✅ [API] Token de usuário adicionado ao header X-User-Token');
-    } else {
-      console.warn('⚠️ [API] Token não disponível para requisição autenticada');
     }
-  } else {
-    // 🔍 DEBUG: Confirmar que não está enviando auth em rotas públicas
-    console.log('='.repeat(80));
-    console.log('🌐 [API] REQUISIÇÃO PÚBLICA (SEM AUTH)');
-    console.log('📍 Endpoint:', endpoint);
-    console.log('📍 URL completa:', url);
-    console.log('📍 Headers que SERÃO enviados:', headers);
-    console.log('='.repeat(80));
   }
 
   try {
-    console.log('📤 [API] Enviando requisição para:', url);
-    console.log('📤 [API] Método:', fetchOptions.method || 'GET');
-    console.log('📤 [API] Headers finais:', headers);
-    
     const response = await fetch(url, {
       ...fetchOptions,
       headers,
     });
-
-    console.log('📥 [API] Resposta recebida - Status:', response.status);
 
     // Se 401 e ainda não tentou renovar, renovar token e tentar novamente
     if (response.status === 401 && requireAuth && retryCount === 0) {
