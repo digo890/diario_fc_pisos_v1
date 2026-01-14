@@ -247,6 +247,14 @@ export const obraApi = {
   async getById(id: string): Promise<ApiResponse> {
     return request(`/obras/${id}`, { method: 'GET' });
   },
+
+  // 🔧 REPARO ADMINISTRATIVO: Permite reverter status sem validação de transição
+  async repair(id: string, data: any): Promise<ApiResponse> {
+    return request(`/obras/${id}/repair`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 // ============================================

@@ -1351,6 +1351,83 @@ app.put(
   },
 );
 
+// 🔧 REPARO ADMINISTRATIVO: Permite reverter status sem validação de transição
+// Esta rota é exclusiva para administradores corrigirem inconsistências de dados
+app.post(
+  "/make-server-1ff231a2/obras/:id/repair",
+  requireAuth,
+  async (c) => {
+    try {
+      const id = c.req.param("id");
+
+      // Validar UUID
+      if (!validation.isValidUUID(id)) {
+        safeWarn(`⚠️ Tentativa de reparar obra com ID inválido: ${id}`);
+        return c.json(
+          { success: false, error: "ID de obra inválido" },
+          400,
+        );
+      }
+
+      const body = await c.req.json();
+      const obra = await kv.get(`obra:${id}`);
+      
+      if (!obra) {
+        return c.json(
+          { success: false, error: "Obra não encontrada" },
+          404,
+        );
+      }
+
+      // 🔒 VALIDAR PERMISSÃO: Apenas administradores podem reparar dados
+      const userId = c.get("userId");
+      const user = await kv.get(`user:${userId}`);
+
+      if (!user || user.tipo !== "Administrador") {
+        safeWarn(`⚠️ Tentativa de reparo não autorizada por ${user?.tipo || 'usuário desconhecido'}`);
+        return c.json(
+          { success: false, error: "Apenas administradores podem reparar dados" },
+          403,
+        );
+      }
+
+      // ✅ LOG DE AUDITORIA
+      safeLog(`🔧 [REPARO ADMINISTRATIVO] Admin ${user.email} reparando obra ${id}`);
+      safeLog(`🔧 Status atual: ${obra.status} → Novo status: ${body.status}`);
+
+      // 🔧 ATUALIZAR SEM VALIDAÇÕES DE TRANSIÇÃO
+      const obraNormalizada = normalizeObraFields(obra);
+      const updatedObra = normalizeObraFields({
+        ...obraNormalizada,
+        ...body,
+        updated_at: new Date().toISOString(),
+      });
+      
+      await kv.set(`obra:${id}`, updatedObra);
+
+      // Buscar dados do encarregado
+      const encarregado = await kv.get(`user:${updatedObra.encarregadoId}`);
+
+      safeLog(`✅ [REPARO] Obra ${id} reparada com sucesso`);
+
+      return c.json({
+        success: true,
+        data: toSnakeCase({
+          ...updatedObra,
+          encarregado_email: encarregado?.email,
+          encarregado_nome: encarregado?.nome,
+        }),
+      });
+    } catch (error) {
+      safeError("❌ [REPARO] Erro ao reparar obra:", error);
+      return c.json(
+        { success: false, error: getErrorMessage(error) },
+        500,
+      );
+    }
+  },
+);
+
 // Deletar obra
 app.delete(
   "/make-server-1ff231a2/obras/:id",

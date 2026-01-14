@@ -176,10 +176,18 @@ export async function generateFormPDF(
 
     const servicoData = [];
 
-    // Horário e Local
-    if (servico.horario) {
-      servicoData.push(['Horário de Execução', servico.horario]);
+    // ✅ CORREÇÃO: Horários separados (4 campos) - igual ao modal
+    const horariosTexto = [];
+    if (servico.horarioInicioManha && servico.horarioFimManha) {
+      horariosTexto.push(`Manhã: ${servico.horarioInicioManha} às ${servico.horarioFimManha}`);
     }
+    if (servico.horarioInicioTarde && servico.horarioFimTarde) {
+      horariosTexto.push(`Tarde: ${servico.horarioInicioTarde} às ${servico.horarioFimTarde}`);
+    }
+    if (horariosTexto.length > 0) {
+      servicoData.push(['Horários de Execução', horariosTexto.join(' | ')]);
+    }
+    
     if (servico.local) {
       servicoData.push(['Local de Execução', servico.local]);
     }
@@ -225,7 +233,10 @@ export async function generateFormPDF(
       
       todasEtapas.forEach(({ dataKey, label, unit, isMultiSelect, isDualField }) => {
         const value = servico.etapas[dataKey];
+        
+        // ✅ MOSTRAR TODOS OS CAMPOS (preenchidos e não preenchidos)
         if (value !== null && value !== undefined && value !== '') {
+          // CAMPO PREENCHIDO
           if (isMultiSelect) {
             // ✅ Formato MultiSelect: "tipo1:valor1|tipo2:valor2|tipo3:valor3"
             const stringValue = String(value);
@@ -281,6 +292,9 @@ export async function generateFormPDF(
             // Campos simples
             servicoData.push([label, `${value}${unit || ''}`]);
           }
+        } else {
+          // ✅ CAMPO NÃO PREENCHIDO - mostrar como "Não preenchido"
+          servicoData.push([label, 'Não preenchido']);
         }
       });
     }
@@ -342,18 +356,18 @@ export async function generateFormPDF(
       ];
 
       const registrosServicoData = [];
-      Object.entries(servico.registros).forEach(([key, item]: [string, any]) => {
-        // Extrair o índice do registro (registro-0 -> 0, registro-1 -> 1, etc.)
-        const registroIndex = parseInt(key.replace('registro-', ''));
-        const numeroItem = 35 + registroIndex;
-        const label = REGISTROS_LABELS[registroIndex] || key;
+      
+      // ✅ MOSTRAR TODOS OS 22 REGISTROS (preenchidos e não preenchidos)
+      REGISTROS_LABELS.forEach((label, index) => {
+        const registroKey = `registro-${index}`;
+        const item = servico.registros?.[registroKey];
+        const numeroItem = 35 + index;
         
-        // Se o item está ativo (preenchido)
-        if (item.ativo || item.texto || item.comentario) {
-          let resposta = '';
-          
+        let resposta = '';
+        
+        if (item) {
           // Para item "Estado do substrato" (index 2), mostrar o texto diretamente
-          if (registroIndex === 2) {
+          if (index === 2) {
             resposta = item.texto || 'N/A';
             if (item.comentario) {
               resposta += ` (${item.comentario})`;
@@ -368,9 +382,12 @@ export async function generateFormPDF(
               resposta += ` (${item.comentario})`;
             }
           }
-          
-          registrosServicoData.push([`${numeroItem}. ${label}`, resposta]);
+        } else {
+          // Item não existe - considerar como NÃO (padrão)
+          resposta = index === 2 ? 'N/A' : 'NÃO';
         }
+        
+        registrosServicoData.push([`${numeroItem}. ${label}`, resposta]);
       });
 
       if (registrosServicoData.length > 0) {
@@ -435,7 +452,8 @@ export async function generateFormPDF(
   // ============================================
   // OBSERVAÇÕES GERAIS
   // ============================================
-  if (formData.observacoes?.observacoes) {
+  // ✅ CORREÇÃO: formData.observacoes é string direta, não objeto
+  if (formData.observacoes && formData.observacoes.trim()) {
     yPos = checkPageBreak(pdf, yPos, 35, margin);
 
     pdf.setFontSize(16);
@@ -447,7 +465,7 @@ export async function generateFormPDF(
     pdf.setFont('helvetica', 'normal');
     pdf.setTextColor(BLACK);
     
-    const splitText = pdf.splitTextToSize(formData.observacoes.observacoes, contentWidth);
+    const splitText = pdf.splitTextToSize(formData.observacoes, contentWidth);
     pdf.text(splitText, margin, yPos);
     yPos += splitText.length * 5 + 12;
   }
@@ -625,10 +643,9 @@ function getClimaLabel(clima?: string): string {
 function hasServiceContent(servico: any): boolean {
   if (!servico) return false;
   
-  return !!(
-    servico.horario ||
-    servico.local ||
-    (servico.etapas && Object.keys(servico.etapas).some(key => {
+  return !!(\n    servico.horarioInicioManha || servico.horarioFimManha ||
+    servico.horarioInicioTarde || servico.horarioFimTarde ||
+    servico.local ||\n    (servico.etapas && Object.keys(servico.etapas).some(key => {
       const value = servico.etapas[key];
       return value !== null && value !== undefined && value !== '';
     })) ||

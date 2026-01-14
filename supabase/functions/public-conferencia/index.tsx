@@ -475,7 +475,7 @@ Deno.serve(async (req: Request) => {
         statusPreposto: body.aprovado ? "aprovado" : "reprovado",
         motivoReprovacaoPreposto: body.motivo || null,
         ipAssinaturaPreposto: clientIp,
-        updated_at: now,
+        updatedAt: Date.now(), // ✅ CORREÇÃO: Usar camelCase e timestamp numérico (consistente com FormData)
       };
 
       // 6️⃣ Salvar formulário no KV Store
@@ -487,10 +487,12 @@ Deno.serve(async (req: Request) => {
         const updatedObra = {
           ...obra,
           status: body.aprovado ? "concluido" : "reprovado_preposto",
-          updatedAt: now,
+          updatedAt: Date.now(), // ✅ CORREÇÃO: camelCase e timestamp numérico (consistente com Obra interface)
         };
         await kvSet(`obra:${formulario.obra_id}`, updatedObra);
         console.log(`✅ Obra atualizada para status: ${updatedObra.status}`);
+      } else {
+        console.warn(`⚠️ Obra ${formulario.obra_id} não encontrada para atualizar status`);
       }
 
       console.log("✅ Formulário assinado com sucesso!");

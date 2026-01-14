@@ -455,16 +455,17 @@ const AdminDashboard: React.FC = () => {
           // Salvar localmente
           await saveObra(obraCorrigida);
           
-          // Tentar sincronizar com backend
+          // Tentar sincronizar com backend usando rota de reparo
           if (navigator.onLine) {
             try {
-              await obraApi.update(obra.id, {
+              safeLog(`🔧 Usando rota de reparo administrativo para reverter status...`);
+              await obraApi.repair(obra.id, {
                 status: 'em_preenchimento',
                 progress: 0
               });
-              safeLog(`✅ Status revertido no backend com sucesso`);
+              safeLog(`✅ Status revertido no backend com sucesso (via repair)`);
             } catch (backendError) {
-              safeError('⚠️ Erro ao atualizar backend (correção salva localmente):', backendError);
+              safeError('⚠️ Erro ao reparar no backend (correção salva localmente):', backendError);
             }
           }
           

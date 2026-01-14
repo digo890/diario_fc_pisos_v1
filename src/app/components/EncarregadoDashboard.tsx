@@ -95,13 +95,17 @@ const EncarregadoDashboard: React.FC = () => {
           
           if (navigator.onLine) {
             try {
+              safeLog(`🔧 Encarregado detectou inconsistência. Tentando reparo...`);
+              // Nota: encarregados não têm permissão para usar repair, então usamos update normal
+              // O backend vai rejeitar se a transição for inválida
               await obraApi.update(obra.id, {
                 status: 'em_preenchimento',
                 progress: 0
               });
               safeLog(`✅ Status revertido no backend com sucesso`);
             } catch (backendError) {
-              safeError('⚠️ Erro ao atualizar backend:', backendError);
+              safeError('⚠️ Erro ao atualizar backend (encarregado não tem permissão de reparo):', backendError);
+              showToast('⚠️ Inconsistência detectada. Entre em contato com o administrador.', 'warning');
             }
           }
           

@@ -28,6 +28,7 @@ export interface Obra {
   status: FormStatus;
   progress: number;
   createdAt: number;
+  updatedAt?: number; // ✅ ADICIONADO: Timestamp de última atualização
   createdBy: string;
   // Token único para acesso do preposto
   validationToken?: string;

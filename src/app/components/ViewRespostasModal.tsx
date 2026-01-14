@@ -654,27 +654,41 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
             </section>
           )}
 
-          {/* Validação do Preposto */}
-          {formData.prepostoConfirmado && (
-            <section className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+          {/* Validação do Preposto - Mostrar quando houver assinatura (aprovado OU reprovado) */}
+          {formData.assinaturaPreposto && (
+            <section className={`rounded-lg p-4 ${
+              formData.prepostoConfirmado 
+                ? 'bg-green-50 dark:bg-green-900/20' 
+                : 'bg-red-50 dark:bg-red-900/20'
+            }`}>
               <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
                 Validação do Preposto
               </h3>
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
-                  <span className="px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-medium">
-                    ✓ Validado
+                  <span className={`px-3 py-1 rounded-full font-medium ${
+                    formData.prepostoConfirmado
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                      : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                  }`}>
+                    {formData.prepostoConfirmado ? '✓ Aprovado' : '✗ Reprovado'}
                   </span>
                 </div>
                 {formData.prepostoReviewedAt && (
                   <div className="text-gray-600 dark:text-gray-400">
-                    Validado em: {new Date(formData.prepostoReviewedAt).toLocaleString('pt-BR', {
+                    {formData.prepostoConfirmado ? 'Aprovado' : 'Reprovado'} em: {new Date(formData.prepostoReviewedAt).toLocaleString('pt-BR', {
                       day: '2-digit',
                       month: '2-digit',
                       year: 'numeric',
                       hour: '2-digit',
                       minute: '2-digit'
                     })}
+                  </div>
+                )}
+                {formData.prepostoMotivoReprovacao && (
+                  <div className="text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-900 rounded p-3 border border-red-200 dark:border-red-800">
+                    <strong>Motivo da Reprovação:</strong><br />
+                    {formData.prepostoMotivoReprovacao}
                   </div>
                 )}
                 {formData.assinaturaPreposto && (

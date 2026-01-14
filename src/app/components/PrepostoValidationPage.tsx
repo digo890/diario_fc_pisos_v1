@@ -4,7 +4,70 @@ import { motion } from 'motion/react';
 import { conferenciaApi } from '../utils/api';
 import SignatureCanvas from 'react-signature-canvas';
 import { useToast } from './Toast';
-import { ETAPAS_V1_0_0 } from '../schema/SCHEMA_V1.0.0';
+
+// Itens 1-34: Etapas de Execução dos Serviços (v1.1.0)
+const ETAPAS = [
+  { label: 'Temperatura Ambiente', unit: '°C' },
+  { label: 'Umidade Relativa do Ar', unit: '%' },
+  { label: 'Temperatura do Substrato', unit: '°C' },
+  { label: 'Umidade Superficial do Substrato', unit: '%' },
+  { label: 'Temperatura da Mistura', unit: '°C' },
+  { label: 'Tempo de Mistura', unit: 'Minutos' },
+  { label: 'Nº dos Lotes da Parte 1', unit: '' },
+  { label: 'Nº dos Lotes da Parte 2', unit: '' },
+  { label: 'Nº dos Lotes da Parte 3', unit: '' },
+  { label: 'Nº de Kits Gastos', unit: '' },
+  { label: 'Consumo Médio Obtido', unit: 'm²/Kit' },
+  { label: 'Preparo de Substrato (fresagem e ancoragem)', unit: 'm²/ml' },
+  { label: 'Aplicação de Uretano', unit: '', isMultiSelect: true },
+  { label: 'Serviços de pintura', unit: '', isMultiSelect: true },
+  { label: 'Serviços de pintura de layout', unit: '', isMultiSelect: true },
+  { label: 'Aplicação de Epóxi', unit: 'm²' },
+  { label: 'Corte / Selamento Juntas de Piso', unit: 'ml' },
+  { label: 'Corte / Selamento Juntas em Muretas', unit: 'ml' },
+  { label: 'Corte / Selamento Juntas em Rodapés', unit: 'ml' },
+  { label: 'Remoção de Substrato Fraco', isDualField: true, units: ['m²', 'cm'] },
+  { label: 'Desbaste de Substrato', isDualField: true, units: ['m²', 'cm'] },
+  { label: 'Grauteamento', isDualField: true, units: ['m²', 'cm'] },
+  { label: 'Remoção e Reparo de Sub-Base', isDualField: true, units: ['m²', 'cm'] },
+  { label: 'Reparo com Concreto Uretânico', isDualField: true, units: ['m²', 'cm'] },
+  { label: 'Tratamento de Trincas', unit: 'ml' },
+  { label: 'Execução de Lábios Poliméricos', unit: 'ml' },
+  { label: 'Secagem de Substrato', unit: 'm²' },
+  { label: 'Remoção de Revestimento Antigo', unit: 'm²' },
+  { label: 'Polimento Mecânico de Substrato', unit: 'm²' },
+  { label: 'Reparo de Revestimento em Piso', isDualField: true, units: ['m²', 'cm'] },
+  { label: 'Reparo de Revestimento em Muretas', unit: 'ml' },
+  { label: 'Reparo de Revestimento em Rodapé', unit: 'ml' },
+  { label: 'Quantos botijões de gás foram utilizados?', unit: '' },
+  { label: 'Quantas bisnagas de selante foram utilizadas?', unit: '' }
+];
+
+// Itens 35-56: Registros Importantes (Estado do Substrato)
+const REGISTROS_ITEMS = [
+  'Constatou-se água / umidade no substrato?',
+  'As áreas estavam com fechamento lateral?',
+  'Estado do substrato',
+  'Existe contaminações / crostas / incrustações no substrato?',
+  'Há concreto remontado sobre os bordos de ralos / canaletas / trilhos (ml)?',
+  'Há ralos / canaletas / trilhos desnivelados em relação ao substrato (ml)?',
+  'O boleado de rodapés / muretas foi executado com concreto?',
+  'Qual a espessura do piso de concreto?',
+  'Qual a profundidade dos cortes das juntas serradas?',
+  'As juntas serradas do piso foram aprofundadas por corte adicional? Em que extensão (ml)?',
+  'Existem juntas de dilatação no substrato (ml)?',
+  'As muretas estão ancoradas no piso?',
+  'Existem muretas apoiadas sobre juntas de dilatação no piso?',
+  'Existem juntas com bordas esborcinadas (ml)?',
+  'Existem trincas no substrato (ml)?',
+  'Existem serviços adicionais a serem realizados?',
+  'Os serviços adicionais foram liberados pela contratante?',
+  'O preposto acompanhou e conferiu as medições?',
+  'As áreas concluídas foram protegidas e isoladas?',
+  'O substrato foi fotografado?',
+  'Ocorreu alguma desconformidade durante ou após as aplicações?',
+  'Você relatou ao preposto as desconformidades?'
+];
 
 interface Props {
   token: string; // Agora é o formularioId direto
@@ -184,6 +247,17 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
 
   if (!obra || !formulario) return null;
 
+  const getClimaLabel = (clima?: string) => {
+    if (!clima) return 'Não informado';
+    const labels: Record<string, string> = {
+      'sol': 'Sol',
+      'nublado': 'Nublado',
+      'chuva': 'Chuva',
+      'lua': 'Lua'
+    };
+    return labels[clima] || clima;
+  };
+
   return (
     <div className="min-h-screen bg-[#EDEFE4] dark:bg-gray-950">
       {ToastComponent}
@@ -265,217 +339,317 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
             Dados do Formulário
           </h2>
           
-          {/* Condições Meteorológicas */}
-          {formulario.condicoesMeteorologicas && (
-            <div className="mb-6">
+          {/* Condições Ambientais */}
+          {formulario.clima && (
+            <section>
               <h3 className="font-semibold text-gray-900 dark:text-white mb-3 text-sm">
-                Condições Meteorológicas
+                Condições Ambientais
               </h3>
-              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Período:</span>
-                  <span className="text-gray-900 dark:text-white">{formulario.condicoesMeteorologicas.periodo || '-'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Clima:</span>
-                  <span className="text-gray-900 dark:text-white">{formulario.condicoesMeteorologicas.clima || '-'}</span>
+              <div className="text-sm bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+                <div className="text-gray-900 dark:text-white">
+                  Manhã: <strong>{getClimaLabel(formulario.clima.manha)}</strong>
+                  {' - '}
+                  Tarde: <strong>{getClimaLabel(formulario.clima.tarde)}</strong>
+                  {' - '}
+                  Noite: <strong>{getClimaLabel(formulario.clima.noite)}</strong>
                 </div>
               </div>
-            </div>
+            </section>
           )}
 
-          {/* Serviço Executado */}
-          {formulario.servicos && formulario.servicos.length > 0 && formulario.servicos[0] && (
-            <div className="mb-6">
+          {/* Serviços Executados */}
+          {formulario.servicos && Object.keys(formulario.servicos).some(key => formulario.servicos[key]) && (
+            <section>
               <h3 className="font-semibold text-gray-900 dark:text-white mb-3 text-sm">
-                Serviço Executado
+                Serviços Executados
               </h3>
-              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 space-y-3 text-sm">
-                {(() => {
-                  const servico = formulario.servicos[0];
-                  const etapas = servico.etapas || {};
-                  
-                  return (
-                    <>
-                      {/* Iterar por TODOS os campos do schema, mostrando preenchidos e não preenchidos */}
-                      {ETAPAS_V1_0_0.map((field) => {
-                        const valor = etapas[field.dataKey];
-                        
-                        // Determinar se foi preenchido
-                        const isPreenchido = valor && valor !== '' && valor !== '0' && valor !== 'Não';
-                        
-                        // Renderizar baseado no tipo
-                        if (field.tipo === 'simple') {
-                          return (
-                            <div 
-                              key={field.numero} 
-                              className={`flex gap-4 p-3 rounded-lg border-l-4 transition-colors ${
-                                isPreenchido 
-                                  ? 'bg-white dark:bg-gray-900 border-[#FD5521]' 
-                                  : 'bg-gray-100/50 dark:bg-gray-800/30 border-gray-300 dark:border-gray-700'
-                              }`}
-                            >
-                              <span className={`min-w-[40px] font-bold ${
-                                isPreenchido 
-                                  ? 'text-[#FD5521]' 
-                                  : 'text-gray-400 dark:text-gray-600'
-                              }`}>
-                                {field.numero}.
-                              </span>
-                              <div className="flex-1">
-                                <div className={`font-medium ${
+              
+              {Object.entries(formulario.servicos).map(([key, servico]: [string, any]) => {
+                if (!servico) return null;
+                
+                return (
+                  <div key={key} className="space-y-4 mb-6">
+                    {/* Informações Básicas */}
+                    {(servico.horarioInicioManha || servico.horarioFimManha || servico.horarioInicioTarde || servico.horarioFimTarde || servico.local) && (
+                      <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 space-y-2 text-sm">
+                        {/* Horários condensados em uma linha */}
+                        {(servico.horarioInicioManha || servico.horarioInicioTarde) && (
+                          <div className="flex gap-2">
+                            <span className="text-gray-600 dark:text-gray-400">Horários:</span>
+                            <span className="text-gray-900 dark:text-white">
+                              {servico.horarioInicioManha && servico.horarioFimManha && (
+                                <>Manhã <strong>{servico.horarioInicioManha}</strong> às <strong>{servico.horarioFimManha}</strong></>
+                              )}
+                              {servico.horarioInicioManha && servico.horarioFimManha && 
+                               servico.horarioInicioTarde && servico.horarioFimTarde && (
+                                <> - </>
+                              )}
+                              {servico.horarioInicioTarde && servico.horarioFimTarde && (
+                                <>Tarde <strong>{servico.horarioInicioTarde}</strong> às <strong>{servico.horarioFimTarde}</strong></>
+                              )}
+                            </span>
+                          </div>
+                        )}
+                        {servico.local && (
+                          <div className="flex gap-2">
+                            <span className="text-gray-600 dark:text-gray-400">Local:</span>
+                            <span className="text-gray-900 dark:text-white">{servico.local}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Etapas - Itens 1 a 34 - MOSTRAR TODOS */}
+                    <div>
+                      <h4 className="font-medium text-gray-900 dark:text-white mb-2 text-sm">
+                        Etapas de Execução (Itens 1-34) - Total: {ETAPAS.length} campos
+                      </h4>
+                      <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+                        <div className="space-y-2 text-sm">
+                          {ETAPAS.map((etapa, index) => {
+                            const numeroItem = index + 1;
+                            let valor = servico.etapas?.[etapa.label] || '-';
+                            
+                            // Tratar campos dualField (formato "valor1|valor2")
+                            if (etapa.isDualField && valor !== '-') {
+                              const [val1, val2] = valor.split('|');
+                              if (val1 || val2) {
+                                const unit1 = etapa.units?.[0] || '';
+                                const unit2 = etapa.units?.[1] || '';
+                                valor = `${val1 || '-'} ${unit1} | ${val2 || '-'} ${unit2}`;
+                              }
+                            }
+                            
+                            // Tratar itens com múltipla seleção (formato "tipo1:valor1|tipo2:valor2")
+                            if (etapa.isMultiSelect && valor !== '-') {
+                              const items = valor.split('|').filter(item => item);
+                              if (items.length > 0) {
+                                const tiposValores = items.map(item => {
+                                  const [tipo, valorNum] = item.split(':');
+                                  
+                                  // Detectar e processar dual fields dentro de multiselect
+                                  if (etapa.label === 'Aplicação de Uretano' && valorNum) {
+                                    if (tipo === 'Uretano para rodapé' || tipo === 'Uretano para muretas' || 
+                                        tipo === 'Uretano para Paredes' || tipo === 'Uretano para Paredes, base e pilares') {
+                                      const [val1, val2] = valorNum.split('~');
+                                      if (val1 && val2) {
+                                        return { tipo: tipo || '-', valor: `${val1} ml / ${val2} cm` };
+                                      }
+                                      return { tipo: tipo || '-', valor: `${valorNum} ml` };
+                                    } else {
+                                      return { tipo: tipo || '-', valor: `${valorNum} m²` };
+                                    }
+                                  } else if (etapa.label === 'Serviços de pintura') {
+                                    return { tipo: tipo || '-', valor: `${valorNum} m²` };
+                                  } else if (etapa.label === 'Serviços de pintura de layout') {
+                                    return { tipo: tipo || '-', valor: `${valorNum} ml` };
+                                  }
+                                  
+                                  return { tipo: tipo || '-', valor: valorNum || '-' };
+                                });
+                                valor = tiposValores
+                                  .filter(tv => tv.tipo !== '-' && tv.valor !== '-')
+                                  .map(tv => `${tv.tipo}: ${tv.valor}`)
+                                  .join(', ') || '-';
+                              } else {
+                                valor = '-';
+                              }
+                            }
+                            
+                            // Determinar se o campo foi preenchido
+                            const isPreenchido = valor !== '-';
+                            
+                            return (
+                              <div 
+                                key={index} 
+                                className={`flex gap-4 p-3 rounded-lg transition-colors ${
                                   isPreenchido 
-                                    ? 'text-gray-900 dark:text-white' 
-                                    : 'text-gray-600 dark:text-gray-400'
-                                }`}>
-                                  {field.label}
-                                </div>
-                                <div className={`mt-1 ${
-                                  isPreenchido 
-                                    ? 'text-gray-700 dark:text-gray-300 font-semibold' 
-                                    : 'text-gray-400 dark:text-gray-600 italic'
-                                }`}>
-                                  {isPreenchido ? (
-                                    <>{valor} {field.unit || ''}</>
-                                  ) : (
-                                    'Não preenchido'
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        } else if (field.tipo === 'dualField') {
-                          const partes = valor ? valor.split('|') : [];
-                          const val1 = partes[0] || '';
-                          const val2 = partes[1] || '';
-                          const isPreenchidoDual = (val1 && val1 !== '0') || (val2 && val2 !== '0');
-                          
-                          return (
-                            <div 
-                              key={field.numero} 
-                              className={`flex gap-4 p-3 rounded-lg border-l-4 transition-colors ${
-                                isPreenchidoDual 
-                                  ? 'bg-white dark:bg-gray-900 border-[#FD5521]' 
-                                  : 'bg-gray-100/50 dark:bg-gray-800/30 border-gray-300 dark:border-gray-700'
-                              }`}
-                            >
-                              <span className={`min-w-[40px] font-bold ${
-                                isPreenchidoDual 
-                                  ? 'text-[#FD5521]' 
-                                  : 'text-gray-400 dark:text-gray-600'
-                              }`}>
-                                {field.numero}.
-                              </span>
-                              <div className="flex-1">
-                                <div className={`font-medium ${
-                                  isPreenchidoDual 
-                                    ? 'text-gray-900 dark:text-white' 
-                                    : 'text-gray-600 dark:text-gray-400'
-                                }`}>
-                                  {field.label}
-                                </div>
-                                <div className={`mt-1 ${
-                                  isPreenchidoDual 
-                                    ? 'text-gray-700 dark:text-gray-300 font-semibold' 
-                                    : 'text-gray-400 dark:text-gray-600 italic'
-                                }`}>
-                                  {isPreenchidoDual ? (
-                                    <>{val1 || '0'} {field.units?.[0] || ''} | {val2 || '0'} {field.units?.[1] || ''}</>
-                                  ) : (
-                                    'Não preenchido'
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        } else if (field.tipo === 'multiSelect') {
-                          // Para multiSelect, valor é um array de strings
-                          const opcoes = Array.isArray(valor) ? valor : [];
-                          const isPreenchidoMulti = opcoes.length > 0;
-                          
-                          return (
-                            <div 
-                              key={field.numero} 
-                              className={`p-3 rounded-lg border-l-4 transition-colors ${
-                                isPreenchidoMulti 
-                                  ? 'bg-white dark:bg-gray-900 border-[#FD5521]' 
-                                  : 'bg-gray-100/50 dark:bg-gray-800/30 border-gray-300 dark:border-gray-700'
-                              }`}
-                            >
-                              <div className="flex gap-4">
+                                    ? 'bg-white dark:bg-gray-900 border-l-4 border-[#FD5521]' 
+                                    : 'bg-gray-100/50 dark:bg-gray-800/30 border-l-4 border-gray-300 dark:border-gray-700'
+                                }`}
+                              >
                                 <span className={`min-w-[40px] font-bold ${
-                                  isPreenchidoMulti 
+                                  isPreenchido 
                                     ? 'text-[#FD5521]' 
                                     : 'text-gray-400 dark:text-gray-600'
                                 }`}>
-                                  {field.numero}.
+                                  {numeroItem}.
                                 </span>
                                 <div className="flex-1">
-                                  <div className={`font-medium mb-1 ${
-                                    isPreenchidoMulti 
+                                  <div className={`font-medium ${
+                                    isPreenchido 
                                       ? 'text-gray-900 dark:text-white' 
                                       : 'text-gray-600 dark:text-gray-400'
                                   }`}>
-                                    {field.label}
+                                    {etapa.label}
                                   </div>
-                                  {isPreenchidoMulti ? (
-                                    <div className="flex flex-wrap gap-1">
-                                      {opcoes.map((opcao, idx) => (
-                                        <span key={idx} className="px-2 py-1 bg-[#FD5521]/10 text-[#FD5521] rounded text-xs">
-                                          {opcao}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <div className="text-gray-400 dark:text-gray-600 italic text-sm">
-                                      Não preenchido
-                                    </div>
-                                  )}
+                                  <div className={`mt-1 ${
+                                    isPreenchido 
+                                      ? 'text-gray-700 dark:text-gray-300 font-semibold' 
+                                      : 'text-gray-400 dark:text-gray-600 italic'
+                                  }`}>
+                                    {isPreenchido ? (
+                                      <>
+                                        {valor}
+                                        {!etapa.isMultiSelect && !etapa.isDualField && etapa.unit && ` ${etapa.unit}`}
+                                      </>
+                                    ) : (
+                                      'Não preenchido'
+                                    )}
+                                  </div>
                                 </div>
                               </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Fotos do Serviço */}
+                    {servico.fotos && servico.fotos.length > 0 && (
+                      <div>
+                        <h4 className="font-medium text-gray-900 dark:text-white mb-2 text-sm">Fotos ({servico.fotos.length}):</h4>
+                        <div className="grid grid-cols-2 gap-2">
+                          {servico.fotos.map((foto: string, idx: number) => (
+                            <img
+                              key={idx}
+                              src={foto}
+                              alt={`Foto ${idx + 1}`}
+                              loading="lazy"
+                              decoding="async"
+                              className="w-full aspect-square object-contain rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800"
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Registros Importantes - Itens 35 a 56 - MOSTRAR TODOS */}
+                    <div>
+                      <h4 className="font-medium text-gray-900 dark:text-white mb-3 text-sm">Estado do Substrato (Itens 35-56):</h4>
+                      <div className="space-y-2">
+                        {REGISTROS_ITEMS.map((label, index) => {
+                          const registroKey = `registro-${index}`;
+                          const item = servico.registros?.[registroKey];
+                          const numeroItem = 35 + index;
+                          
+                          // Itens especiais
+                          const isEstadoSubstrato = index === 2; // Item 37
+                          
+                          // Itens que envolvem o preposto (onde SIM é positivo)
+                          const isItemPreposto = index === 17 || index === 21; // Itens 52 e 56
+                          
+                          const isEven = index % 2 === 0;
+                          
+                          // Para itens de dropdown ou numéricos
+                          if (isEstadoSubstrato) {
+                            const textoResposta = item?.texto || '-';
+                            const comentarioResposta = item?.comentario || '';
+                            
+                            return (
+                              <div key={registroKey} className={`rounded-lg p-4 text-sm ${isEven ? 'bg-gray-50 dark:bg-gray-800/50' : 'bg-gray-100/50 dark:bg-gray-800/30'}`}>
+                                <div className="font-medium text-gray-900 dark:text-white mb-2">
+                                  {numeroItem}. {label}
+                                </div>
+                                <div className={`${textoResposta !== '-' ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600'}`}>
+                                  {textoResposta}
+                                </div>
+                                {(comentarioResposta || item?.foto) && (
+                                  <div className="flex gap-3 mt-2">
+                                    {item?.foto && (
+                                      <img
+                                        src={item.foto}
+                                        alt="Registro"
+                                        className="w-1/3 flex-shrink-0 aspect-square object-contain rounded border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800"
+                                      />
+                                    )}
+                                    {comentarioResposta && (
+                                      <div className="text-gray-600 dark:text-gray-400 text-[15px] flex-1">
+                                        <strong>Observações:</strong> {comentarioResposta}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          }
+                          
+                          // Para itens Sim/Não - ativo = true significa "SIM", ausente ou false significa "NÃO"
+                          const resposta = item?.ativo ? 'SIM' : 'NÃO';
+                          const isPositivo = resposta === 'NÃO' || (resposta === 'SIM' && isItemPreposto);
+                          
+                          return (
+                            <div key={registroKey} className={`rounded-lg p-4 text-sm ${isEven ? 'bg-gray-50 dark:bg-gray-800/50' : 'bg-gray-100/50 dark:bg-gray-800/30'}`}>
+                              <div className="flex items-start justify-between gap-3 mb-2">
+                                <span className="font-medium text-gray-900 dark:text-white">
+                                  {numeroItem}. {label}
+                                </span>
+                                <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                                  isPositivo
+                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                    : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                                }`}>
+                                  {resposta}
+                                </span>
+                              </div>
+                              
+                              {/* Se tiver foto, layout lado a lado */}
+                              {item?.foto ? (
+                                <div className="flex gap-3 mt-2">
+                                  <img
+                                    src={item.foto}
+                                    alt="Registro"
+                                    className="w-1/3 flex-shrink-0 aspect-square object-contain rounded border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800"
+                                  />
+                                  <div className="flex-1 space-y-2">
+                                    {item?.texto && (
+                                      <div className="text-gray-600 dark:text-gray-400 text-[15px]">
+                                        <strong>Detalhes:</strong> {item.texto}
+                                      </div>
+                                    )}
+                                    {item?.comentario && (
+                                      <div className="text-gray-600 dark:text-gray-400 text-[15px]">
+                                        <strong>Comentário:</strong> {item.comentario}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
+                                /* Se NÃO tiver foto, textos aparecem normalmente */
+                                <>
+                                  {item?.texto && (
+                                    <div className="text-gray-600 dark:text-gray-400 text-[15px] mt-2">
+                                      <strong>Detalhes:</strong> {item.texto}
+                                    </div>
+                                  )}
+                                  {item?.comentario && (
+                                    <div className="text-gray-600 dark:text-gray-400 text-[15px] mt-2">
+                                      <strong>Comentário:</strong> {item.comentario}
+                                    </div>
+                                  )}
+                                </>
+                              )}
                             </div>
                           );
-                        }
-                        
-                        return null;
-                      })}
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </section>
           )}
 
-          {/* Observações */}
+          {/* Observações Gerais */}
           {formulario.observacoes && (
-            <div className="mb-6">
+            <section className="mt-6">
               <h3 className="font-semibold text-gray-900 dark:text-white mb-3 text-sm">
                 Observações Gerais
               </h3>
-              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 text-sm text-gray-900 dark:text-white whitespace-pre-wrap">
+              <div className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
                 {formulario.observacoes}
               </div>
-            </div>
-          )}
-          
-          {/* Fotos */}
-          {formulario.fotos && formulario.fotos.length > 0 && (
-            <div className="mb-6">
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-3 text-sm">
-                Registros Fotográficos
-              </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {formulario.fotos.map((foto: any, idx: number) => (
-                  <div key={idx} className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800">
-                    <img 
-                      src={foto.url || foto} 
-                      alt={`Foto ${idx + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
+            </section>
           )}
         </div>
       </div>

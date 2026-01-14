@@ -4,8 +4,8 @@
  */
 
 import type { Obra, User } from '../types';
-import { saveObra, saveUser, getObras, getUsers, getAllForms } from './database';
-import { obraApi, userApi } from './api';
+import { saveObra, saveUser, getObras, getUsers, getAllForms, saveForm } from './database';
+import { obraApi, userApi, formularioApi } from './api';
 import { safeLog, safeWarn } from './logSanitizer';
 
 interface TimestampedData {
@@ -190,9 +190,10 @@ async function resyncFromBackend(): Promise<void> {
     safeLog('🔄 Re-sincronizando dados do backend...');
     
     // Buscar dados do backend
-    const [obrasResponse, usersResponse] = await Promise.all([
+    const [obrasResponse, usersResponse, formularioResponse] = await Promise.all([
       obraApi.list(),
       userApi.list(),
+      formularioApi.list(),
     ]);
 
     if (!obrasResponse.success || !usersResponse.success) {
@@ -202,6 +203,7 @@ async function resyncFromBackend(): Promise<void> {
     // Normalizar e salvar
     const obras = (obrasResponse.data || []).map(normalizeObraFromBackend);
     const users = (usersResponse.data || []).map(normalizeUserFromBackend);
+    const formularios = formularioResponse.success ? (formularioResponse.data || []) : [];
 
     for (const obra of obras) {
       await saveObra(obra);
@@ -211,7 +213,11 @@ async function resyncFromBackend(): Promise<void> {
       await saveUser(user);
     }
 
-    safeLog(`✅ Re-sincronização completa: ${obras.length} obras, ${users.length} usuários`);
+    for (const formulario of formularios) {
+      await saveForm(formulario);
+    }
+
+    safeLog(`✅ Re-sincronização completa: ${obras.length} obras, ${users.length} usuários, ${formularios.length} formulários`);
   } catch (error) {
     safeWarn('⚠️ Erro ao re-sincronizar do backend:', error);
     throw error;
@@ -219,29 +225,94 @@ async function resyncFromBackend(): Promise<void> {
 }
 
 /**
- * 🔍 Verifica inconsistências no cache local
+ * 🔍 Verifica inconsistências no cache local e tenta recuperar do backend
  */
 async function detectInconsistencies(): Promise<boolean> {
   try {
+    safeLog('🔍 [SANITY CHECK] Iniciando verificação de inconsistências...');
     const obras = await getObras();
     const forms = await getAllForms();
+    
+    safeLog(`📊 [SANITY CHECK] Cache local: ${obras.length} obras, ${forms.length} formulários`);
 
     // Verificar obras com status que requerem formulário
     const statusesComFormulario = ['enviado_preposto', 'reprovado_preposto', 'concluido'];
+    const obrasComInconsistencia: Obra[] = [];
     
+    // 1️⃣ Identificar obras sem formulário no cache
     for (const obra of obras) {
       if (statusesComFormulario.includes(obra.status)) {
-        const form = forms.find(f => f.obra_id === obra.id); // ✅ CORREÇÃO: obra_id em vez de obraId
+        const form = forms.find(f => f.obra_id === obra.id);
         if (!form) {
-          safeWarn(`⚠️ Inconsistência: obra ${obra.id} (${obra.status}) sem formulário`);
-          return true; // Inconsistência detectada
+          safeWarn(`⚠️ Obra ${obra.id} (${obra.status}) sem formulário no cache local`);
+          obrasComInconsistencia.push(obra);
         }
       }
     }
 
-    return false; // Tudo ok
+    // Se não há inconsistências, retornar ok
+    if (obrasComInconsistencia.length === 0) {
+      safeLog('✅ [SANITY CHECK] Nenhuma inconsistência detectada');
+      return false;
+    }
+
+    safeLog(`⚠️ [SANITY CHECK] ${obrasComInconsistencia.length} obra(s) sem formulário no cache`);
+
+    // 2️⃣ Tentar recuperar formulários do backend (UMA ÚNICA CHAMADA)
+    if (!navigator.onLine) {
+      safeWarn(`❌ [SANITY CHECK] Sem conexão. ${obrasComInconsistencia.length} obra(s) sem formulário.`);
+      return true; // Sem conexão, não pode verificar
+    }
+
+    safeLog('🌐 [SANITY CHECK] Conexão OK. Tentando recuperar formulários do backend...');
+
+    try {
+      safeLog(`🔍 [SANITY CHECK] Chamando formularioApi.list() para ${obrasComInconsistencia.length} obra(s)...`);
+      const formularioResponse = await formularioApi.list();
+      
+      safeLog(`📥 [SANITY CHECK] Resposta recebida:`, {
+        success: formularioResponse.success,
+        hasData: !!formularioResponse.data,
+        dataLength: formularioResponse.data?.length,
+        error: formularioResponse.error
+      });
+      
+      if (!formularioResponse.success || !formularioResponse.data) {
+        safeWarn(`❌ [SANITY CHECK] Erro ao buscar formulários do backend:`, formularioResponse.error);
+        return true;
+      }
+
+      let inconsistenciasResolvidas = 0;
+      let inconsistenciasReais = 0;
+
+      // 3️⃣ Para cada obra com inconsistência, tentar recuperar formulário
+      for (const obra of obrasComInconsistencia) {
+        const formularioBackend = formularioResponse.data.find((f: any) => f.obra_id === obra.id);
+        
+        if (formularioBackend) {
+          // ✅ Formulário existe no backend! Salvar localmente
+          safeLog(`✅ [SANITY CHECK] Formulário da obra ${obra.id} encontrado no backend. Sincronizando...`);
+          await saveForm(formularioBackend);
+          inconsistenciasResolvidas++;
+        } else {
+          // ❌ Formulário não existe nem no backend - INCONSISTÊNCIA REAL
+          safeWarn(`❌ [SANITY CHECK] Obra ${obra.id}: formulário não existe no backend. Inconsistência REAL.`);
+          inconsistenciasReais++;
+        }
+      }
+
+      safeLog(`📊 [SANITY CHECK] Resultado: ${inconsistenciasResolvidas} resolvidas, ${inconsistenciasReais} inconsistências reais`);
+      
+      // Retornar true apenas se houver inconsistências REAIS (que não puderam ser resolvidas)
+      return inconsistenciasReais > 0;
+
+    } catch (error) {
+      safeWarn(`⚠️ [SANITY CHECK] Erro ao buscar formulários do backend:`, error);
+      return true; // Em caso de erro, considerar inconsistente
+    }
+
   } catch (error) {
-    safeWarn('⚠️ Erro ao verificar inconsistências:', error);
+    safeWarn('⚠️ [SANITY CHECK] Erro ao verificar inconsistências:', error);
     return true; // Em caso de erro, considerar inconsistente
   }
 }
@@ -265,28 +336,29 @@ export async function ensureLocalDataIsConsistent(options = {
   const forceSanityCheck = urlParams.has('sanity-check');
 
   if (!isDev && !forceSanityCheck) {
+    safeLog('⏩ [SANITY CHECK] Pulando (produção sem flag)');
     return; // Pular em produção (a menos que forçado via query param)
   }
 
   try {
-    safeLog('🔍 Verificando consistência do cache local...');
+    safeLog('🔍 [SANITY CHECK] Verificando consistência do cache local...');
 
-    // Detectar inconsistências
+    // Detectar inconsistências (já tenta recuperar do backend automaticamente)
     const hasInconsistencies = await detectInconsistencies();
 
     if (hasInconsistencies) {
-      safeWarn('⚠️ Inconsistências detectadas. Limpando cache e re-sincronizando...');
+      safeWarn('⚠️ [SANITY CHECK] Inconsistências REAIS detectadas. Limpando cache e re-sincronizando...');
       
       // Estratégia: limpar tudo e re-sincronizar
       await clearAllLocalData();
       await resyncFromBackend();
       
-      safeLog('✅ Cache limpo e re-sincronizado do backend');
+      safeLog('✅ [SANITY CHECK] Cache limpo e re-sincronizado do backend');
     } else {
-      safeLog('✅ Cache local está consistente');
+      safeLog('✅ [SANITY CHECK] Cache local está consistente (inconsistências resolvidas automaticamente)');
     }
   } catch (error) {
-    safeWarn('⚠️ Erro ao verificar consistência do cache:', error);
+    safeWarn('⚠️ [SANITY CHECK] Erro ao verificar consistência do cache:', error);
     // Não bloquear o app se o sanity check falhar
   }
 }
