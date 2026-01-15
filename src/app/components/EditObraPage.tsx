@@ -28,8 +28,7 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
     data: obra.data,
     encarregadoId: obra.encarregadoId,
     prepostoNome: obra.prepostoNome || '',
-    prepostoEmail: obra.prepostoEmail || '',
-    prepostoWhatsapp: obra.prepostoWhatsapp || ''
+    prepostoEmail: obra.prepostoEmail || ''
   });
 
   const [errors, setErrors] = useState({
@@ -97,8 +96,7 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
         data: formData.data,
         encarregado_id: formData.encarregadoId,
         preposto_nome: formData.prepostoNome || undefined,
-        preposto_email: formData.prepostoEmail || undefined,
-        preposto_whatsapp: formData.prepostoWhatsapp || undefined
+        preposto_email: formData.prepostoEmail || undefined
       });
 
       if (response.success) {
@@ -113,8 +111,7 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
           data: formData.data,
           encarregadoId: formData.encarregadoId,
           prepostoNome: formData.prepostoNome || undefined,
-          prepostoEmail: formData.prepostoEmail || undefined,
-          prepostoWhatsapp: formData.prepostoWhatsapp || undefined
+          prepostoEmail: formData.prepostoEmail || undefined
           // ✅ validationToken, validationTokenExpiry, status, progress são preservados
         };
 
@@ -305,22 +302,6 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
               value={formData.prepostoEmail}
               onChange={(e) => setFormData({ ...formData, prepostoEmail: e.target.value })}
               placeholder="Email do Preposto"
-              className="w-full pl-12 pr-4 py-3 rounded-xl 
-                       bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                       border border-gray-200 dark:border-gray-800
-                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
-                       focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
-            />
-          </div>
-
-          {/* Preposto - Whatsapp */}
-          <div className="relative">
-            <Phone className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none" />
-            <input
-              type="text"
-              value={formData.prepostoWhatsapp}
-              onChange={(e) => setFormData({ ...formData, prepostoWhatsapp: formatPhoneNumber(e.target.value) })}
-              placeholder="WhatsApp do Preposto"
               className="w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
                        border border-gray-200 dark:border-gray-800

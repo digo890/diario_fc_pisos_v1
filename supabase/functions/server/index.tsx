@@ -75,7 +75,6 @@ function normalizeObraFields(data: any): any {
     'encarregado_id': 'encarregadoId',
     'preposto_nome': 'prepostoNome',
     'preposto_email': 'prepostoEmail',
-    'preposto_whatsapp': 'prepostoWhatsapp',
     'validation_token': 'validationToken',
     'validation_token_expiry': 'validationTokenExpiry',
     'created_at': 'created_at', // Manter snake_case (padrão de timestamps)
@@ -105,7 +104,6 @@ function toSnakeCase(data: any): any {
     'encarregadoId': 'encarregado_id',
     'prepostoNome': 'preposto_nome',
     'prepostoEmail': 'preposto_email',
-    'prepostoWhatsapp': 'preposto_whatsapp',
     'validationToken': 'token_validacao',
     'validationTokenExpiry': 'token_validacao_expiry',
     'validationTokenLastAccess': 'validation_token_last_access',

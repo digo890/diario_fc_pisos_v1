@@ -1,5 +1,6 @@
 import React, { Component, ReactNode, ErrorInfo } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { safeError } from '../utils/logSanitizer';
 
 interface Props {
   children: ReactNode;
@@ -32,7 +33,7 @@ class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // Log error para monitoramento
-    console.error('🔴 ErrorBoundary capturou erro:', error, errorInfo);
+    safeError('🔴 ErrorBoundary capturou erro:', { error, errorInfo });
     
     this.setState({
       error,

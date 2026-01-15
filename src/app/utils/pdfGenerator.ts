@@ -796,6 +796,20 @@ export async function generateFormPDF(
     pdf.setTextColor(BLACK);
     yPos += 10;
 
+    // Nome completo do preposto
+    if (formData.nomeCompletoPreposto) {
+      pdf.setFontSize(10);
+      pdf.setFont("helvetica", "bold");
+      pdf.text("Nome:", margin, yPos);
+      yPos += 6;
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(TEXT_GRAY);
+      pdf.text(formData.nomeCompletoPreposto, margin, yPos);
+      pdf.setTextColor(BLACK);
+      yPos += 8;
+    }
+
     if (formData.prepostoComentario) {
       pdf.setFontSize(10);
       pdf.setFont("helvetica", "bold");

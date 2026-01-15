@@ -27,7 +27,6 @@ function normalizeObraFromBackend(obraBackend: any): Obra {
     encarregadoId: obraBackend.encarregado_id || obraBackend.encarregadoId,
     prepostoNome: obraBackend.preposto_nome || obraBackend.prepostoNome,
     prepostoEmail: obraBackend.preposto_email || obraBackend.prepostoEmail,
-    prepostoWhatsapp: obraBackend.preposto_whatsapp || obraBackend.prepostoWhatsapp,
     status: obraBackend.status,
     progress: obraBackend.progress || 0,
     createdAt: obraBackend.created_at 

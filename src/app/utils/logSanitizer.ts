@@ -57,7 +57,6 @@ const SENSITIVE_FIELDS = [
   'assinaturaEncarregado',
   'assinaturaPreposto',
   'prepostoEmail',
-  'prepostoWhatsapp',
   'validationToken',
 ];
 

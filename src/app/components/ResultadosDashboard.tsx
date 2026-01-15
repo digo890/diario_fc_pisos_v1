@@ -60,6 +60,7 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
     });
 
     // Calcular contadores aplicando regra de domínio
+    let formulariosPreenchidos = 0; // ✅ CORREÇÃO: contar apenas formulários de obras visíveis
     let formulariosValidados = 0;
     let formulariosEmRevisao = 0;
     let obrasNovas = 0;
@@ -69,6 +70,11 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
     obras.forEach(obra => {
       const formulario = formsByObraId.get(obra.id);
       const statusReal = getObraStatusReal(obra, formulario);
+      
+      // ✅ CORREÇÃO: contar se tem formulário
+      if (formulario) {
+        formulariosPreenchidos++;
+      }
       
       // Contar por status real
       if (statusReal === 'concluido') {
@@ -82,8 +88,6 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
         obrasAndamento++;
       }
     });
-
-    const formulariosPreenchidos = validForms.length;
 
     setDashboardData({
       totalObras: obras.length,

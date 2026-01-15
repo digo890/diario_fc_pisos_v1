@@ -1,5 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense, useMemo, useCallback } from 'react';
-import { Plus, Edit2, Trash2, FileText, Moon, Sun, LogOut, Download, Building2, Users, BarChart3, Bell, Filter, LayoutGrid, LayoutList, FolderOpen } from 'lucide-react';
+import { Plus, Edit2, Trash2, FileText, Moon, Sun, LogOut, Download, Building2, Users, BarChart3, Filter, LayoutGrid, LayoutList, FolderOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -13,7 +13,6 @@ import ConfirmModal from './ConfirmModal';
 import FcLogo from '../../imports/FcLogo';
 import { useToast } from './Toast';
 import LoadingSpinner from './LoadingSpinner';
-import NotificationDrawer, { type Notification } from './NotificationDrawer';
 import { Pagination, usePagination } from './Pagination';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 import { useSafeLogout } from '../hooks/useSafeLogout'; // 🔒 CORREÇÃO #7
@@ -86,9 +85,8 @@ const AdminDashboard: React.FC = () => {
   const [deletingObra, setDeletingObra] = useState<Obra | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
   
-  // Notification state
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  // 🎯 SKELETON: Estado para obras em criação
+  const [creatingSkeleton, setCreatingSkeleton] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -103,72 +101,6 @@ const AdminDashboard: React.FC = () => {
   // ✅ REMOVIDO: Sincronização automática obsoleta
   // Estratégia nova v1.0.0: backend sempre vence no merge (getMostRecent sempre retorna backend)
   // loadData() já faz revalidação automática quando online
-  
-  // 🚀 OTIMIZAÇÃO #2: Memoizar generateNotifications para evitar loops infinitos
-  const generateNotifications = useCallback(async () => {
-    const newNotifications: Notification[] = [];
-    const storedReadIds = JSON.parse(localStorage.getItem('readNotifications') || '[]') as string[];
-    
-    // ✅ CORREÇÃO #6: Filtrar apenas obras com status relevante ANTES de buscar formulários
-    // Evita chamadas desnecessárias ao IndexedDB
-    const obrasComNotificacao = obras.filter(o => 
-      ['enviado_preposto', 'reprovado_preposto', 'concluido'].includes(o.status)
-    );
-    
-    for (const obra of obrasComNotificacao) {
-      // Notificação quando encarregado responde o formulário
-      if (obra.status === 'enviado_preposto' || obra.status === 'reprovado_preposto' || 
-          obra.status === 'concluido') {
-        const formData = await getFormByObraId(obra.id);
-        if (formData && formData.assinaturaEncarregado) {
-          const encarregado = users.find(u => u.id === obra.encarregadoId);
-          const notificationId = `form_submitted_${obra.id}`;
-          newNotifications.push({
-            id: notificationId,
-            type: 'form_submitted',
-            obra_id: obra.id, // ✅ CORREÇÃO: obra_id em vez de obraId
-            obraNome: `${obra.cliente} - ${obra.obra}`,
-            userName: encarregado?.nome || 'Encarregado',
-            timestamp: formData.updatedAt || obra.updatedAt,
-            read: storedReadIds.includes(notificationId)
-          });
-        }
-      }
-      
-      // Notificação quando preposto assina o formulário
-      if (obra.status === 'concluido' || obra.status === 'reprovado_preposto') {
-        const formData = await getFormByObraId(obra.id);
-        if (formData && formData.assinaturaPreposto && formData.prepostoConfirmado) {
-          const notificationId = `form_signed_${obra.id}`;
-          newNotifications.push({
-            id: notificationId,
-            type: 'form_signed',
-            obra_id: obra.id, // ✅ CORREÇÃO: obra_id em vez de obraId
-            obraNome: `${obra.cliente} - ${obra.obra}`,
-            userName: obra.prepostoNome || 'Preposto',
-            timestamp: formData.prepostoReviewedAt || obra.updatedAt,
-            read: storedReadIds.includes(notificationId)
-          });
-        }
-      }
-    }
-    
-    setNotifications(newNotifications);
-  }, [obras, users]);
-  
-  const handleMarkAsRead = (notificationId: string) => {
-    const storedReadIds = JSON.parse(localStorage.getItem('readNotifications') || '[]') as string[];
-    if (!storedReadIds.includes(notificationId)) {
-      storedReadIds.push(notificationId);
-      localStorage.setItem('readNotifications', JSON.stringify(storedReadIds));
-      
-      setNotifications(prev => 
-        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
-      );
-    }
-  };
-  
-  const unreadNotificationsCount = notifications.filter(n => !n.read).length;
 
   const handleDeleteObra = async (id: string) => {
     try {
@@ -337,9 +269,9 @@ const AdminDashboard: React.FC = () => {
             setFormularios(localFormularios);
             safeLog(`📂 ${localFormularios.length} formulários locais carregados`);
           }
-
-          // 🚀 OTIMIZAÇÃO #2: Chamar generateNotifications APENAS após carregar dados
-          await generateNotifications();
+          
+          // 🎯 SKELETON: Desativa skeleton após carregar dados
+          setCreatingSkeleton(false);
           
           return; // Sucesso
         } catch (apiError) {
@@ -383,8 +315,8 @@ const AdminDashboard: React.FC = () => {
       setUsers(localUsers);
       setFormularios(localFormularios);
       
-      // 🚀 OTIMIZAÇÃO #2: Chamar generateNotifications APENAS após carregar dados locais
-      await generateNotifications();
+      // 🎯 SKELETON: Desativa skeleton após carregar dados locais
+      setCreatingSkeleton(false);
     } catch (error) {
       safeError('❌ Erro ao carregar dados:', error);
       setObras([]);
@@ -420,15 +352,6 @@ const AdminDashboard: React.FC = () => {
     setViewingObra(obra);
   };
   
-  const handleNotificationClick = (notification: Notification) => {
-    const obra = obras.find(o => o.id === notification.obra_id); // ✅ CORREÇÃO: obra_id em vez de obraId
-    if (obra) {
-      // Usar handleObraClick para validar formulário
-      handleObraClick(obra);
-      setShowNotifications(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-[#EDEFE4] dark:bg-gray-950">
       {/* Header */}
@@ -457,19 +380,7 @@ const AdminDashboard: React.FC = () => {
               >
                 {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
               </button>
-              <button
-                onClick={() => setShowNotifications(true)}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 \n                         text-gray-600 dark:text-gray-400 relative"
-                title="Notificações"
-                aria-label={`Notificações (${unreadNotificationsCount})`}
-              >
-                <Bell className="w-5 h-5" />
-                {unreadNotificationsCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#FD5521] text-white text-xs font-medium rounded-full flex items-center justify-center">
-                    {unreadNotificationsCount}
-                  </span>
-                )}
-              </button>
+              
               <button
                 onClick={handleLogout}
                 className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 
@@ -582,6 +493,42 @@ const AdminDashboard: React.FC = () => {
               {/* Lista de Obras */}
               {/* Visualização em Cards - Sempre no mobile, opcional no desktop */}
               <div className={`space-y-3 ${viewMode === 'list' ? 'md:hidden' : ''}`}>
+                {/* 🎯 SKELETON: Card de obra em criação */}
+                {creatingSkeleton && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className="bg-white dark:bg-gray-900 rounded-xl p-3"
+                  >
+                    <div className="rounded-xl px-5 py-4 mb-2.5 bg-gradient-to-r from-gray-200 to-gray-100 dark:from-gray-800 dark:to-gray-700 animate-pulse">
+                      {/* Título skeleton */}
+                      <div className="h-6 bg-gray-300 dark:bg-gray-600 rounded mb-3 w-3/4"></div>
+                      
+                      {/* ID e Data skeleton */}
+                      <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded mb-4 w-1/3"></div>
+                      
+                      {/* Informações skeleton */}
+                      <div className="space-y-2">
+                        <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-2/3"></div>
+                        <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-3/4"></div>
+                        <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-1/2"></div>
+                      </div>
+                    </div>
+                    
+                    {/* Rodapé skeleton */}
+                    <div className="flex items-center justify-between px-2.5">
+                      <div className="h-6 bg-gray-300 dark:bg-gray-600 rounded w-32"></div>
+                      <div className="h-8 bg-gray-300 dark:bg-gray-600 rounded w-20"></div>
+                    </div>
+                    
+                    {/* Texto indicador */}
+                    <div className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400 animate-pulse">
+                      Criando diário de obra...
+                    </div>
+                  </motion.div>
+                )}
+                
                 {obrasPagination.paginatedItems.map(obra => {
                   // 🎯 REGRA DE DOMÍNIO: Aplicar status real baseado no formulário
                   const formulario = formularios.find(f => f.obra_id === obra.id);
@@ -626,7 +573,7 @@ const AdminDashboard: React.FC = () => {
                           </p>
                           <p>
                             <span className="font-normal">Preposto: </span>
-                            <span className="font-semibold">{obra.prepostoNome || obra.prepostoEmail || obra.prepostoWhatsapp || 'N/A'}</span>
+                            <span className="font-semibold">{obra.prepostoNome || obra.prepostoEmail || 'N/A'}</span>
                           </p>
                         </div>
                       </div>
@@ -770,6 +717,36 @@ const AdminDashboard: React.FC = () => {
 
               {/* Visualização em Lista - Desktop apenas */}
               <div className={`bg-white dark:bg-gray-900 rounded-lg overflow-hidden ${viewMode === 'list' ? 'hidden md:block' : 'hidden'}`}>
+                {/* 🎯 SKELETON: Row de obra em criação */}
+                {creatingSkeleton && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className="px-5 py-4 border-b border-gray-200 dark:border-gray-800"
+                  >
+                    <div className="animate-pulse">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="h-6 bg-gray-300 dark:bg-gray-600 rounded mb-2 w-2/3"></div>
+                          <div className="flex items-center gap-6">
+                            <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-24"></div>
+                            <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-32"></div>
+                            <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-20"></div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <div className="h-8 w-8 bg-gray-300 dark:bg-gray-600 rounded"></div>
+                          <div className="h-8 w-8 bg-gray-300 dark:bg-gray-600 rounded"></div>
+                        </div>
+                      </div>
+                      <div className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400">
+                        Criando diário de obra...
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+                
                 {filteredObras.length > 0 ? (
                   <>
                     {obrasPagination.paginatedItems.map((obra, index) => {
@@ -1031,8 +1008,9 @@ const AdminDashboard: React.FC = () => {
               users={users}
               onBack={() => setShowCreateObra(false)}
               onSuccess={() => {
-                loadData();
                 setShowCreateObra(false);
+                setCreatingSkeleton(true); // 🎯 Mostra skeleton imediatamente
+                loadData(); // Quando carregar, skeleton desaparece automaticamente
               }}
             />
           </Suspense>
@@ -1142,15 +1120,6 @@ const AdminDashboard: React.FC = () => {
           }
         }}
         searchValue={activeTab === 'obras' ? searchObra : searchUser}
-      />
-      
-      {/* Notification Drawer */}
-      <NotificationDrawer
-        isOpen={showNotifications}
-        notifications={notifications}
-        onClose={() => setShowNotifications(false)}
-        onNotificationClick={handleNotificationClick}
-        onMarkAsRead={handleMarkAsRead}
       />
       
       {/* 🔒 CORREÇÃO #7: Modal de confirmação de logout com dados pendentes */}

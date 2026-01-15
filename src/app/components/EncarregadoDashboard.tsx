@@ -296,7 +296,7 @@ const EncarregadoDashboard: React.FC = () => {
                         <div className="space-y-1">
                           <div className="text-gray-500 dark:text-gray-500 text-xs">Preposto</div>
                           <div className="text-gray-900 dark:text-gray-100 font-medium truncate">
-                            {obra.prepostoNome || obra.prepostoEmail || obra.prepostoWhatsapp || 'N/A'}
+                            {obra.prepostoNome || obra.prepostoEmail || 'N/A'}
                           </div>
                         </div>
                       </div>

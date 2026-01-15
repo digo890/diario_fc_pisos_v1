@@ -448,6 +448,19 @@ Deno.serve(async (req: Request) => {
         );
       }
 
+      if (!body.nomeCompleto || !body.nomeCompleto.trim()) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Nome completo é obrigatório",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
       if (!body.aprovado && !body.motivo) {
         return new Response(
           JSON.stringify({
@@ -471,6 +484,7 @@ Deno.serve(async (req: Request) => {
         ...formulario,
         prepostoConfirmado: true,
         assinaturaPreposto: body.assinatura,
+        nomeCompletoPreposto: body.nomeCompleto.trim(),
         dataAssinaturaPreposto: now,
         statusPreposto: body.aprovado ? "aprovado" : "reprovado",
         motivoReprovacaoPreposto: body.motivo || null,

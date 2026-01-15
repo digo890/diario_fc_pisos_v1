@@ -243,16 +243,6 @@ export function validateObraData(data: ObraValidation): {
     }
   }
   
-  // ✅ CORREÇÃO: Aceitar tanto prepostoWhatsapp/prepostoTelefone quanto preposto_whatsapp/preposto_telefone
-  const prepostoTelefone = data.prepostoWhatsapp || data.prepostoTelefone || data.preposto_whatsapp || data.preposto_telefone;
-  if (prepostoTelefone) {
-    if (!isValidPhone(prepostoTelefone)) {
-      errors.push('Telefone do preposto inválido');
-    } else {
-      sanitized.prepostoWhatsapp = sanitizePhone(prepostoTelefone);
-    }
-  }
-  
   // Copiar outros campos (sanitizados) usando camelCase
   for (const key in data) {
     if (!sanitized.hasOwnProperty(key) && typeof data[key] === 'string') {

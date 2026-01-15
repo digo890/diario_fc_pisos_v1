@@ -80,6 +80,37 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
       // Salvar no IndexedDB
       await saveForm(updatedForm);
       
+      // 🎯 CORREÇÃO: Atualizar status da obra para "em_preenchimento" quando começar a preencher
+      if (obra.status === 'novo') {
+        // Verificar se há algum dado preenchido (além dos campos padrão)
+        const hasData = 
+          (updatedForm.clima && Object.keys(updatedForm.clima).length > 0) ||
+          updatedForm.temperaturaMin ||
+          updatedForm.temperaturaMax ||
+          updatedForm.umidade ||
+          (updatedForm.servicos && Object.keys(updatedForm.servicos).length > 0) ||
+          updatedForm.ucrete ||
+          updatedForm.horarioInicio ||
+          updatedForm.horarioTermino ||
+          updatedForm.area ||
+          updatedForm.espessura ||
+          updatedForm.rodape ||
+          updatedForm.estadoSubstrato ||
+          updatedForm.estadoSubstratoObs ||
+          (updatedForm.registros && Object.keys(updatedForm.registros).length > 0) ||
+          updatedForm.observacoes;
+        
+        if (hasData) {
+          const updatedObra = {
+            ...obra,
+            status: 'em_preenchimento' as const,
+            updatedAt: Date.now()
+          };
+          await saveObra(updatedObra);
+          safeLog('✅ Status da obra atualizado para "em_preenchimento"');
+        }
+      }
+      
       // 🎨 UI/UX: Garantir que o indicador "Salvando..." apareça por pelo menos 300ms
       const elapsedTime = Date.now() - saveStartTime;
       if (elapsedTime < 300) {
@@ -95,7 +126,7 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
       setAutoSaveStatus('idle');
       setSaving(false);
     }
-  }, [isDirty, saving]);
+  }, [isDirty, saving, obra]);
 
   // Criar função debounced (mantém referência estável)
   const debouncedAutoSave = useRef(
@@ -281,15 +312,12 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
               } else {
                 // Criar novo formulário
                 formularioId = crypto.randomUUID();
-                safeLog(`🔑 [DEBUG] UUID gerado para formulário: ${formularioId}`);
-                safeLog(`🔍 [DEBUG] Tipo do UUID: ${typeof formularioId}, Tamanho: ${formularioId.length}`);
                 
                 const payload = {
                   id: formularioId,
                   obra_id: obra.id,
                   ...updatedForm
                 };
-                safeLog(`📤 [DEBUG] Payload para criar formulário:`, { id: formularioId, obra_id: obra.id });
                 
                 await formularioApi.create(payload);
                 safeLog(`✅ Formulário criado no backend com ID: ${formularioId}`);
@@ -316,8 +344,6 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
             let emailEnviado = false;
             if (obra.prepostoEmail) {
               safeLog('📧 Iniciando envio de email para preposto...');
-              safeLog(`🔑 [DEBUG] formularioId que será enviado no email: ${formularioId}`);
-              safeLog(`🔍 [DEBUG] Tipo: ${typeof formularioId}, Tamanho: ${formularioId?.length}`);
               
               const emailResult = await sendPrepostoConferenciaEmail({
                 prepostoEmail: obra.prepostoEmail,
@@ -344,8 +370,6 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
             // ✅ Mensagem baseada no que REALMENTE aconteceu
             if (emailEnviado && obra.prepostoEmail) {
               showToast('Formulário enviado e email enviado ao preposto ✓', 'success');
-            } else if (obra.prepostoWhatsapp) {
-              showToast('Formulário enviado! Envie o link via WhatsApp ao preposto.', 'success');
             } else {
               showToast('Formulário enviado! Compartilhe o link de validação com o preposto.', 'success');
             }
@@ -718,18 +742,6 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
 
             {/* Botões de compartilhamento */}
             <div className="space-y-2">
-              {obra.prepostoWhatsapp && (
-                <a
-                  href={`https://wa.me/55${obra.prepostoWhatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá! Segue o link para conferência do formulário da obra ${obra.cliente} - ${obra.obra}:\n\n${window.location.origin}/conferencia/${obra.validationToken}`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  Enviar via WhatsApp
-                </a>
-              )}
-
               {obra.prepostoEmail && (
                 <a
                   href={`mailto:${obra.prepostoEmail}?subject=${encodeURIComponent(`Conferência de Formulário - ${obra.cliente}`)}&body=${encodeURIComponent(`Olá!\n\nSegue o link para conferência do formulário da obra ${obra.cliente} - ${obra.obra}:\n\n${window.location.origin}/conferencia/${obra.validationToken}\n\nAtenciosamente,\nFC Pisos`)}`}

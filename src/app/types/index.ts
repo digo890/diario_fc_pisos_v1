@@ -24,7 +24,6 @@ export interface Obra {
   // Preposto agora é apenas dados de contato, não um usuário
   prepostoNome?: string;
   prepostoEmail?: string;
-  prepostoWhatsapp?: string;
   status: FormStatus;
   progress: number;
   createdAt: number;
@@ -108,6 +107,7 @@ export interface FormData {
   
   // Confirmação Preposto
   prepostoConfirmado?: boolean;
+  nomeCompletoPreposto?: string; // Nome completo do preposto que assinou
   prepostoMotivoReprovacao?: string; // Motivo quando reprovar
   
   // Metadata

@@ -73,7 +73,7 @@ export async function generateFormExcel(
     ['Cidade:', obra.cidade],
     ['Data:', obra.data],
     ['Encarregado:', getUserName(obra.encarregadoId)],
-    ['Preposto:', obra.prepostoNome || obra.prepostoEmail || obra.prepostoWhatsapp || 'N/A'],
+    ['Preposto:', obra.prepostoNome || obra.prepostoEmail || 'N/A'],
     [''],
     ['CONDIÇÕES AMBIENTAIS'],
     ['Clima Manhã:', getClimaLabel(formData.clima.manha)],
@@ -188,6 +188,13 @@ export async function generateFormExcel(
       [''],
       ['Status:', 'Validado ✓'],
     ];
+
+    if (formData.nomeCompletoPreposto) {
+      wsDataValidacao.push([
+        'Nome:',
+        formData.nomeCompletoPreposto
+      ]);
+    }
 
     if (formData.prepostoReviewedAt) {
       wsDataValidacao.push([

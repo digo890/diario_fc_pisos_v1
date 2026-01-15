@@ -23,8 +23,7 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
     data: new Date().toISOString().split('T')[0],
     encarregadoId: '',
     prepostoNome: '',
-    prepostoEmail: '',
-    prepostoWhatsapp: ''
+    prepostoEmail: ''
   });
 
   const [errors, setErrors] = useState({
@@ -101,7 +100,7 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
     }
 
     // Validar que há pelo menos um meio de contato do preposto
-    if (!formData.prepostoEmail && !formData.prepostoWhatsapp) {
+    if (!formData.prepostoEmail) {
       newErrors.prepostoContato = true;
       hasErrors = true;
     } else {
@@ -126,7 +125,6 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
         encarregado_id: formData.encarregadoId,
         preposto_nome: formData.prepostoNome || undefined,
         preposto_email: formData.prepostoEmail || undefined,
-        preposto_whatsapp: formData.prepostoWhatsapp || undefined,
         status: 'novo',
         progress: 0,
         created_by: 'admin'
@@ -143,7 +141,6 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
           encarregadoId: response.data.encarregado_id,
           prepostoNome: response.data.preposto_nome,
           prepostoEmail: response.data.preposto_email,
-          prepostoWhatsapp: response.data.preposto_whatsapp,
           validationToken: response.data.token_validacao,
           validationTokenExpiry: response.data.token_validacao_expiry ? new Date(response.data.token_validacao_expiry).getTime() : undefined,
           status: response.data.status,
@@ -327,24 +324,6 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40`}
               placeholder="Email do Preposto"
             />
-          </div>
-
-          {/* Preposto - Whatsapp */}
-          <div className="relative">
-            <Phone className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none" />
-            <input
-              type="text"
-              value={formData.prepostoWhatsapp}
-              onChange={(e) => setFormData({ ...formData, prepostoWhatsapp: formatPhoneNumber(e.target.value) })}
-              className={`w-full pl-12 pr-4 py-3 rounded-xl 
-                       bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                       border border-gray-200 dark:border-gray-800
-                       placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
-                       focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
-                       ${errors.prepostoContato ? 'ring-2 ring-red-500' : ''}`}
-              placeholder="Whatsapp do Preposto"
-            />
-            {errors.prepostoContato && <p className="text-red-500 text-sm mt-1">Informe pelo menos um contato (Email ou WhatsApp)</p>}
           </div>
 
           {/* Submit Button */}

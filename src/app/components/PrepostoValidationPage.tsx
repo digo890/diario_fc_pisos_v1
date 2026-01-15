@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, FileText, Building2, Calendar, MapPin, UserRound, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { conferenciaApi } from '../utils/api';
+import { safeError } from '../utils/logSanitizer';
 import SignatureCanvas from 'react-signature-canvas';
 import { useToast } from './Toast';
 
@@ -84,6 +85,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
   const [signatureRef, setSignatureRef] = useState<SignatureCanvas | null>(null);
   const [validationType, setValidationType] = useState<'aprovar' | 'reprovar' | null>(null);
   const [motivoReprovacao, setMotivoReprovacao] = useState('');
+  const [nomeCompleto, setNomeCompleto] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -109,7 +111,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
         setFormulario(formulario);
         setObra(obra);
       } catch (error: any) {
-        console.error('❌ Erro ao carregar:', error);
+        safeError('❌ Erro ao carregar:', error);
         setError('Erro ao carregar formulário');
       } finally {
         setLoading(false);
@@ -126,6 +128,11 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
 
   const handleConfirmValidation = async () => {
     if (isSubmitting) return;
+    
+    if (!nomeCompleto.trim()) {
+      showToast('Por favor, informe seu nome completo', 'warning');
+      return;
+    }
     
     if (!signatureRef || signatureRef.isEmpty()) {
       showToast('Por favor, assine para confirmar', 'warning');
@@ -148,6 +155,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
       const response = await conferenciaApi.assinarFormulario(formularioId, {
         aprovado: validationType === 'aprovar',
         assinatura,
+        nomeCompleto: nomeCompleto.trim(),
         motivo: motivoReprovacao || undefined,
       });
 
@@ -169,7 +177,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
         'success'
       );
     } catch (err) {
-      console.error('❌ Erro ao assinar:', err);
+      safeError('❌ Erro ao assinar:', err);
       showToast('Erro ao salvar validação. Tente novamente.', 'error');
     } finally {
       setIsSubmitting(false);
@@ -697,6 +705,19 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
 
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Nome Completo *
+                </label>
+                <input
+                  type="text"
+                  value={nomeCompleto}
+                  onChange={(e) => setNomeCompleto(e.target.value)}
+                  placeholder="Digite seu nome completo"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Assinatura *
                 </label>
                 <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl overflow-hidden">
@@ -721,6 +742,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
                     setShowSignature(false);
                     setValidationType(null);
                     setMotivoReprovacao('');
+                    setNomeCompleto('');
                   }}
                   className="flex-1 px-6 py-3 rounded-xl bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-white font-medium hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
                 >

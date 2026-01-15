@@ -5,6 +5,7 @@ import { getStatusDisplay, getStatusDisplayWithFormulario } from '../utils/diari
 import { copyToClipboard } from '../utils/clipboard';
 import { generateFormPDF } from '../utils/pdfGenerator';
 import { generateFormExcel } from '../utils/excelGenerator';
+import { safeError } from '../utils/logSanitizer';
 import type { Obra, User, FormData } from '../types';
 
 /**
@@ -93,6 +94,20 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
   
   const status = getStatusDisplayWithFormulario(obra, formData);
 
+  // 🎯 TOAST: Fechar modal automaticamente quando não há respostas
+  useEffect(() => {
+    if (!formData && obra.status === 'novo') {
+      toast.info('Esta obra ainda não possui respostas', {
+        duration: 3000,
+      });
+      // Fechar modal após um pequeno delay para o toast aparecer
+      const timer = setTimeout(() => {
+        onClose();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [formData, obra.status, onClose]);
+
   // Fechar menu ao clicar fora
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -124,7 +139,7 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
       await generateFormPDF(obra, formData, users);
       toast.success('PDF gerado com sucesso!');
     } catch (error) {
-      console.error('Erro ao gerar PDF:', error);
+      safeError('Erro ao gerar PDF:', error);
       toast.error('Erro ao gerar PDF. Tente novamente.');
     }
   };
@@ -138,7 +153,7 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
       await generateFormExcel(obra, formData, users);
       toast.success('Excel gerado com sucesso!');
     } catch (error) {
-      console.error('Erro ao gerar Excel:', error);
+      safeError('Erro ao gerar Excel:', error);
       toast.error('Erro ao gerar Excel. Tente novamente.');
     }
   };
@@ -179,27 +194,10 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
     });
   }, [formData]);
 
+  // 🎯 TOAST: Quando não há formData, o useEffect já mostra toast e fecha o modal
+  // Retornar null para não renderizar nada enquanto fecha
   if (!formData) {
-    return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white dark:bg-gray-900 rounded-lg max-w-md w-full p-6">
-          <div className="text-center">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Sem respostas
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Esta obra ainda não possui formulário preenchido.
-            </p>
-            <button
-              onClick={onClose}
-              className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-white"
-            >
-              Fechar
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -290,7 +288,7 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
               <div>
                 <span className="text-gray-600 dark:text-gray-400">Preposto:</span>
                 <div className="text-gray-900 dark:text-white">
-                  {obra.prepostoNome || obra.prepostoEmail || obra.prepostoWhatsapp || 'N/A'}
+                  {obra.prepostoNome || obra.prepostoEmail || 'N/A'}
                 </div>
               </div>
               {formData.enviadoPrepostoAt && (
@@ -674,6 +672,11 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
                     {formData.prepostoConfirmado ? '✓ Aprovado' : '✗ Reprovado'}
                   </span>
                 </div>
+                {formData.nomeCompletoPreposto && (
+                  <div className="text-gray-900 dark:text-white">
+                    <strong>Nome:</strong> {formData.nomeCompletoPreposto}
+                  </div>
+                )}
                 {formData.prepostoReviewedAt && (
                   <div className="text-gray-600 dark:text-gray-400">
                     {formData.prepostoConfirmado ? 'Aprovado' : 'Reprovado'} em: {new Date(formData.prepostoReviewedAt).toLocaleString('pt-BR', {

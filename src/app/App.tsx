@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { initDB, seedInitialData } from './utils/database';
 import { initSyncQueue } from './utils/syncQueue';
+import { safeWarn, safeError } from './utils/logSanitizer';
 import ErrorBoundary from './components/ErrorBoundary';
 import LoadingSpinner from './components/LoadingSpinner';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
@@ -34,7 +35,7 @@ const AppContent: React.FC = () => {
       try {
         // Verificar se o IndexedDB está disponível
         if (typeof indexedDB === 'undefined') {
-          console.warn('⚠️ IndexedDB não disponível - funcionalidades offline desabilitadas');
+          safeWarn('IndexedDB não disponível - funcionalidades offline desabilitadas');
           return;
         }
 
@@ -42,7 +43,7 @@ const AppContent: React.FC = () => {
         await seedInitialData();
         await initSyncQueue();
       } catch (error) {
-        console.error('❌ Erro ao inicializar aplicação:', error);
+        safeError('Erro ao inicializar aplicação:', error);
         // Não quebrar a aplicação, apenas logar
         // O usuário ainda pode usar funcionalidades online
       }
