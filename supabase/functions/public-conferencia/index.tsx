@@ -388,6 +388,57 @@ Deno.serve(async (req: Request) => {
         );
       }
 
+      // 🛡️ VALIDAÇÕES DE SEGURANÇA (ANTES de buscar do banco)
+      
+      // Validação 1: Nome completo (3-100 caracteres)
+      const nomeCompleto = body.nomeCompleto?.trim() || "";
+      if (nomeCompleto.length < 3 || nomeCompleto.length > 100) {
+        console.warn("⚠️ Nome inválido - comprimento:", nomeCompleto.length);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Nome completo deve ter entre 3 e 100 caracteres",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      // Validação 2: Tamanho da assinatura (<150KB)
+      if (body.assinatura && body.assinatura.length >= 150000) {
+        console.warn("⚠️ Assinatura muito grande:", body.assinatura.length, "caracteres");
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Assinatura muito grande",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      // Validação 3: Motivo da reprovação (≥10 caracteres quando reprovado)
+      if (body.aprovado === false) {
+        const motivo = body.motivo?.trim() || "";
+        if (motivo.length < 10) {
+          console.warn("⚠️ Motivo muito curto:", motivo.length, "caracteres");
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: "Motivo da reprovação deve ter pelo menos 10 caracteres",
+            }),
+            {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
+        }
+      }
+
       // 2️⃣ Buscar formulário
       const chave = `formulario:${formularioId}`;
       const formulario = await kvGet(chave);
@@ -419,6 +470,40 @@ Deno.serve(async (req: Request) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           }
         );
+      }
+
+      // 🚨 RATE LIMITING - Proteção contra spam
+      const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || 
+                       req.headers.get("x-real-ip") || 
+                       "unknown";
+      const rateLimitKey = `ratelimit:assinar:${clientIp}:${formularioId}`;
+      
+      try {
+        const tentativas = (await kvGet(rateLimitKey)) || 0;
+        
+        console.log(`🔒 [RATE LIMIT] IP: ${clientIp} | Tentativas: ${tentativas}/5`);
+        
+        if (tentativas >= 5) {
+          console.warn(`⚠️ [RATE LIMIT] IP ${clientIp} bloqueado - ${tentativas} tentativas`);
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: "Muitas tentativas. Aguarde ou entre em contato.",
+            }),
+            {
+              status: 429,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
+        }
+        
+        // Incrementar contador de tentativas
+        await kvSet(rateLimitKey, tentativas + 1);
+        console.log(`✅ [RATE LIMIT] Contador incrementado: ${tentativas + 1}/5`);
+        
+      } catch (error) {
+        // Fail-safe: se kvGet/kvSet falhar, permitir assinatura
+        console.warn("⚠️ [RATE LIMIT] Erro ao verificar limite, permitindo assinatura:", error);
       }
 
       // 4️⃣ Validar dados recebidos
@@ -476,10 +561,6 @@ Deno.serve(async (req: Request) => {
 
       // 5️⃣ Atualizar formulário
       const now = new Date().toISOString();
-      const clientIp = req.headers.get("x-forwarded-for") || 
-                       req.headers.get("x-real-ip") || 
-                       "unknown";
-
       const updatedFormulario = {
         ...formulario,
         prepostoConfirmado: true,

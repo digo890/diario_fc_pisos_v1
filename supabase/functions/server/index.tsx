@@ -260,6 +260,15 @@ const requireAuth = async (c: any, next: any) => {
               ? ""
               : "=".repeat(4 - (base64.length % 4));
           payload = JSON.parse(atob(base64 + padding));
+          
+          // 🔍 DEBUG: Logar payload completo para diagnóstico
+          safeLog("🔍 [AUTH] Payload do token:", {
+            sub: payload.sub ? "presente" : "AUSENTE",
+            email: payload.email ? "presente" : "ausente",
+            exp: payload.exp ? "presente" : "ausente",
+            iss: payload.iss ? "presente" : "ausente",
+            role: payload.role || "não definido"
+          });
         } catch (decodeError) {
           safeError(
             "❌ [AUTH] Erro ao decodificar JWT:",
@@ -277,6 +286,12 @@ const requireAuth = async (c: any, next: any) => {
 
         if (!userId) {
           safeError("❌ [AUTH] Token não contém user ID");
+          safeError("🔍 [AUTH] Payload completo (sanitizado):", {
+            keys: Object.keys(payload),
+            sub: payload.sub,
+            hasEmail: !!payload.email,
+            hasExp: !!payload.exp
+          });
           return c.json(
             { success: false, error: "Token inválido" },
             401,

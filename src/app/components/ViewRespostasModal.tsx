@@ -3,8 +3,6 @@ import { X, Download, Share2, Check, FileDown, FileSpreadsheet } from 'lucide-re
 import { toast } from 'sonner';
 import { getStatusDisplay, getStatusDisplayWithFormulario } from '../utils/diarioHelpers';
 import { copyToClipboard } from '../utils/clipboard';
-import { generateFormPDF } from '../utils/pdfGenerator';
-import { generateFormExcel } from '../utils/excelGenerator';
 import { safeError } from '../utils/logSanitizer';
 import type { Obra, User, FormData } from '../types';
 
@@ -13,6 +11,7 @@ import type { Obra, User, FormData } from '../types';
  * 
  * - useMemo para cálculos de loops aninhados pesados
  * - Evita recalcular listas filtradas a cada render
+ * - Dynamic imports para PDF/Excel (~1.6MB removidos do bundle inicial)
  */
 
 interface Props {
@@ -136,7 +135,11 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
     try {
       setDownloadMenuOpen(false);
       toast.info('Gerando PDF...');
+      
+      // Dynamic import para reduzir bundle inicial
+      const { generateFormPDF } = await import('../utils/pdfGenerator');
       await generateFormPDF(obra, formData, users);
+      
       toast.success('PDF gerado com sucesso!');
     } catch (error) {
       safeError('Erro ao gerar PDF:', error);
@@ -150,7 +153,11 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
     try {
       setDownloadMenuOpen(false);
       toast.info('Gerando Excel...');
+      
+      // Dynamic import para reduzir bundle inicial
+      const { generateFormExcel } = await import('../utils/excelGenerator');
       await generateFormExcel(obra, formData, users);
+      
       toast.success('Excel gerado com sucesso!');
     } catch (error) {
       safeError('Erro ao gerar Excel:', error);
@@ -697,11 +704,18 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
                 {formData.assinaturaPreposto && (
                   <div>
                     <span className="text-gray-600 dark:text-gray-400">Assinatura do Preposto:</span>
-                    <img 
-                      src={formData.assinaturaPreposto} 
-                      alt="Assinatura Preposto" 
-                      className="mt-2 border border-gray-300 dark:border-gray-600 rounded-lg max-w-xs"
-                    />
+                    <div className="mt-2">
+                      <img 
+                        src={formData.assinaturaPreposto} 
+                        alt="Assinatura Preposto" 
+                        className="border border-gray-300 dark:border-gray-600 rounded-lg max-w-xs"
+                      />
+                      {formData.prepostoNomeAssinatura && (
+                        <p className="mt-2 text-sm text-gray-700 dark:text-gray-300 text-center max-w-xs">
+                          {formData.prepostoNomeAssinatura}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

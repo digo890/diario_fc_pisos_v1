@@ -170,6 +170,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => {
+      // 🆕 CORREÇÃO: Limpar timeout antes de desinscrever para evitar memory leak
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+        refreshTimeoutRef.current = null;
+      }
+      
       subscription.unsubscribe();
     };
   }, []);

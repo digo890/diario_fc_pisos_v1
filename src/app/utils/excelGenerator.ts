@@ -1,4 +1,3 @@
-import * as XLSX from 'xlsx';
 import type { Obra, User, FormData } from '../types';
 
 // Itens 1-34: Etapas de Execução dos Serviços (v1.1.0)
@@ -44,6 +43,10 @@ export async function generateFormExcel(
   formData: FormData,
   users: User[]
 ): Promise<void> {
+  // Dynamic import para reduzir bundle inicial (~1MB)
+  const XLSXModule = await import('xlsx');
+  const XLSX = (XLSXModule as any).default || XLSXModule;
+
   const getUserName = (id: string) => {
     const user = users.find(u => u.id === id);
     return user?.nome || 'N/A';

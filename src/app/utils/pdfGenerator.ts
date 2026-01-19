@@ -4,8 +4,7 @@
  * Layout simples e organizado - Documento de garantia da obra
  */
 
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import type jsPDF from "jspdf";
 import type { Obra, FormData, User } from "../types";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -26,7 +25,13 @@ export async function generateFormPDF(
   formData: FormData,
   users: User[],
 ): Promise<void> {
-  const pdf = new jsPDF("p", "mm", "a4");
+  // Dynamic imports para reduzir bundle inicial (~1.6MB)
+  const [{ default: jsPDFLib }, { default: autoTable }] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable')
+  ]);
+
+  const pdf = new jsPDFLib("p", "mm", "a4") as jsPDF;
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
   const margin = 15;
