@@ -29,21 +29,21 @@ function normalizeObraFromBackend(obraBackend: any): Obra {
     prepostoEmail: obraBackend.preposto_email || obraBackend.prepostoEmail,
     status: obraBackend.status,
     progress: obraBackend.progress || 0,
-    createdAt: obraBackend.created_at 
-      ? new Date(obraBackend.created_at).getTime() 
+    createdAt: obraBackend.created_at
+      ? new Date(obraBackend.created_at).getTime()
       : obraBackend.createdAt || Date.now(),
     // ✅ CORREÇÃO CRÍTICA: Remover fallback Date.now() que mascara problemas
     // Se updatedAt não existir, deixar undefined (backend deve vencer no merge)
-    updatedAt: obraBackend.updated_at 
-      ? new Date(obraBackend.updated_at).getTime() 
+    updatedAt: obraBackend.updated_at
+      ? new Date(obraBackend.updated_at).getTime()
       : obraBackend.updatedAt,
     createdBy: obraBackend.created_by || obraBackend.createdBy || '',
     validationToken: obraBackend.token_validacao || obraBackend.validationToken,
-    validationTokenExpiry: obraBackend.token_validacao_expiry 
-      ? new Date(obraBackend.token_validacao_expiry).getTime() 
+    validationTokenExpiry: obraBackend.token_validacao_expiry
+      ? new Date(obraBackend.token_validacao_expiry).getTime()
       : obraBackend.validationTokenExpiry,
-    validationTokenLastAccess: obraBackend.validation_token_last_access 
-      ? new Date(obraBackend.validation_token_last_access).getTime() 
+    validationTokenLastAccess: obraBackend.validation_token_last_access
+      ? new Date(obraBackend.validation_token_last_access).getTime()
       : obraBackend.validationTokenLastAccess,
   };
 }
@@ -58,8 +58,8 @@ function normalizeUserFromBackend(userBackend: any): User {
     tipo: userBackend.tipo,
     email: userBackend.email,
     telefone: userBackend.telefone,
-    createdAt: userBackend.created_at 
-      ? new Date(userBackend.created_at).getTime() 
+    createdAt: userBackend.created_at
+      ? new Date(userBackend.created_at).getTime()
       : userBackend.createdAt || Date.now(),
   };
 }
@@ -70,12 +70,12 @@ function normalizeUserFromBackend(userBackend: any): User {
 export function normalizeFormularioFromBackend(formBackend: any): FormData {
   return {
     obra_id: formBackend.obra_id || formBackend.obraId,
-    
+
     // Campos complexos (objetos) - manter como estão ou normalizar se necessário
     clima: formBackend.clima || {},
     servicos: formBackend.servicos || {},
     registros: formBackend.registros || {},
-    
+
     // Campos simples
     temperaturaMin: formBackend.temperatura_min || formBackend.temperaturaMin || '',
     temperaturaMax: formBackend.temperatura_max || formBackend.temperaturaMax || '',
@@ -89,36 +89,37 @@ export function normalizeFormularioFromBackend(formBackend: any): FormData {
     estadoSubstrato: formBackend.estado_substrato || formBackend.estadoSubstrato || '',
     estadoSubstratoObs: formBackend.estado_substrato_obs || formBackend.estadoSubstratoObs || '',
     observacoes: formBackend.observacoes || '',
-    
+
     // Assinaturas
     assinaturaEncarregado: formBackend.assinatura_encarregado || formBackend.assinaturaEncarregado,
     assinaturaPreposto: formBackend.assinatura_preposto || formBackend.assinaturaPreposto,
-    
+
     // Confirmação Preposto
     prepostoConfirmado: formBackend.preposto_confirmado || formBackend.prepostoConfirmado,
     nomeCompletoPreposto: formBackend.nome_completo_preposto || formBackend.nomeCompletoPreposto,
     prepostoMotivoReprovacao: formBackend.preposto_motivo_reprovacao || formBackend.prepostoMotivoReprovacao,
-    
+    statusPreposto: formBackend.status_preposto || formBackend.statusPreposto,
+
     // Metadata
     status: formBackend.status || 'novo',
-    createdAt: formBackend.created_at 
-      ? new Date(formBackend.created_at).getTime() 
+    createdAt: formBackend.created_at
+      ? new Date(formBackend.created_at).getTime()
       : formBackend.createdAt || Date.now(),
-    updatedAt: formBackend.updated_at 
-      ? new Date(formBackend.updated_at).getTime() 
+    updatedAt: formBackend.updated_at
+      ? new Date(formBackend.updated_at).getTime()
       : formBackend.updatedAt || Date.now(),
     createdBy: formBackend.created_by || formBackend.createdBy || '',
-    
+
     // Campos de fluxo
-    enviadoPrepostoAt: formBackend.enviado_preposto_at 
-      ? new Date(formBackend.enviado_preposto_at).getTime() 
+    enviadoPrepostoAt: formBackend.enviado_preposto_at
+      ? new Date(formBackend.enviado_preposto_at).getTime()
       : formBackend.enviadoPrepostoAt,
-    prepostoReviewedAt: formBackend.preposto_reviewed_at 
-      ? new Date(formBackend.preposto_reviewed_at).getTime() 
+    prepostoReviewedAt: formBackend.preposto_reviewed_at
+      ? new Date(formBackend.preposto_reviewed_at).getTime()
       : formBackend.prepostoReviewedAt,
     prepostoReviewedBy: formBackend.preposto_reviewed_by || formBackend.prepostoReviewedBy,
-    completedAt: formBackend.completed_at 
-      ? new Date(formBackend.completed_at).getTime() 
+    completedAt: formBackend.completed_at
+      ? new Date(formBackend.completed_at).getTime()
       : formBackend.completedAt,
     emailsEnviados: formBackend.emails_enviados || formBackend.emailsEnviados,
   };
@@ -161,12 +162,12 @@ export async function mergeObras(
   for (const remoteObraRaw of remoteObras) {
     // ✅ CORREÇÃO: Normalizar dados do backend (snake_case → camelCase)
     const remoteObra = normalizeObraFromBackend(remoteObraRaw);
-    
+
     const localObra = merged.get(remoteObra.id);
     const mostRecent = getMostRecent(localObra, remoteObra);
-    
+
     merged.set(remoteObra.id, mostRecent);
-    
+
     // Salvar versão mais recente no IndexedDB
     await saveObra(mostRecent);
   }
@@ -196,12 +197,12 @@ export async function mergeUsers(
   for (const remoteUserRaw of remoteUsers) {
     // ✅ CORREÇÃO: Normalizar dados do backend (snake_case → camelCase)
     const remoteUser = normalizeUserFromBackend(remoteUserRaw);
-    
+
     const localUser = merged.get(remoteUser.id);
     const mostRecent = getMostRecent(localUser, remoteUser);
-    
+
     merged.set(remoteUser.id, mostRecent);
-    
+
     // Salvar versão mais recente no IndexedDB
     await saveUser(mostRecent);
   }

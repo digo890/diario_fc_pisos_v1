@@ -69,20 +69,20 @@ export interface CondicionalItem {
 
 export interface FormData {
   obra_id: string; // ✅ CORREÇÃO: Padronizado para snake_case (consistente com backend)
-  
+
   // Condições Ambientais
   clima: ClimaData;
   temperaturaMin: string;
   temperaturaMax: string;
   umidade: string;
-  
+
   // Serviços Executados (até 3)
   servicos: {
     servico1?: ServicoData;
     servico2?: ServicoData;
     servico3?: ServicoData;
   };
-  
+
   // Dados da Obra
   ucrete: string;
   horarioInicio: string;
@@ -92,24 +92,25 @@ export interface FormData {
   rodape: string;
   estadoSubstrato: string;
   estadoSubstratoObs: string;
-  
+
   // Registros Importantes (20 itens condicionais)
   registros: {
     [key: string]: CondicionalItem;
   };
-  
+
   // Observações Gerais
   observacoes: string;
-  
+
   // Assinaturas
   assinaturaEncarregado?: string;
   assinaturaPreposto?: string;
-  
+
   // Confirmação Preposto
   prepostoConfirmado?: boolean;
   nomeCompletoPreposto?: string; // Nome completo do preposto que assinou
   prepostoMotivoReprovacao?: string; // Motivo quando reprovar
-  
+  statusPreposto?: 'aprovado' | 'reprovado'; // Status da revisão do preposto
+
   // Metadata
   status: FormStatus;
   createdAt: number;
