@@ -46,10 +46,10 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
   const formatPhoneNumber = (value: string) => {
     // Remove tudo que não é dígito
     const cleaned = value.replace(/\D/g, '');
-    
+
     // Limita a 11 dígitos
     const limited = cleaned.substring(0, 11);
-    
+
     // Aplica a máscara
     if (limited.length <= 2) {
       return limited;
@@ -150,7 +150,7 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
         };
 
         await saveObra(novaObra);
-        
+
         // ✅ NOTIFICAÇÃO: Enviar email ao encarregado
         if (response.data.encarregado_email) {
           const emailResult = await sendEncarregadoNovaObraEmail({
@@ -162,13 +162,13 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
             prepostoNome: response.data.preposto_nome || 'Cliente',
             obraId: response.data.id,
           });
-          
+
           if (!emailResult.success) {
             // Não bloqueia a criação da obra se falhar o envio do email
             showToast('⚠️ Obra criada mas houve erro ao enviar email ao encarregado', 'warning');
           }
         }
-        
+
         onSuccess();
       } else {
         showToast(`Erro ao criar obra: ${response.error}`, 'error');
@@ -181,7 +181,7 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, x: '100%' }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: '100%' }}
@@ -207,15 +207,15 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
       <div className="flex-1 overflow-y-auto bg-[#EDEFE4] dark:bg-gray-900">
         <form onSubmit={handleSubmit} className="max-w-3xl mx-auto p-4 space-y-3">
           {/* Cliente */}
-          <div className="relative">
-            <UserRound className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none" />
+          <div className="relative group">
+            <UserRound className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
             <input
               type="text"
               value={formData.cliente}
               onChange={(e) => setFormData({ ...formData, cliente: e.target.value })}
               className={`w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                       border border-gray-200 dark:border-gray-800
+                       border border-transparent dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                        ${errors.cliente ? 'ring-2 ring-red-500' : ''}`}
@@ -225,15 +225,15 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
           </div>
 
           {/* Obra */}
-          <div className="relative">
-            <Building2 className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none" />
+          <div className="relative group">
+            <Building2 className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
             <input
               type="text"
               value={formData.obra}
               onChange={(e) => setFormData({ ...formData, obra: e.target.value })}
               className={`w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                       border border-gray-200 dark:border-gray-800
+                       border border-transparent dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                        ${errors.obra ? 'ring-2 ring-red-500' : ''}`}
@@ -243,15 +243,15 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
           </div>
 
           {/* Cidade */}
-          <div className="relative">
-            <MapPin className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none" />
+          <div className="relative group">
+            <MapPin className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
             <input
               type="text"
               value={formData.cidade}
               onChange={(e) => setFormData({ ...formData, cidade: e.target.value })}
               className={`w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                       border border-gray-200 dark:border-gray-800
+                       border border-transparent dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                        ${errors.cidade ? 'ring-2 ring-red-500' : ''}`}
@@ -261,28 +261,28 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
           </div>
 
           {/* Data */}
-          <div className="relative">
-            <Calendar className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none" />
+          <div className="relative group">
+            <Calendar className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
             <input
               type="date"
               value={formData.data}
               onChange={(e) => setFormData({ ...formData, data: e.target.value })}
               className="w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                       border border-gray-200 dark:border-gray-800
+                       border border-transparent dark:border-gray-800
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
             />
           </div>
 
           {/* Encarregado - Bottom Sheet Trigger */}
-          <div className="relative">
-            <HardHat className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none z-10" />
+          <div className="relative group">
+            <HardHat className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none z-10 transition-colors group-focus-within:text-[#FD5521]" />
             <button
               type="button"
               onClick={() => setActiveSheet('encarregado')}
               className={`w-full pl-12 pr-4 py-3 rounded-xl
                        bg-white dark:bg-gray-800 text-left flex items-center justify-between
-                       border border-gray-200 dark:border-gray-800
+                       border border-transparent dark:border-gray-800
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                        ${errors.encarregadoId ? 'ring-2 ring-red-500' : ''}`}
             >
@@ -295,15 +295,15 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
           </div>
 
           {/* Preposto - Nome */}
-          <div className="relative">
-            <UserRound className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none" />
+          <div className="relative group">
+            <UserRound className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
             <input
               type="text"
               value={formData.prepostoNome}
               onChange={(e) => setFormData({ ...formData, prepostoNome: e.target.value })}
               className={`w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                       border border-gray-200 dark:border-gray-800
+                       border border-transparent dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40`}
               placeholder="Nome do Preposto"
@@ -311,15 +311,15 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
           </div>
 
           {/* Preposto - Email */}
-          <div className="relative">
-            <Mail className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none" />
+          <div className="relative group">
+            <Mail className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
             <input
               type="email"
               value={formData.prepostoEmail}
               onChange={(e) => setFormData({ ...formData, prepostoEmail: e.target.value })}
               className={`w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                       border border-gray-200 dark:border-gray-800
+                       border border-transparent dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40`}
               placeholder="Email do Preposto"
@@ -331,9 +331,9 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
             type="submit"
             disabled={isCreating}
             className={`relative w-full px-6 py-3 rounded-xl text-white font-medium mt-4 overflow-hidden transition-colors
-                       ${isCreating 
-                         ? 'bg-[#E54A1D] cursor-not-allowed' 
-                         : 'bg-[#FD5521] hover:bg-[#E54A1D]'}`}
+                       ${isCreating
+                ? 'bg-[#E54A1D] cursor-not-allowed'
+                : 'bg-[#FD5521] hover:bg-[#E54A1D]'}`}
           >
             {/* Animação de carregamento - preenchimento da esquerda para direita */}
             {isCreating && (
@@ -348,7 +348,7 @@ const CreateObraPage: React.FC<Props> = ({ users, onBack, onSuccess }) => {
                 }}
               />
             )}
-            
+
             {/* Texto do botão */}
             <span className="relative z-10">
               {isCreating ? 'Criando obra...' : 'Criar diário da obra'}

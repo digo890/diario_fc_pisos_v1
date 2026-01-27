@@ -104,6 +104,28 @@ export const saveUser = async (user: User): Promise<void> => {
   });
 };
 
+export const saveBatchUsers = async (users: User[]): Promise<void> => {
+  if (users.length === 0) return;
+  const database = await initDB();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(['users'], 'readwrite');
+    const store = transaction.objectStore('users');
+
+    let error: DOMException | null = null;
+
+    users.forEach(user => {
+      try {
+        store.put(user);
+      } catch (e) {
+        error = e as DOMException;
+      }
+    });
+
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(error || transaction.error);
+  });
+};
+
 export const deleteUser = async (id: string): Promise<void> => {
   const database = await initDB();
   return new Promise((resolve, reject) => {
@@ -153,6 +175,28 @@ export const saveObra = async (obra: Obra): Promise<void> => {
   });
 };
 
+export const saveBatchObras = async (obras: Obra[]): Promise<void> => {
+  if (obras.length === 0) return;
+  const database = await initDB();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(['obras'], 'readwrite');
+    const store = transaction.objectStore('obras');
+
+    let error: DOMException | null = null;
+
+    obras.forEach(obra => {
+      try {
+        store.put(obra);
+      } catch (e) {
+        error = e as DOMException;
+      }
+    });
+
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(error || transaction.error);
+  });
+};
+
 export const deleteObra = async (id: string): Promise<void> => {
   const database = await initDB();
   return new Promise((resolve, reject) => {
@@ -196,7 +240,7 @@ export const saveForm = async (form: FormData): Promise<void> => {
   return new Promise((resolve, reject) => {
     const transaction = database.transaction(['forms'], 'readwrite');
     const store = transaction.objectStore('forms');
-    
+
     // ✅ CORREÇÃO: KeyPath agora é obra_id (não precisa mais normalizar)
     if (!form.obra_id) {
       const error = new Error('FormData deve ter obra_id definido');
@@ -204,13 +248,13 @@ export const saveForm = async (form: FormData): Promise<void> => {
       reject(error);
       return;
     }
-    
+
     safeLog(`💾 Salvando formulário no IndexedDB:`, {
       obra_id: form.obra_id,
       formId: (form as any).id,
       status: form.status
     });
-    
+
     const request = store.put(form);
 
     request.onsuccess = () => {
@@ -265,7 +309,7 @@ export const saveConfig = async (key: string, value: any): Promise<void> => {
 // Inicializar dados de exemplo
 export const seedInitialData = async (): Promise<void> => {
   const users = await getUsers();
-  
+
   // ✅ REMOVIDO: Não criar mais usuários de exemplo automaticamente
   // Os usuários devem ser criados via interface de administração
   if (users.length === 0) {

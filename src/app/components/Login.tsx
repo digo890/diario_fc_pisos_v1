@@ -6,7 +6,7 @@ import { APP_VERSION } from '../../version';
 
 const Login: React.FC = () => {
   const { login } = useAuth();
-  
+
   // Login state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -50,8 +50,8 @@ const Login: React.FC = () => {
             <label htmlFor="email" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
               Email
             </label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <div className="relative group">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 transition-colors group-focus-within:text-[#FD5521]" />
               <input
                 id="email"
                 type="email"
@@ -73,8 +73,8 @@ const Login: React.FC = () => {
             <label htmlFor="password" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
               Senha
             </label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <div className="relative group">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 transition-colors group-focus-within:text-[#FD5521]" />
               <input
                 id="password"
                 type="password"

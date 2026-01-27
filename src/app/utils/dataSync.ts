@@ -4,7 +4,7 @@
  */
 
 import type { Obra, User, FormData } from '../types';
-import { saveObra, saveUser } from './database';
+import { saveObra, saveUser, saveBatchObras, saveBatchUsers } from './database';
 import { safeLog } from './logSanitizer';
 
 interface TimestampedData {
@@ -158,6 +158,8 @@ export async function mergeObras(
     merged.set(obra.id, obra);
   });
 
+  const obrasToSave: Obra[] = [];
+
   // Merge com obras remotas (mais recentes sobrescrevem)
   for (const remoteObraRaw of remoteObras) {
     // ✅ CORREÇÃO: Normalizar dados do backend (snake_case → camelCase)
@@ -167,9 +169,12 @@ export async function mergeObras(
     const mostRecent = getMostRecent(localObra, remoteObra);
 
     merged.set(remoteObra.id, mostRecent);
+    obrasToSave.push(mostRecent);
+  }
 
-    // Salvar versão mais recente no IndexedDB
-    await saveObra(mostRecent);
+  // 🚀 PERFORMANCE: Salvar em lote
+  if (obrasToSave.length > 0) {
+    await saveBatchObras(obrasToSave);
   }
 
   // Converter mapa para array
@@ -193,6 +198,8 @@ export async function mergeUsers(
     merged.set(user.id, user);
   });
 
+  const usersToSave: User[] = [];
+
   // Merge com usuários remotos (mais recentes sobrescrevem)
   for (const remoteUserRaw of remoteUsers) {
     // ✅ CORREÇÃO: Normalizar dados do backend (snake_case → camelCase)
@@ -202,9 +209,12 @@ export async function mergeUsers(
     const mostRecent = getMostRecent(localUser, remoteUser);
 
     merged.set(remoteUser.id, mostRecent);
+    usersToSave.push(mostRecent);
+  }
 
-    // Salvar versão mais recente no IndexedDB
-    await saveUser(mostRecent);
+  // 🚀 PERFORMANCE: Salvar em lote
+  if (usersToSave.length > 0) {
+    await saveBatchUsers(usersToSave);
   }
 
   // Converter mapa para array

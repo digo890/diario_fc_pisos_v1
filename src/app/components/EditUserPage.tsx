@@ -80,7 +80,7 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
 
         await saveUser(userAtualizado);
         showToast('Usuário atualizado com sucesso!', 'success');
-        
+
         // Aguardar um pouco para o usuário ver o toast antes de voltar
         setTimeout(() => {
           onSuccess();
@@ -101,10 +101,10 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
   const formatPhone = (value: string) => {
     // Remove tudo que não é número
     const numbers = value.replace(/\D/g, '');
-    
+
     // Limita a 11 dígitos
     const limited = numbers.slice(0, 11);
-    
+
     // Aplica a máscara
     if (limited.length <= 2) {
       return limited;
@@ -116,7 +116,7 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, x: '100%' }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: '100%' }}
@@ -154,15 +154,15 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
           </div>
 
           {/* Nome */}
-          <div className="relative">
-            <UserRound className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none" />
+          <div className="relative group">
+            <UserRound className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
             <input
               type="text"
               value={formData.nome}
               onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
               className="w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                       border border-gray-200 dark:border-gray-800
+                       border border-transparent dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
               placeholder="Nome completo *"
@@ -175,11 +175,10 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, tipo: 'Administrador' })}
-                className={`flex-1 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200 ${
-                  formData.tipo === 'Administrador'
+                className={`flex-1 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200 ${formData.tipo === 'Administrador'
                     ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
+                  }`}
               >
                 <div className="flex items-center justify-center gap-2">
                   <Shield className="w-4 h-4" />
@@ -189,11 +188,10 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, tipo: 'Encarregado' })}
-                className={`flex-1 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200 ${
-                  formData.tipo === 'Encarregado'
+                className={`flex-1 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200 ${formData.tipo === 'Encarregado'
                     ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
+                  }`}
               >
                 <div className="flex items-center justify-center gap-2">
                   <UserRound className="w-4 h-4" />
@@ -204,15 +202,15 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
           </div>
 
           {/* Email */}
-          <div className="relative">
-            <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none" />
+          <div className="relative group">
+            <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
             <input
               type="email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               className="w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                       border border-gray-200 dark:border-gray-800
+                       border border-transparent dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
               placeholder="Email *"
@@ -220,15 +218,15 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
           </div>
 
           {/* Telefone */}
-          <div className="relative">
-            <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none" />
+          <div className="relative group">
+            <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
             <input
               type="tel"
               value={formData.telefone}
               onChange={(e) => setFormData({ ...formData, telefone: formatPhone(e.target.value) })}
               className="w-full pl-12 pr-4 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                       border border-gray-200 dark:border-gray-800
+                       border border-transparent dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
               placeholder="Telefone"
@@ -236,15 +234,15 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
           </div>
 
           {/* Nova Senha */}
-          <div className="relative">
-            <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none" />
+          <div className="relative group">
+            <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
             <input
               type={showPassword ? 'text' : 'password'}
               value={formData.senha}
               onChange={(e) => setFormData({ ...formData, senha: e.target.value })}
               className="w-full pl-12 pr-12 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                       border border-gray-200 dark:border-gray-800
+                       border border-transparent dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40"
               placeholder="Nova senha (deixe em branco para manter)"
@@ -260,15 +258,15 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
           </div>
 
           {/* Confirmar Nova Senha */}
-          <div className="relative">
-            <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none" />
+          <div className="relative group">
+            <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
             <input
               type={showConfirmPassword ? 'text' : 'password'}
               value={formData.confirmarSenha}
               onChange={(e) => setFormData({ ...formData, confirmarSenha: e.target.value })}
               className={`w-full pl-12 pr-12 py-3 rounded-xl 
                        bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                       border border-gray-200 dark:border-gray-800
+                       border border-transparent dark:border-gray-800
                        placeholder:text-[#C6CCC2] dark:placeholder:text-gray-500
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                        ${errors.senhas ? 'ring-2 ring-red-500' : ''}`}
