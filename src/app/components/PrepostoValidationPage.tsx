@@ -128,12 +128,12 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
 
   const handleConfirmValidation = async () => {
     if (isSubmitting) return;
-    
+
     if (!nomeCompleto.trim()) {
       showToast('Por favor, informe seu nome completo', 'warning');
       return;
     }
-    
+
     if (!signatureRef || signatureRef.isEmpty()) {
       showToast('Por favor, assine para confirmar', 'warning');
       return;
@@ -213,7 +213,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
 
   if (validated) {
     const foiAprovado = formulario?.statusPreposto === 'aprovado';
-    
+
     return (
       <div className="min-h-screen bg-[#EDEFE4] dark:bg-gray-950 flex items-center justify-center p-4">
         <motion.div
@@ -232,7 +232,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
             {foiAprovado ? 'Formulário Aprovado!' : 'Formulário Reprovado'}
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            {foiAprovado 
+            {foiAprovado
               ? 'Sua validação foi registrada com sucesso. A FC Pisos receberá a confirmação.'
               : 'Sua reprovação foi registrada. O encarregado será notificado para realizar as correções necessárias.'
             }
@@ -261,7 +261,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
   return (
     <div className="min-h-screen bg-[#EDEFE4] dark:bg-gray-950">
       {ToastComponent}
-      
+
       {/* Header */}
       <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-6">
@@ -326,8 +326,8 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
             <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-blue-900 dark:text-blue-300">
               <strong className="block mb-1">Instruções para Conferência</strong>
-              Revise cuidadosamente todas as informações do formulário abaixo. Caso tudo esteja correto, 
-              clique em "Aprovar". Se houver alguma divergência ou problema, clique em "Reprovar" 
+              Revise cuidadosamente todas as informações do formulário abaixo. Caso tudo esteja correto,
+              clique em "Aprovar". Se houver alguma divergência ou problema, clique em "Reprovar"
               e informe o motivo.
             </div>
           </div>
@@ -338,7 +338,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
           <h2 className="font-bold text-gray-900 dark:text-white mb-4">
             Dados do Formulário
           </h2>
-          
+
           {/* Condições Ambientais */}
           {formulario.clima && (
             <section>
@@ -363,10 +363,10 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
               <h3 className="font-semibold text-gray-900 dark:text-white mb-3 text-sm">
                 Serviços Executados
               </h3>
-              
+
               {Object.entries(formulario.servicos).map(([key, servico]: [string, any]) => {
                 if (!servico) return null;
-                
+
                 return (
                   <div key={key} className="space-y-4 mb-6">
                     {/* Informações Básicas */}
@@ -380,10 +380,10 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
                               {servico.horarioInicioManha && servico.horarioFimManha && (
                                 <>Manhã <strong>{servico.horarioInicioManha}</strong> às <strong>{servico.horarioFimManha}</strong></>
                               )}
-                              {servico.horarioInicioManha && servico.horarioFimManha && 
-                               servico.horarioInicioTarde && servico.horarioFimTarde && (
-                                <> - </>
-                              )}
+                              {servico.horarioInicioManha && servico.horarioFimManha &&
+                                servico.horarioInicioTarde && servico.horarioFimTarde && (
+                                  <> - </>
+                                )}
                               {servico.horarioInicioTarde && servico.horarioFimTarde && (
                                 <>Tarde <strong>{servico.horarioInicioTarde}</strong> às <strong>{servico.horarioFimTarde}</strong></>
                               )}
@@ -409,7 +409,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
                           {ETAPAS.map((etapa, index) => {
                             const numeroItem = index + 1;
                             let valor = servico.etapas?.[etapa.label] || '-';
-                            
+
                             // Tratar campos dualField (formato "valor1|valor2")
                             if (etapa.isDualField && valor !== '-') {
                               const [val1, val2] = valor.split('|');
@@ -419,18 +419,18 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
                                 valor = `${val1 || '-'} ${unit1} | ${val2 || '-'} ${unit2}`;
                               }
                             }
-                            
+
                             // Tratar itens com múltipla seleção (formato "tipo1:valor1|tipo2:valor2")
                             if (etapa.isMultiSelect && valor !== '-') {
                               const items = valor.split('|').filter(item => item);
                               if (items.length > 0) {
                                 const tiposValores = items.map(item => {
                                   const [tipo, valorNum] = item.split(':');
-                                  
+
                                   // Detectar e processar dual fields dentro de multiselect
                                   if (etapa.label === 'Aplicação de Uretano' && valorNum) {
-                                    if (tipo === 'Uretano para rodapé' || tipo === 'Uretano para muretas' || 
-                                        tipo === 'Uretano para Paredes' || tipo === 'Uretano para Paredes, base e pilares') {
+                                    if (tipo === 'Uretano para rodapé' || tipo === 'Uretano para muretas' ||
+                                      tipo === 'Uretano para Paredes' || tipo === 'Uretano para Paredes, base e pilares') {
                                       const [val1, val2] = valorNum.split('~');
                                       if (val1 && val2) {
                                         return { tipo: tipo || '-', valor: `${val1} ml / ${val2} cm` };
@@ -444,7 +444,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
                                   } else if (etapa.label === 'Serviços de pintura de layout') {
                                     return { tipo: tipo || '-', valor: `${valorNum} ml` };
                                   }
-                                  
+
                                   return { tipo: tipo || '-', valor: valorNum || '-' };
                                 });
                                 valor = tiposValores
@@ -455,39 +455,35 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
                                 valor = '-';
                               }
                             }
-                            
+
                             // Determinar se o campo foi preenchido
                             const isPreenchido = valor !== '-';
-                            
+
                             return (
-                              <div 
-                                key={index} 
-                                className={`flex gap-4 p-3 rounded-lg transition-colors ${
-                                  isPreenchido 
-                                    ? 'bg-white dark:bg-gray-900 border-l-4 border-[#FD5521]' 
+                              <div
+                                key={index}
+                                className={`flex gap-4 p-3 rounded-lg transition-colors ${isPreenchido
+                                    ? 'bg-white dark:bg-gray-900 border-l-4 border-[#FD5521]'
                                     : 'bg-gray-100/50 dark:bg-gray-800/30 border-l-4 border-gray-300 dark:border-gray-700'
-                                }`}
+                                  }`}
                               >
-                                <span className={`min-w-[40px] font-bold ${
-                                  isPreenchido 
-                                    ? 'text-[#FD5521]' 
+                                <span className={`min-w-[40px] font-bold ${isPreenchido
+                                    ? 'text-[#FD5521]'
                                     : 'text-gray-400 dark:text-gray-600'
-                                }`}>
+                                  }`}>
                                   {numeroItem}.
                                 </span>
                                 <div className="flex-1">
-                                  <div className={`font-medium ${
-                                    isPreenchido 
-                                      ? 'text-gray-900 dark:text-white' 
+                                  <div className={`font-medium ${isPreenchido
+                                      ? 'text-gray-900 dark:text-white'
                                       : 'text-gray-600 dark:text-gray-400'
-                                  }`}>
+                                    }`}>
                                     {etapa.label}
                                   </div>
-                                  <div className={`mt-1 ${
-                                    isPreenchido 
-                                      ? 'text-gray-700 dark:text-gray-300 font-semibold' 
+                                  <div className={`mt-1 ${isPreenchido
+                                      ? 'text-gray-700 dark:text-gray-300 font-semibold'
                                       : 'text-gray-400 dark:text-gray-600 italic'
-                                  }`}>
+                                    }`}>
                                     {isPreenchido ? (
                                       <>
                                         {valor}
@@ -532,26 +528,39 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
                           const registroKey = `registro-${index}`;
                           const item = servico.registros?.[registroKey];
                           const numeroItem = 35 + index;
-                          
+
                           // Itens especiais
-                          const isEstadoSubstrato = index === 2; // Item 37
-                          
+                          const isEstadoSubstrato = index === 2; // Item 37 (Estado do Substrato)
+
+                          // Itens numéricos/texto (42 e 43)
+                          const isNumericField42 = label === 'Qual a espessura do piso de concreto?';
+                          const isNumericField43 = label === 'Qual a profundidade dos cortes das juntas serradas?';
+
                           // Itens que envolvem o preposto (onde SIM é positivo)
                           const isItemPreposto = index === 17 || index === 21; // Itens 52 e 56
-                          
+
                           const isEven = index % 2 === 0;
-                          
-                          // Para itens de dropdown ou numéricos
-                          if (isEstadoSubstrato) {
-                            const textoResposta = item?.texto || '-';
+
+                          // Para itens de dropdown ou numéricos (37, 42, 43)
+                          if (isEstadoSubstrato || isNumericField42 || isNumericField43) {
+                            let textoResposta = '-';
+
+                            if (isEstadoSubstrato) {
+                              textoResposta = item?.texto || '-';
+                            } else if (isNumericField42) {
+                              textoResposta = (item as any)?.espessura ? `${(item as any).espessura} cm` : '-';
+                            } else if (isNumericField43) {
+                              textoResposta = item?.texto ? `${item.texto} cm` : '-';
+                            }
+
                             const comentarioResposta = item?.comentario || '';
-                            
+
                             return (
                               <div key={registroKey} className={`rounded-lg p-4 text-sm ${isEven ? 'bg-gray-50 dark:bg-gray-800/50' : 'bg-gray-100/50 dark:bg-gray-800/30'}`}>
                                 <div className="font-medium text-gray-900 dark:text-white mb-2">
                                   {numeroItem}. {label}
                                 </div>
-                                <div className={`${textoResposta !== '-' ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600'}`}>
+                                <div className={`${textoResposta !== '-' ? 'text-gray-700 dark:text-gray-300 font-semibold text-[15px]' : 'text-gray-400 dark:text-gray-600 italic'}`}>
                                   {textoResposta}
                                 </div>
                                 {(comentarioResposta || item?.foto) && (
@@ -573,26 +582,25 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
                               </div>
                             );
                           }
-                          
+
                           // Para itens Sim/Não - ativo = true significa "SIM", ausente ou false significa "NÃO"
                           const resposta = item?.ativo ? 'SIM' : 'NÃO';
                           const isPositivo = resposta === 'NÃO' || (resposta === 'SIM' && isItemPreposto);
-                          
+
                           return (
                             <div key={registroKey} className={`rounded-lg p-4 text-sm ${isEven ? 'bg-gray-50 dark:bg-gray-800/50' : 'bg-gray-100/50 dark:bg-gray-800/30'}`}>
                               <div className="flex items-start justify-between gap-3 mb-2">
                                 <span className="font-medium text-gray-900 dark:text-white">
                                   {numeroItem}. {label}
                                 </span>
-                                <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                                  isPositivo
+                                <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${isPositivo
                                     ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                                     : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                                }`}>
+                                  }`}>
                                   {resposta}
                                 </span>
                               </div>
-                              
+
                               {/* Se tiver foto, layout lado a lado */}
                               {item?.foto ? (
                                 <div className="flex gap-3 mt-2">
@@ -750,11 +758,10 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
                 </button>
                 <button
                   onClick={handleConfirmValidation}
-                  className={`flex-1 px-6 py-3 rounded-xl text-white font-medium transition-colors ${
-                    validationType === 'aprovar'
+                  className={`flex-1 px-6 py-3 rounded-xl text-white font-medium transition-colors ${validationType === 'aprovar'
                       ? 'bg-green-600 hover:bg-green-700'
                       : 'bg-red-500 hover:bg-red-600'
-                  }`}
+                    }`}
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? 'Processando...' : `Confirmar ${validationType === 'aprovar' ? 'Aprovação' : 'Reprovação'}`}

@@ -1,5 +1,5 @@
 # Configuração da Edge Function - Diário de Obras FC Pisos
-# Desabilita JWT verification para permitir rotas públicas
+# Esta configuração desabilita o JWT verification para permitir rotas públicas
 
 [function.make-server-1ff231a2]
 verify_jwt = false

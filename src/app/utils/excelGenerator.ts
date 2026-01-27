@@ -38,6 +38,31 @@ const ETAPAS = [
   { label: 'Quantas bisnagas de selante foram utilizadas?', unit: '' }
 ];
 
+const REGISTROS_LABELS = [
+  'Constatou-se água / umidade no substrato?',
+  'As áreas estavam com fechamento lateral?',
+  'Estado do substrato',
+  'Existe contaminações / crostas / incrustações no substrato?',
+  'Há concreto remontado sobre os bordos de ralos / canaletas / trilhos (ml)?',
+  'Há ralos / canaletas / trilhos desnivelados em relação ao substrato (ml)?',
+  'O boleado de rodapés / muretas foi executado com concreto?',
+  'Qual a espessura do piso de concreto?',
+  'Qual a profundidade dos cortes das juntas serradas?',
+  'As juntas serradas do piso foram aprofundadas por corte adicional? Em que extensão (ml)?',
+  'Existem juntas de dilatação no substrato (ml)?',
+  'As muretas estão ancoradas no piso?',
+  'Existem muretas apoiadas sobre juntas de dilatação no piso?',
+  'Existem juntas com bordas esborcinadas (ml)?',
+  'Existem trincas no substrato (ml)?',
+  'Existem serviços adicionais a serem realizados?',
+  'Os serviços adicionais foram liberados pela contratante?',
+  'O preposto acompanhou e conferiu as medições?',
+  'As áreas concluídas foram protegidas e isoladas?',
+  'O substrato foi fotografado?',
+  'Ocorreu alguma desconformidade durante ou após as aplicações?',
+  'Você relatou ao preposto as desconformidades?'
+];
+
 export async function generateFormExcel(
   obra: Obra,
   formData: FormData,
@@ -93,16 +118,16 @@ export async function generateFormExcel(
 
   // Abas de Serviços
   const servicosKeys: Array<'servico1' | 'servico2' | 'servico3'> = ['servico1', 'servico2', 'servico3'];
-  
+
   servicosKeys.forEach((key, idx) => {
     const servico = formData.servicos[key];
     if (!servico) return;
 
     // Verificar se tem conteúdo
-    const hasContent = servico.horario || servico.local || 
-                      Object.keys(servico.etapas || {}).length > 0 || 
-                      Object.keys(servico.registros || {}).length > 0;
-    
+    const hasContent = servico.horario || servico.local ||
+      Object.keys(servico.etapas || {}).length > 0 ||
+      Object.keys(servico.registros || {}).length > 0;
+
     if (!hasContent) return;
 
     const wsDataServico: any[][] = [
@@ -119,7 +144,7 @@ export async function generateFormExcel(
     ETAPAS.forEach((etapa, index) => {
       const numeroItem = index + 1;
       let valor = servico.etapas?.[etapa.label] || '-';
-      
+
       // Processar valores especiais
       if (etapa.isDropdown && valor !== '-') {
         const parts = valor.split('|');
@@ -127,14 +152,14 @@ export async function generateFormExcel(
         const valorNum = parts[1] || '-';
         valor = valorNum !== '-' && tipo !== '-' ? `${tipo}: ${valorNum}` : '-';
       }
-      
+
       if (etapa.isDualField && valor !== '-') {
         const parts = valor.split('|');
         const valor1 = parts[0] || '-';
         const valor2 = parts[1] || '-';
         valor = valor1 !== '-' && valor2 !== '-' ? `${valor1} ${etapa.units?.[0]}, ${valor2} ${etapa.units?.[1]}` : '-';
       }
-      
+
       if (etapa.isMultiSelect && valor !== '-') {
         const items = valor.split('|').filter((item: string) => item);
         if (items.length > 0) {
@@ -171,13 +196,49 @@ export async function generateFormExcel(
           valor = '-';
         }
       }
-      
+
       wsDataServico.push([
         numeroItem,
         etapa.label,
         valor,
         valor !== '-' && etapa.unit && !etapa.isMultiSelect ? etapa.unit : ''
       ]);
+    });
+
+    // Adicionar registros (Estado do Substrato) - Itens 35 a 56
+    wsDataServico.push(['']);
+    wsDataServico.push(['ESTADO DO SUBSTRATO / REGISTROS (Itens 35-56)']);
+    wsDataServico.push(['Item', 'Pergunta', 'Resposta', 'Detalhes']);
+
+    REGISTROS_LABELS.forEach((label, index) => {
+      const registroKey = `registro-${index}`;
+      const item = servico.registros?.[registroKey];
+      const numeroItem = 35 + index;
+
+      let resposta = '-';
+      let detalhes = '-';
+
+      if (item) {
+        const isEstadoSubstrato = label === 'Estado do substrato';
+        const isNumericField42 = label === 'Qual a espessura do piso de concreto?';
+        const isNumericField43 = label === 'Qual a profundidade dos cortes das juntas serradas?';
+
+        if (isEstadoSubstrato) {
+          resposta = item.texto || '-';
+          detalhes = item.comentario || '-';
+        } else if (isNumericField42) {
+          resposta = (item as any).espessura ? `${(item as any).espessura} cm` : '-';
+          detalhes = item.comentario || '-';
+        } else if (isNumericField43) {
+          resposta = item.texto ? `${item.texto} cm` : '-';
+          detalhes = item.comentario || '-';
+        } else {
+          resposta = item.ativo ? 'SIM' : 'NÃO';
+          detalhes = item.texto || item.comentario || '-';
+        }
+      }
+
+      wsDataServico.push([numeroItem, label, resposta, detalhes]);
     });
 
     const wsServico = XLSX.utils.aoa_to_sheet(wsDataServico);

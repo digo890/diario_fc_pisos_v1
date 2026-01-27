@@ -90,7 +90,7 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
   const [linkCopied, setLinkCopied] = useState(false);
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
   const downloadMenuRef = useRef<HTMLDivElement>(null);
-  
+
   const status = getStatusDisplayWithFormulario(obra, formData);
 
   // 🎯 TOAST: Fechar modal automaticamente quando não há respostas
@@ -131,15 +131,15 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
 
   const handleDownloadPDF = async () => {
     if (!formData) return;
-    
+
     try {
       setDownloadMenuOpen(false);
       toast.info('Gerando PDF...');
-      
+
       // Dynamic import para reduzir bundle inicial
       const { generateFormPDF } = await import('../utils/pdfGenerator');
       await generateFormPDF(obra, formData, users);
-      
+
       toast.success('PDF gerado com sucesso!');
     } catch (error) {
       safeError('Erro ao gerar PDF:', error);
@@ -149,15 +149,15 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
 
   const handleDownloadExcel = async () => {
     if (!formData) return;
-    
+
     try {
       setDownloadMenuOpen(false);
       toast.info('Gerando Excel...');
-      
+
       // Dynamic import para reduzir bundle inicial
       const { generateFormExcel } = await import('../utils/excelGenerator');
       await generateFormExcel(obra, formData, users);
-      
+
       toast.success('Excel gerado com sucesso!');
     } catch (error) {
       safeError('Erro ao gerar Excel:', error);
@@ -167,10 +167,10 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
 
   const handleShareLink = async () => {
     if (!obra.validationToken) return;
-    
+
     const link = `${window.location.origin}/conferencia/${obra.validationToken}`;
     const success = await copyToClipboard(link);
-    
+
     if (success) {
       setLinkCopied(true);
       toast.success('Link copiado!');
@@ -337,7 +337,7 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
               <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
                 Serviços Executados
               </h3>
-              
+
               {/* Tabs de Serviços - Só mostrar os que têm conteúdo */}
               {servicosComConteudo.length > 1 && (
                 <div className="flex gap-2 mb-4 border-b border-gray-200 dark:border-gray-700">
@@ -345,11 +345,10 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
                     <button
                       key={key}
                       onClick={() => setActiveServiceTab(key)}
-                      className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${
-                        activeServiceTab === key
-                          ? 'border-[#FD5521] text-[#FD5521]'
-                          : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                      }`}
+                      className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${activeServiceTab === key
+                        ? 'border-[#FD5521] text-[#FD5521]'
+                        : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                        }`}
                     >
                       Serviço {key === 'servico1' ? 1 : key === 'servico2' ? 2 : 3}
                     </button>
@@ -360,7 +359,7 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
               {/* Conteúdo do Serviço Ativo */}
               {servicosComConteudo.map((key) => {
                 if (servicosComConteudo.length > 1 && activeServiceTab !== key) return null;
-                
+
                 const servico = formData.servicos[key];
                 if (!servico) return null;
 
@@ -384,10 +383,10 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
                               {servico.horarioInicioManha && servico.horarioFimManha && (
                                 <>Manhã <strong>{servico.horarioInicioManha}</strong> às <strong>{servico.horarioFimManha}</strong></>
                               )}
-                              {servico.horarioInicioManha && servico.horarioFimManha && 
-                               servico.horarioInicioTarde && servico.horarioFimTarde && (
-                                <> - </>
-                              )}
+                              {servico.horarioInicioManha && servico.horarioFimManha &&
+                                servico.horarioInicioTarde && servico.horarioFimTarde && (
+                                  <> - </>
+                                )}
                               {servico.horarioInicioTarde && servico.horarioFimTarde && (
                                 <>Tarde <strong>{servico.horarioInicioTarde}</strong> às <strong>{servico.horarioFimTarde}</strong></>
                               )}
@@ -413,7 +412,7 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
                           {ETAPAS.map((etapa, index) => {
                             const numeroItem = index + 1;
                             let valor = servico.etapas?.[etapa.label] || '-';
-                            
+
                             // Tratar campos dualField (formato "valor1|valor2")
                             if (etapa.isDualField && valor !== '-') {
                               const [val1, val2] = valor.split('|');
@@ -423,19 +422,19 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
                                 valor = `${val1 || '-'} ${unit1} | ${val2 || '-'} ${unit2}`;
                               }
                             }
-                            
+
                             // Tratar itens com múltipla seleção (formato "tipo1:valor1|tipo2:valor2")
                             if (etapa.isMultiSelect && valor !== '-') {
                               const items = valor.split('|').filter(item => item);
                               if (items.length > 0) {
                                 const tiposValores = items.map(item => {
                                   const [tipo, valorNum] = item.split(':');
-                                  
+
                                   // 🐛 CORREÇÃO: Detectar e processar dual fields dentro de multiselect
                                   if (etapa.label === 'Aplicação de Uretano' && valorNum) {
                                     // Verificar se é um tipo que tem dual field (usa ~)
-                                    if (tipo === 'Uretano para rodapé' || tipo === 'Uretano para muretas' || 
-                                        tipo === 'Uretano para Paredes' || tipo === 'Uretano para Paredes, base e pilares') {
+                                    if (tipo === 'Uretano para rodapé' || tipo === 'Uretano para muretas' ||
+                                      tipo === 'Uretano para Paredes' || tipo === 'Uretano para Paredes, base e pilares') {
                                       const [val1, val2] = valorNum.split('~');
                                       if (val1 && val2) {
                                         return { tipo: tipo || '-', valor: `${val1} ml / ${val2} cm` };
@@ -451,7 +450,7 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
                                   } else if (etapa.label === 'Serviços de pintura de layout') {
                                     return { tipo: tipo || '-', valor: `${valorNum} ml` };
                                   }
-                                  
+
                                   return { tipo: tipo || '-', valor: valorNum || '-' };
                                 });
                                 valor = tiposValores
@@ -462,39 +461,35 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
                                 valor = '-';
                               }
                             }
-                            
+
                             // Determinar se o campo foi preenchido
                             const isPreenchido = valor !== '-';
-                            
+
                             return (
-                              <div 
-                                key={index} 
-                                className={`flex gap-4 p-3 rounded-lg transition-colors ${
-                                  isPreenchido 
-                                    ? 'bg-white dark:bg-gray-900 border-l-4 border-[#FD5521]' 
-                                    : 'bg-gray-100/50 dark:bg-gray-800/30 border-l-4 border-gray-300 dark:border-gray-700'
-                                }`}
+                              <div
+                                key={index}
+                                className={`flex gap-4 p-3 rounded-lg transition-colors ${isPreenchido
+                                  ? 'bg-white dark:bg-gray-900 border-l-4 border-[#FD5521]'
+                                  : 'bg-gray-100/50 dark:bg-gray-800/30 border-l-4 border-gray-300 dark:border-gray-700'
+                                  }`}
                               >
-                                <span className={`min-w-[40px] font-bold ${
-                                  isPreenchido 
-                                    ? 'text-[#FD5521]' 
-                                    : 'text-gray-400 dark:text-gray-600'
-                                }`}>
+                                <span className={`min-w-[40px] font-bold ${isPreenchido
+                                  ? 'text-[#FD5521]'
+                                  : 'text-gray-400 dark:text-gray-600'
+                                  }`}>
                                   {numeroItem}.
                                 </span>
                                 <div className="flex-1">
-                                  <div className={`font-medium ${
-                                    isPreenchido 
-                                      ? 'text-gray-900 dark:text-white' 
-                                      : 'text-gray-600 dark:text-gray-400'
-                                  }`}>
+                                  <div className={`font-medium ${isPreenchido
+                                    ? 'text-gray-900 dark:text-white'
+                                    : 'text-gray-600 dark:text-gray-400'
+                                    }`}>
                                     {etapa.label}
                                   </div>
-                                  <div className={`mt-1 ${
-                                    isPreenchido 
-                                      ? 'text-gray-700 dark:text-gray-300 font-semibold' 
-                                      : 'text-gray-400 dark:text-gray-600 italic'
-                                  }`}>
+                                  <div className={`mt-1 ${isPreenchido
+                                    ? 'text-gray-700 dark:text-gray-300 font-semibold'
+                                    : 'text-gray-400 dark:text-gray-600 italic'
+                                    }`}>
                                     {isPreenchido ? (
                                       <>
                                         {valor}
@@ -539,26 +534,39 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
                           const registroKey = `registro-${index}`;
                           const item = servico.registros?.[registroKey];
                           const numeroItem = 35 + index;
-                          
+
                           // Itens especiais
-                          const isEstadoSubstrato = index === 2; // Item 41
-                          
+                          const isEstadoSubstrato = index === 2; // Item 37 (Estado do Substrato)
+
+                          // Itens numéricos/texto (42 e 43)
+                          const isNumericField42 = label === 'Qual a espessura do piso de concreto?';
+                          const isNumericField43 = label === 'Qual a profundidade dos cortes das juntas serradas?';
+
                           // Itens que envolvem o preposto (onde SIM é positivo)
-                          const isItemPreposto = index === 17 || index === 21; // Itens 56 e 60
-                          
+                          const isItemPreposto = index === 17 || index === 21; // Itens 52 e 56
+
                           const isEven = index % 2 === 0;
-                          
-                          // Para itens de dropdown ou numéricos
-                          if (isEstadoSubstrato) {
-                            const textoResposta = item?.texto || '-';
+
+                          // Para itens de dropdown ou numéricos (37, 42, 43)
+                          if (isEstadoSubstrato || isNumericField42 || isNumericField43) {
+                            let textoResposta = '-';
+
+                            if (isEstadoSubstrato) {
+                              textoResposta = item?.texto || '-';
+                            } else if (isNumericField42) {
+                              textoResposta = (item as any)?.espessura ? `${(item as any).espessura} cm` : '-';
+                            } else if (isNumericField43) {
+                              textoResposta = item?.texto ? `${item.texto} cm` : '-';
+                            }
+
                             const comentarioResposta = item?.comentario || '';
-                            
+
                             return (
                               <div key={registroKey} className={`rounded-lg p-4 text-sm ${isEven ? 'bg-gray-50 dark:bg-gray-800/50' : 'bg-gray-100/50 dark:bg-gray-800/30'}`}>
                                 <div className="font-medium text-gray-900 dark:text-white mb-2">
                                   {numeroItem}. {label}
                                 </div>
-                                <div className={`${textoResposta !== '-' ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600'}`}>
+                                <div className={`${textoResposta !== '-' ? 'text-gray-700 dark:text-gray-300 font-semibold text-[15px]' : 'text-gray-400 dark:text-gray-600 italic'}`}>
                                   {textoResposta}
                                 </div>
                                 {(comentarioResposta || item?.foto) && (
@@ -580,26 +588,25 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
                               </div>
                             );
                           }
-                          
+
                           // Para itens Sim/Não - ativo = true significa "SIM", ausente ou false significa "NÃO"
                           const resposta = item?.ativo ? 'SIM' : 'NÃO';
                           const isPositivo = resposta === 'NÃO' || (resposta === 'SIM' && isItemPreposto);
-                          
+
                           return (
                             <div key={registroKey} className={`rounded-lg p-4 text-sm ${isEven ? 'bg-gray-50 dark:bg-gray-800/50' : 'bg-gray-100/50 dark:bg-gray-800/30'}`}>
                               <div className="flex items-start justify-between gap-3 mb-2">
                                 <span className="font-medium text-gray-900 dark:text-white">
                                   {numeroItem}. {label}
                                 </span>
-                                <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                                  isPositivo
-                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                                    : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                                }`}>
+                                <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${isPositivo
+                                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                  : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                                  }`}>
                                   {resposta}
                                 </span>
                               </div>
-                              
+
                               {/* Se tiver foto, layout lado a lado */}
                               {item?.foto ? (
                                 <div className="flex gap-3 mt-2">
@@ -661,21 +668,19 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
 
           {/* Validação do Preposto - Mostrar quando houver assinatura (aprovado OU reprovado) */}
           {formData.assinaturaPreposto && (
-            <section className={`rounded-lg p-4 ${
-              formData.prepostoConfirmado 
-                ? 'bg-green-50 dark:bg-green-900/20' 
-                : 'bg-red-50 dark:bg-red-900/20'
-            }`}>
+            <section className={`rounded-lg p-4 ${formData.prepostoConfirmado
+              ? 'bg-green-50 dark:bg-green-900/20'
+              : 'bg-red-50 dark:bg-red-900/20'
+              }`}>
               <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
                 Validação do Preposto
               </h3>
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
-                  <span className={`px-3 py-1 rounded-full font-medium ${
-                    formData.prepostoConfirmado
-                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                      : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                  }`}>
+                  <span className={`px-3 py-1 rounded-full font-medium ${formData.prepostoConfirmado
+                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                    : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                    }`}>
                     {formData.prepostoConfirmado ? '✓ Aprovado' : '✗ Reprovado'}
                   </span>
                 </div>
@@ -705,16 +710,11 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
                   <div>
                     <span className="text-gray-600 dark:text-gray-400">Assinatura do Preposto:</span>
                     <div className="mt-2">
-                      <img 
-                        src={formData.assinaturaPreposto} 
-                        alt="Assinatura Preposto" 
+                      <img
+                        src={formData.assinaturaPreposto}
+                        alt="Assinatura Preposto"
                         className="border border-gray-300 dark:border-gray-600 rounded-lg max-w-xs"
                       />
-                      {formData.prepostoNomeAssinatura && (
-                        <p className="mt-2 text-sm text-gray-700 dark:text-gray-300 text-center max-w-xs">
-                          {formData.prepostoNomeAssinatura}
-                        </p>
-                      )}
                     </div>
                   </div>
                 )}
@@ -728,9 +728,9 @@ const ViewRespostasModal: React.FC<Props> = ({ obra, users, formData, onClose })
               <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
                 Assinatura do Encarregado
               </h3>
-              <img 
-                src={formData.assinaturaEncarregado} 
-                alt="Assinatura Encarregado" 
+              <img
+                src={formData.assinaturaEncarregado}
+                alt="Assinatura Encarregado"
                 className="border border-gray-300 dark:border-gray-600 rounded-lg max-w-xs"
               />
             </section>

@@ -61,12 +61,7 @@ export async function generateFormPDF(
     { align: "center" },
   );
 
-  const dataPreenchimento = formData.condicoesTrabalho?.data
-    ? format(
-        new Date(formData.condicoesTrabalho.data),
-        "dd/MM/yyyy",
-      )
-    : format(new Date(obra.createdAt), "dd/MM/yyyy");
+  const dataPreenchimento = obra.data || format(new Date(obra.createdAt), "dd/MM/yyyy");
   pdf.setFontSize(11);
   pdf.text(`Data: ${dataPreenchimento}`, pageWidth / 2, 37, {
     align: "center",
@@ -123,13 +118,13 @@ export async function generateFormPDF(
   // ============================================
   // CONDIÇÕES AMBIENTAIS
   // ============================================
-  if (formData.condicoesTrabalho) {
+  if (formData.clima) {
     yPos = checkPageBreak(pdf, yPos, 50, margin);
 
     pdf.setFontSize(16);
     pdf.setFont("helvetica", "bold");
     pdf.text(
-      "CONDIÇÕES AMBIENTAIS E DE TRABALHO",
+      "CONDIÇÕES AMBIENTAIS",
       margin,
       yPos,
     );
@@ -138,36 +133,22 @@ export async function generateFormPDF(
     const condicoesData = [];
 
     // Clima
-    if (formData.condicoesTrabalho.climaManha) {
+    if (formData.clima.manha) {
       condicoesData.push([
         "Clima - Manhã",
-        getClimaLabel(formData.condicoesTrabalho.climaManha),
+        getClimaLabel(formData.clima.manha),
       ]);
     }
-    if (formData.condicoesTrabalho.climaTarde) {
+    if (formData.clima.tarde) {
       condicoesData.push([
         "Clima - Tarde",
-        getClimaLabel(formData.condicoesTrabalho.climaTarde),
+        getClimaLabel(formData.clima.tarde),
       ]);
     }
-    if (formData.condicoesTrabalho.climaNoite) {
+    if (formData.clima.noite) {
       condicoesData.push([
         "Clima - Noite",
-        getClimaLabel(formData.condicoesTrabalho.climaNoite),
-      ]);
-    }
-
-    // Temperatura e Umidade
-    if (formData.condicoesTrabalho.temperaturaAmbiente) {
-      condicoesData.push([
-        "Temperatura Ambiente",
-        formData.condicoesTrabalho.temperaturaAmbiente + " °C",
-      ]);
-    }
-    if (formData.condicoesTrabalho.umidadeRelativa) {
-      condicoesData.push([
-        "Umidade Relativa do Ar",
-        formData.condicoesTrabalho.umidadeRelativa + " %",
+        getClimaLabel(formData.clima.noite),
       ]);
     }
 
@@ -463,7 +444,7 @@ export async function generateFormPDF(
                         tipo === "Uretano para muretas" ||
                         tipo === "Uretano para Paredes" ||
                         tipo ===
-                          "Uretano para Paredes, base e pilares"
+                        "Uretano para Paredes, base e pilares"
                       ) {
                         // Para campos duplos dentro do multiselect (usa ~ como separador)
                         const [val1, val2] = valor.split("~");
@@ -610,9 +591,25 @@ export async function generateFormPDF(
         let resposta = "";
 
         if (item) {
-          // Para item "Estado do substrato" (index 2), mostrar o texto diretamente
-          if (index === 2) {
-            resposta = item.texto || "N/A";
+          // Identificação semântica dos campos numéricos/texto (42 e 43)
+          const isEstadoSubstrato = label === "Estado do substrato";
+          const isNumericField42 = label === "Qual a espessura do piso de concreto?";
+          const isNumericField43 = label === "Qual a profundidade dos cortes das juntas serradas?";
+
+          if (isEstadoSubstrato || isNumericField42 || isNumericField43) {
+            // Para item "Estado do substrato"
+            if (isEstadoSubstrato) {
+              resposta = item.texto || "N/A";
+            }
+            // Para item 42
+            else if (isNumericField42) {
+              resposta = (item as any).espessura ? `${(item as any).espessura} cm` : "N/A";
+            }
+            // Para item 43
+            else if (isNumericField43) {
+              resposta = item.texto ? `${item.texto} cm` : "N/A";
+            }
+
             if (item.comentario) {
               resposta += ` (${item.comentario})`;
             }
@@ -628,7 +625,11 @@ export async function generateFormPDF(
           }
         } else {
           // Item não existe - considerar como NÃO (padrão)
-          resposta = index === 2 ? "N/A" : "NÃO";
+          // Exceto para campos numéricos/substrato que devem ser N/A se não existirem
+          const isLabelEspecial = label === "Estado do substrato" ||
+            label === "Qual a espessura do piso de concreto?" ||
+            label === "Qual a profundidade dos cortes das juntas serradas?";
+          resposta = isLabelEspecial ? "N/A" : "NÃO";
         }
 
         registrosServicoData.push([
@@ -815,16 +816,16 @@ export async function generateFormPDF(
       yPos += 8;
     }
 
-    if (formData.prepostoComentario) {
+    if (formData.prepostoMotivoReprovacao) {
       pdf.setFontSize(10);
       pdf.setFont("helvetica", "bold");
-      pdf.text("Comentário:", margin, yPos);
+      pdf.text("Motivo da Reprovação:", margin, yPos);
       yPos += 6;
 
       pdf.setFont("helvetica", "normal");
       pdf.setTextColor(TEXT_GRAY);
       const splitComment = pdf.splitTextToSize(
-        formData.prepostoComentario,
+        formData.prepostoMotivoReprovacao,
         contentWidth,
       );
       pdf.text(splitComment, margin, yPos);
@@ -868,11 +869,11 @@ export async function generateFormPDF(
       );
     }
 
-    if (formData.validadoPrepostoAt) {
+    if (formData.prepostoReviewedAt) {
       pdf.setFontSize(9);
       pdf.setTextColor(TEXT_GRAY);
       pdf.text(
-        `Assinado em: ${format(new Date(formData.validadoPrepostoAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`,
+        `Assinado em: ${format(new Date(formData.prepostoReviewedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`,
         margin,
         yPos,
       );
