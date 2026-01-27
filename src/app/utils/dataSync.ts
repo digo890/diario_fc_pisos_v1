@@ -3,7 +3,7 @@
  * Resolve race conditions entre backend e IndexedDB local
  */
 
-import type { Obra, User } from '../types';
+import type { Obra, User, FormData } from '../types';
 import { saveObra, saveUser } from './database';
 import { safeLog } from './logSanitizer';
 
@@ -61,6 +61,66 @@ function normalizeUserFromBackend(userBackend: any): User {
     createdAt: userBackend.created_at 
       ? new Date(userBackend.created_at).getTime() 
       : userBackend.createdAt || Date.now(),
+  };
+}
+
+/**
+ * Normaliza dados de formulário do backend (snake_case) para frontend (camelCase)
+ */
+export function normalizeFormularioFromBackend(formBackend: any): FormData {
+  return {
+    obra_id: formBackend.obra_id || formBackend.obraId,
+    
+    // Campos complexos (objetos) - manter como estão ou normalizar se necessário
+    clima: formBackend.clima || {},
+    servicos: formBackend.servicos || {},
+    registros: formBackend.registros || {},
+    
+    // Campos simples
+    temperaturaMin: formBackend.temperatura_min || formBackend.temperaturaMin || '',
+    temperaturaMax: formBackend.temperatura_max || formBackend.temperaturaMax || '',
+    umidade: formBackend.umidade || '',
+    ucrete: formBackend.ucrete || '',
+    horarioInicio: formBackend.horario_inicio || formBackend.horarioInicio || '',
+    horarioTermino: formBackend.horario_termino || formBackend.horarioTermino || '',
+    area: formBackend.area || '',
+    espessura: formBackend.espessura || '',
+    rodape: formBackend.rodape || '',
+    estadoSubstrato: formBackend.estado_substrato || formBackend.estadoSubstrato || '',
+    estadoSubstratoObs: formBackend.estado_substrato_obs || formBackend.estadoSubstratoObs || '',
+    observacoes: formBackend.observacoes || '',
+    
+    // Assinaturas
+    assinaturaEncarregado: formBackend.assinatura_encarregado || formBackend.assinaturaEncarregado,
+    assinaturaPreposto: formBackend.assinatura_preposto || formBackend.assinaturaPreposto,
+    
+    // Confirmação Preposto
+    prepostoConfirmado: formBackend.preposto_confirmado || formBackend.prepostoConfirmado,
+    nomeCompletoPreposto: formBackend.nome_completo_preposto || formBackend.nomeCompletoPreposto,
+    prepostoMotivoReprovacao: formBackend.preposto_motivo_reprovacao || formBackend.prepostoMotivoReprovacao,
+    
+    // Metadata
+    status: formBackend.status || 'novo',
+    createdAt: formBackend.created_at 
+      ? new Date(formBackend.created_at).getTime() 
+      : formBackend.createdAt || Date.now(),
+    updatedAt: formBackend.updated_at 
+      ? new Date(formBackend.updated_at).getTime() 
+      : formBackend.updatedAt || Date.now(),
+    createdBy: formBackend.created_by || formBackend.createdBy || '',
+    
+    // Campos de fluxo
+    enviadoPrepostoAt: formBackend.enviado_preposto_at 
+      ? new Date(formBackend.enviado_preposto_at).getTime() 
+      : formBackend.enviadoPrepostoAt,
+    prepostoReviewedAt: formBackend.preposto_reviewed_at 
+      ? new Date(formBackend.preposto_reviewed_at).getTime() 
+      : formBackend.prepostoReviewedAt,
+    prepostoReviewedBy: formBackend.preposto_reviewed_by || formBackend.prepostoReviewedBy,
+    completedAt: formBackend.completed_at 
+      ? new Date(formBackend.completed_at).getTime() 
+      : formBackend.completedAt,
+    emailsEnviados: formBackend.emails_enviados || formBackend.emailsEnviados,
   };
 }
 

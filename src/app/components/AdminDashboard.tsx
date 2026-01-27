@@ -6,7 +6,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { getObras, getUsers, saveObra, deleteObra, saveUser, deleteUser, getAllForms, getFormByObraId, deleteForm, saveForm } from '../utils/database';
 import { obraApi, userApi, formularioApi } from '../utils/api';
 import { getStatusDisplay, getStatusDisplayWithFormulario, getObraStatusReal } from '../utils/diarioHelpers';
-import { mergeObras, mergeUsers } from '../utils/dataSync';
+import { mergeObras, mergeUsers, normalizeFormularioFromBackend } from '../utils/dataSync';
 import { safeLog, safeError, safeWarn } from '../utils/logSanitizer';
 import type { Obra, User, UserRole, FormData } from '../types';
 import ConfirmModal from './ConfirmModal';
@@ -59,10 +59,10 @@ const AdminDashboard: React.FC = () => {
   const { currentUser } = useAuth(); // 🔒 CORREÇÃO #7: logout removido daqui
   const { theme, toggleTheme } = useTheme();
   const { showToast, ToastComponent } = useToast();
-  
+
   // 🔒 CORREÇÃO #7: Hook de logout seguro v1.1.0
   const { handleLogout, forceLogout, cancelLogout, showLogoutConfirm, pendingCount } = useSafeLogout();
-  
+
   const [activeTab, setActiveTab] = useState<TabType>('resultados');
   const [obras, setObras] = useState<Obra[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -75,7 +75,7 @@ const AdminDashboard: React.FC = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid'); // Para desktop apenas
   const [searchObra, setSearchObra] = useState('');
   const [searchUser, setSearchUser] = useState('');
-  
+
   const [showCreateObra, setShowCreateObra] = useState(false);
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [editingObra, setEditingObra] = useState<Obra | null>(null);
@@ -84,7 +84,7 @@ const AdminDashboard: React.FC = () => {
   const [viewingFormData, setViewingFormData] = useState<FormData | null>(null);
   const [deletingObra, setDeletingObra] = useState<Obra | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
-  
+
   // 🎯 SKELETON: Estado para obras em criação
   const [creatingSkeleton, setCreatingSkeleton] = useState(false);
 
@@ -97,7 +97,7 @@ const AdminDashboard: React.FC = () => {
       loadFormData(viewingObra.id);
     }
   }, [viewingObra]);
-  
+
   // ✅ REMOVIDO: Sincronização automática obsoleta
   // Estratégia nova v1.0.0: backend sempre vence no merge (getMostRecent sempre retorna backend)
   // loadData() já faz revalidação automática quando online
@@ -106,7 +106,7 @@ const AdminDashboard: React.FC = () => {
     try {
       // Deletar do backend primeiro
       const response = await obraApi.delete(id);
-      
+
       if (response.success) {
         // Deletar também do IndexedDB local
         await deleteObra(id);
@@ -126,7 +126,7 @@ const AdminDashboard: React.FC = () => {
   const handleDeleteUser = async (id: string) => {
     // ✅ CORREÇÃO #5: Validar se usuário é encarregado de alguma obra
     const obrasDoUsuario = obras.filter(o => o.encarregadoId === id);
-    
+
     if (obrasDoUsuario.length > 0) {
       const nomeUsuario = deletingUser?.nome || 'Este usuário';
       showToast(
@@ -137,11 +137,11 @@ const AdminDashboard: React.FC = () => {
       setDeletingUser(null);
       return;
     }
-    
+
     try {
       // Deletar do backend primeiro
       const response = await userApi.delete(id);
-      
+
       if (response.success) {
         // Deletar também do IndexedDB local
         await deleteUser(id);
@@ -150,8 +150,8 @@ const AdminDashboard: React.FC = () => {
         showToast('Usuário excluído com sucesso!', 'success');
       } else {
         // Extrair mensagem de erro adequada
-        const errorMessage = typeof response.error === 'string' 
-          ? response.error 
+        const errorMessage = typeof response.error === 'string'
+          ? response.error
           : (response.error as any)?.message || JSON.stringify(response.error) || 'Erro desconhecido';
         showToast(`Erro ao excluir usuário: ${errorMessage}`, 'error');
       }
@@ -173,11 +173,11 @@ const AdminDashboard: React.FC = () => {
     return obras
       .filter(obra => {
         if (obraFilter === 'todas') return true;
-        
+
         // 🎯 REGRA DE DOMÍNIO: Calcular status real baseado no formulário
         const formulario = formularios.find(f => f.obra_id === obra.id);
         const statusReal = getObraStatusReal(obra, formulario);
-        
+
         if (obraFilter === 'novo') return statusReal === 'novo';
         if (obraFilter === 'em_andamento') return statusReal === 'em_preenchimento' || statusReal === 'reprovado_preposto';
         if (obraFilter === 'conferencia') return statusReal === 'enviado_preposto';
@@ -228,7 +228,7 @@ const AdminDashboard: React.FC = () => {
       if (navigator.onLine) {
         try {
           safeLog('🔄 Buscando dados do backend...');
-          
+
           // Buscar usuários, obras e formulários do backend
           const [usersResponse, obrasResponse, formulariosResponse] = await Promise.all([
             userApi.list(),
@@ -248,7 +248,7 @@ const AdminDashboard: React.FC = () => {
           if (obrasResponse.success && obrasResponse.data) {
             const remoteObras = obrasResponse.data;
             const mergedObras = await mergeObras(localObras, remoteObras);
-            
+
             // ✅ CORREÇÃO: Usar status do backend diretamente - NÃO sobrescrever
             // O backend é a fonte da verdade para o status da obra
             setObras(mergedObras);
@@ -257,7 +257,8 @@ const AdminDashboard: React.FC = () => {
 
           // 🎯 CORREÇÃO: Carregar formulários do backend
           if (formulariosResponse.success && formulariosResponse.data) {
-            const remoteFormularios = formulariosResponse.data;
+            // 🎯 CORREÇÃO: Normalizar formulários do backend (snake_case -> camelCase)
+            const remoteFormularios = formulariosResponse.data.map((f: any) => normalizeFormularioFromBackend(f));
             // Salvar formulários localmente
             for (const form of remoteFormularios) {
               await saveForm(form);
@@ -269,10 +270,10 @@ const AdminDashboard: React.FC = () => {
             setFormularios(localFormularios);
             safeLog(`📂 ${localFormularios.length} formulários locais carregados`);
           }
-          
+
           // 🎯 SKELETON: Desativa skeleton após carregar dados
           setCreatingSkeleton(false);
-          
+
           return; // Sucesso
         } catch (apiError) {
           safeWarn('⚠️ Erro ao buscar dados do backend, usando cache local:', apiError);
@@ -287,17 +288,17 @@ const AdminDashboard: React.FC = () => {
 
       // Fallback: usar dados locais (offline ou erro na API)
       safeLog('📂 Usando dados locais do IndexedDB');
-      
+
       // Filtrar obras válidas
-      const obrasValidas = localObras.filter((obra: Obra) => 
+      const obrasValidas = localObras.filter((obra: Obra) =>
         obra.id && obra.cliente && obra.obra && obra.cidade && obra.encarregadoId
       );
-      
+
       // Remover obras inválidas do IndexedDB
-      const obrasInvalidas = localObras.filter((obra: Obra) => 
+      const obrasInvalidas = localObras.filter((obra: Obra) =>
         !obra.id || !obra.cliente || !obra.obra || !obra.cidade || !obra.encarregadoId
       );
-      
+
       if (obrasInvalidas.length > 0) {
         safeWarn(`⚠️ Removendo ${obrasInvalidas.length} obra(s) corrompida(s)`);
         await Promise.all(
@@ -308,13 +309,13 @@ const AdminDashboard: React.FC = () => {
           })
         );
       }
-      
+
       // ✅ FASE 2: Removido loop de atualização automática de status
       // Status agora é gerenciado exclusivamente pelo backend
       setObras(obrasValidas);
       setUsers(localUsers);
       setFormularios(localFormularios);
-      
+
       // 🎯 SKELETON: Desativa skeleton após carregar dados locais
       setCreatingSkeleton(false);
     } catch (error) {
@@ -335,10 +336,10 @@ const AdminDashboard: React.FC = () => {
   const handleObraClick = async (obra: Obra) => {
     // Verificar se obra está em status que deveria ter formulário
     const statusesComFormulario = ['enviado_preposto', 'reprovado_preposto', 'concluido'];
-    
+
     if (statusesComFormulario.includes(obra.status)) {
       const form = await getFormByObraId(obra.id);
-      
+
       if (!form) {
         showToast(
           `⚠️ Formulário não encontrado. Recarregue a página (F5) ou contate o suporte.`,
@@ -347,11 +348,11 @@ const AdminDashboard: React.FC = () => {
         return;
       }
     }
-    
+
     // Abrir modal normalmente
     setViewingObra(obra);
   };
-  
+
   return (
     <div className="min-h-screen bg-[#EDEFE4] dark:bg-gray-950">
       {/* Header */}
@@ -371,7 +372,7 @@ const AdminDashboard: React.FC = () => {
             <div className="flex items-center gap-2">
               {/* Sync Status Indicator */}
               <SyncStatusIndicator />
-              
+
               <button
                 onClick={toggleTheme}
                 className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 
@@ -380,7 +381,7 @@ const AdminDashboard: React.FC = () => {
               >
                 {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
               </button>
-              
+
               <button
                 onClick={handleLogout}
                 className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 
@@ -400,22 +401,20 @@ const AdminDashboard: React.FC = () => {
           <div className="flex gap-8">
             <button
               onClick={() => setActiveTab('resultados')}
-              className={`py-4 px-2 border-b-2 font-medium transition-colors flex items-center gap-2 ${
-                activeTab === 'resultados'
+              className={`py-4 px-2 border-b-2 font-medium transition-colors flex items-center gap-2 ${activeTab === 'resultados'
                   ? 'border-[#FD5521] text-[#FD5521]'
                   : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-              }`}
+                }`}
             >
               <BarChart3 className="w-5 h-5" />
               <span className="hidden md:inline">Resultados</span>
             </button>
             <button
               onClick={() => setActiveTab('obras')}
-              className={`py-4 px-2 border-b-2 font-medium transition-colors flex items-center gap-2 ${
-                activeTab === 'obras'
+              className={`py-4 px-2 border-b-2 font-medium transition-colors flex items-center gap-2 ${activeTab === 'obras'
                   ? 'border-[#FD5521] text-[#FD5521]'
                   : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-              }`}
+                }`}
             >
               <Building2 className="w-5 h-5" />
               <span className="md:hidden">({obras.length})</span>
@@ -423,11 +422,10 @@ const AdminDashboard: React.FC = () => {
             </button>
             <button
               onClick={() => setActiveTab('usuarios')}
-              className={`py-4 px-2 border-b-2 font-medium transition-colors flex items-center gap-2 ${
-                activeTab === 'usuarios'
+              className={`py-4 px-2 border-b-2 font-medium transition-colors flex items-center gap-2 ${activeTab === 'usuarios'
                   ? 'border-[#FD5521] text-[#FD5521]'
                   : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-              }`}
+                }`}
             >
               <Users className="w-5 h-5" />
               <span className="md:hidden">({users.length})</span>
@@ -504,10 +502,10 @@ const AdminDashboard: React.FC = () => {
                     <div className="rounded-xl px-5 py-4 mb-2.5 bg-gradient-to-r from-gray-200 to-gray-100 dark:from-gray-800 dark:to-gray-700 animate-pulse">
                       {/* Título skeleton */}
                       <div className="h-6 bg-gray-300 dark:bg-gray-600 rounded mb-3 w-3/4"></div>
-                      
+
                       {/* ID e Data skeleton */}
                       <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded mb-4 w-1/3"></div>
-                      
+
                       {/* Informações skeleton */}
                       <div className="space-y-2">
                         <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-2/3"></div>
@@ -515,26 +513,26 @@ const AdminDashboard: React.FC = () => {
                         <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-1/2"></div>
                       </div>
                     </div>
-                    
+
                     {/* Rodapé skeleton */}
                     <div className="flex items-center justify-between px-2.5">
                       <div className="h-6 bg-gray-300 dark:bg-gray-600 rounded w-32"></div>
                       <div className="h-8 bg-gray-300 dark:bg-gray-600 rounded w-20"></div>
                     </div>
-                    
+
                     {/* Texto indicador */}
                     <div className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400 animate-pulse">
                       Criando diário de obra...
                     </div>
                   </motion.div>
                 )}
-                
+
                 {obrasPagination.paginatedItems.map(obra => {
                   // 🎯 REGRA DE DOMÍNIO: Aplicar status real baseado no formulário
                   const formulario = formularios.find(f => f.obra_id === obra.id);
                   const status = getStatusDisplayWithFormulario(obra, formulario);
                   const statusReal = getObraStatusReal(obra, formulario);
-                  
+
                   return (
                     <div
                       key={obra.id}
@@ -542,25 +540,24 @@ const AdminDashboard: React.FC = () => {
                       className="bg-white dark:bg-gray-900 rounded-xl p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all relative"
                     >
                       {/* Container com gradiente */}
-                      <div className={`rounded-xl px-5 py-4 mb-2.5 ${
-                        statusReal === 'novo'
+                      <div className={`rounded-xl px-5 py-4 mb-2.5 ${statusReal === 'novo'
                           ? 'bg-gradient-to-r from-[#fff5df] to-[#f7e3cc] dark:from-gray-800 dark:to-gray-800'
-                          : statusReal === 'enviado_preposto' 
-                          ? 'bg-gradient-to-r from-[#dbf3f3] to-[#ccdbf7] dark:from-gray-800 dark:to-gray-800'
-                          : statusReal === 'concluido'
-                          ? 'bg-gradient-to-r from-[#afffb5] to-[#c1f3ff] dark:from-gray-800 dark:to-gray-800'
-                          : 'bg-gradient-to-r from-[#e7f3db] to-[#ccf7f3] dark:from-gray-800 dark:to-gray-800'
-                      }`}>
+                          : statusReal === 'enviado_preposto'
+                            ? 'bg-gradient-to-r from-[#dbf3f3] to-[#ccdbf7] dark:from-gray-800 dark:to-gray-800'
+                            : statusReal === 'concluido'
+                              ? 'bg-gradient-to-r from-[#afffb5] to-[#c1f3ff] dark:from-gray-800 dark:to-gray-800'
+                              : 'bg-gradient-to-r from-[#e7f3db] to-[#ccf7f3] dark:from-gray-800 dark:to-gray-800'
+                        }`}>
                         {/* Título da Obra */}
                         <h3 className="font-semibold text-xl leading-6 text-gray-900 dark:text-white mb-3">
                           {obra.cliente} - {obra.obra}
                         </h3>
-                        
+
                         {/* ID e Data */}
                         <p className="font-['Cousine',monospace] text-sm text-gray-900/[0.56] dark:text-gray-400/[0.56] mb-4 tracking-[1px]">
                           #{String(obra.id).slice(-5)} - {obra.createdAt ? new Date(Number(obra.createdAt)).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : 'N/A'}
                         </p>
-                        
+
                         {/* Informações */}
                         <div className="space-y-2 text-sm leading-normal text-gray-900 dark:text-white">
                           <p>
@@ -577,7 +574,7 @@ const AdminDashboard: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                      
+
                       {/* Rodapé: Status e Ações (fora do gradiente) */}
                       <div className="flex items-center justify-between px-2.5">
                         {/* Badge de Status */}
@@ -585,35 +582,34 @@ const AdminDashboard: React.FC = () => {
                           <div className="relative w-2.5 h-2.5">
                             <svg className="absolute inset-0" viewBox="0 0 18 18" fill="none">
                               <circle cx="9" cy="9" r="5" className={
-                                status.color.includes('blue') ? 'fill-blue-600' : 
-                                status.color.includes('green') ? 'fill-green-600' : 
-                                status.color.includes('yellow') ? 'fill-yellow-600' : 
-                                status.color.includes('purple') ? 'fill-purple-600' :
-                                status.color.includes('orange') ? 'fill-orange-600' :
-                                'fill-gray-400'
+                                status.color.includes('blue') ? 'fill-blue-600' :
+                                  status.color.includes('green') ? 'fill-green-600' :
+                                    status.color.includes('yellow') ? 'fill-yellow-600' :
+                                      status.color.includes('purple') ? 'fill-purple-600' :
+                                        status.color.includes('orange') ? 'fill-orange-600' :
+                                          'fill-gray-400'
                               } />
                               <circle cx="9" cy="9" r="7" className={
-                                status.color.includes('blue') ? 'stroke-blue-600' : 
-                                status.color.includes('green') ? 'stroke-green-600' : 
-                                status.color.includes('yellow') ? 'stroke-yellow-600' : 
-                                status.color.includes('purple') ? 'stroke-purple-600' :
-                                status.color.includes('orange') ? 'stroke-orange-600' :
-                                'stroke-gray-400'
+                                status.color.includes('blue') ? 'stroke-blue-600' :
+                                  status.color.includes('green') ? 'stroke-green-600' :
+                                    status.color.includes('yellow') ? 'stroke-yellow-600' :
+                                      status.color.includes('purple') ? 'stroke-purple-600' :
+                                        status.color.includes('orange') ? 'stroke-orange-600' :
+                                          'stroke-gray-400'
                               } strokeOpacity="0.24" strokeWidth="4" />
                             </svg>
                           </div>
-                          <span className={`font-medium text-base leading-normal ${
-                            status.color.includes('blue') ? 'text-blue-600' : 
-                            status.color.includes('green') ? 'text-green-600' : 
-                            status.color.includes('yellow') ? 'text-yellow-600' : 
-                            status.color.includes('purple') ? 'text-purple-600' :
-                            status.color.includes('orange') ? 'text-orange-600' :
-                            'text-gray-600'
-                          }`}>
+                          <span className={`font-medium text-base leading-normal ${status.color.includes('blue') ? 'text-blue-600' :
+                              status.color.includes('green') ? 'text-green-600' :
+                                status.color.includes('yellow') ? 'text-yellow-600' :
+                                  status.color.includes('purple') ? 'text-purple-600' :
+                                    status.color.includes('orange') ? 'text-orange-600' :
+                                      'text-gray-600'
+                            }`}>
                             {status.label}
                           </span>
                         </div>
-                        
+
                         {/* Botões de ação */}
                         <div className="flex gap-[6px]">
                           <button
@@ -629,11 +625,10 @@ const AdminDashboard: React.FC = () => {
                               }
                               setEditingObra(obra);
                             }}
-                            className={`p-2 rounded-[10px] transition-colors ${
-                              statusReal === 'concluido' || statusReal === 'enviado_preposto'
+                            className={`p-2 rounded-[10px] transition-colors ${statusReal === 'concluido' || statusReal === 'enviado_preposto'
                                 ? 'opacity-40 cursor-not-allowed text-gray-400 dark:text-gray-600'
                                 : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
-                            }`}
+                              }`}
                             title={
                               statusReal === 'concluido' || statusReal === 'enviado_preposto'
                                 ? `Obras ${statusReal === 'concluido' ? 'concluídas' : 'aguardando conferência'} não podem ser editadas`
@@ -684,13 +679,13 @@ const AdminDashboard: React.FC = () => {
                           <p className="text-[#101828] dark:text-white font-normal text-base leading-6">
                             Nenhuma obra {
                               obraFilter === 'novo' ? 'nova' :
-                              obraFilter === 'em_andamento' ? 'em andamento' :
-                              obraFilter === 'conferencia' ? 'em conferência' :
-                              obraFilter === 'concluidas' ? 'concluída' : ''
+                                obraFilter === 'em_andamento' ? 'em andamento' :
+                                  obraFilter === 'conferencia' ? 'em conferência' :
+                                    obraFilter === 'concluidas' ? 'concluída' : ''
                             }
                           </p>
                           <p className="text-[#6a7282] dark:text-gray-400 text-sm leading-5">
-                            {obraFilter === 'todas' 
+                            {obraFilter === 'todas'
                               ? 'Nenhuma obra encontrada'
                               : 'Altere o filtro para ver outras obras'
                             }
@@ -746,117 +741,115 @@ const AdminDashboard: React.FC = () => {
                     </div>
                   </motion.div>
                 )}
-                
+
                 {filteredObras.length > 0 ? (
                   <>
                     {obrasPagination.paginatedItems.map((obra, index) => {
-                    // 🎯 REGRA DE DOMÍNIO: Aplicar status real baseado no formulário
-                    const formulario = formularios.find(f => f.obra_id === obra.id);
-                    const status = getStatusDisplayWithFormulario(obra, formulario);
-                    
-                    return (
-                      <div key={obra.id}>
-                        <div
-                          onClick={() => handleObraClick(obra)}
-                          className="px-5 py-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-                        >
-                          <div className="flex items-center justify-between gap-4">
-                            {/* Info da obra */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-3 mb-2">
-                                <h3 className="font-semibold text-lg text-gray-900 dark:text-white truncate">
-                                  {obra.cliente} - {obra.obra}
-                                </h3>
-                                {/* Badge de Status */}
-                                <div className="flex items-center gap-1.5 flex-shrink-0">
-                                  <div className="relative w-2 h-2">
-                                    <svg className="absolute inset-0" viewBox="0 0 18 18" fill="none">
-                                      <circle cx="9" cy="9" r="5" className={status.color.includes('blue') ? 'fill-blue-600' : status.color.includes('green') ? 'fill-green-600' : status.color.includes('yellow') ? 'fill-yellow-600' : 'fill-gray-400'} />
-                                    </svg>
+                      // 🎯 REGRA DE DOMÍNIO: Aplicar status real baseado no formulário
+                      const formulario = formularios.find(f => f.obra_id === obra.id);
+                      const status = getStatusDisplayWithFormulario(obra, formulario);
+
+                      return (
+                        <div key={obra.id}>
+                          <div
+                            onClick={() => handleObraClick(obra)}
+                            className="px-5 py-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                          >
+                            <div className="flex items-center justify-between gap-4">
+                              {/* Info da obra */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <h3 className="font-semibold text-lg text-gray-900 dark:text-white truncate">
+                                    {obra.cliente} - {obra.obra}
+                                  </h3>
+                                  {/* Badge de Status */}
+                                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                                    <div className="relative w-2 h-2">
+                                      <svg className="absolute inset-0" viewBox="0 0 18 18" fill="none">
+                                        <circle cx="9" cy="9" r="5" className={status.color.includes('blue') ? 'fill-blue-600' : status.color.includes('green') ? 'fill-green-600' : status.color.includes('yellow') ? 'fill-yellow-600' : 'fill-gray-400'} />
+                                      </svg>
+                                    </div>
+                                    <span className={`font-medium text-sm ${status.color.includes('blue') ? 'text-blue-600' :
+                                        status.color.includes('green') ? 'text-green-600' :
+                                          status.color.includes('yellow') ? 'text-yellow-600' :
+                                            'text-gray-600'
+                                      }`}>
+                                      {status.label}
+                                    </span>
                                   </div>
-                                  <span className={`font-medium text-sm ${
-                                    status.color.includes('blue') ? 'text-blue-600' : 
-                                    status.color.includes('green') ? 'text-green-600' : 
-                                    status.color.includes('yellow') ? 'text-yellow-600' : 
-                                    'text-gray-600'
-                                  }`}>
-                                    {status.label}
+                                </div>
+                                <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400">
+                                  <span>
+                                    <span className="font-medium text-gray-900 dark:text-gray-300">{obra.cidade}</span>
+                                  </span>
+                                  <span>•</span>
+                                  <span>{getUserName(obra.encarregadoId)}</span>
+                                  <span>•</span>
+                                  <span>{new Date(obra.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>
+                                  <span>•</span>
+                                  <span className="font-['Cousine',monospace] text-xs">
+                                    #{String(obra.id).slice(-5)}
                                   </span>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400">
-                                <span>
-                                  <span className="font-medium text-gray-900 dark:text-gray-300">{obra.cidade}</span>
-                                </span>
-                                <span>•</span>
-                                <span>{getUserName(obra.encarregadoId)}</span>
-                                <span>•</span>
-                                <span>{new Date(obra.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>
-                                <span>•</span>
-                                <span className="font-['Cousine',monospace] text-xs">
-                                  #{String(obra.id).slice(-5)}
-                                </span>
+
+                              {/* Botões de ação */}
+                              <div className="flex gap-2 flex-shrink-0">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Bloquear edição se obra estiver concluída ou aguardando conferência
+                                    if (obra.status === 'concluido' || obra.status === 'enviado_preposto') {
+                                      showToast(
+                                        `Obras ${obra.status === 'concluido' ? 'concluídas' : 'aguardando conferência'} não podem ser editadas`,
+                                        'error'
+                                      );
+                                      return;
+                                    }
+                                    setEditingObra(obra);
+                                  }}
+                                  className={`p-2 rounded-lg transition-colors ${obra.status === 'concluido' || obra.status === 'enviado_preposto'
+                                      ? 'opacity-40 cursor-not-allowed text-gray-400 dark:text-gray-600'
+                                      : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
+                                    }`}
+                                  title={
+                                    obra.status === 'concluido' || obra.status === 'enviado_preposto'
+                                      ? `Obras ${obra.status === 'concluido' ? 'concluídas' : 'aguardando conferência'} não podem ser editadas`
+                                      : 'Editar'
+                                  }
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeletingObra(obra);
+                                  }}
+                                  className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
+                                  title="Excluir"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
                               </div>
                             </div>
-                            
-                            {/* Botões de ação */}
-                            <div className="flex gap-2 flex-shrink-0">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // Bloquear edição se obra estiver concluída ou aguardando conferência
-                                  if (obra.status === 'concluido' || obra.status === 'enviado_preposto') {
-                                    showToast(
-                                      `Obras ${obra.status === 'concluido' ? 'concluídas' : 'aguardando conferência'} não podem ser editadas`,
-                                      'error'
-                                    );
-                                    return;
-                                  }
-                                  setEditingObra(obra);
-                                }}
-                                className={`p-2 rounded-lg transition-colors ${
-                                  obra.status === 'concluido' || obra.status === 'enviado_preposto'
-                                    ? 'opacity-40 cursor-not-allowed text-gray-400 dark:text-gray-600'
-                                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
-                                }`}
-                                title={
-                                  obra.status === 'concluido' || obra.status === 'enviado_preposto'
-                                    ? `Obras ${obra.status === 'concluido' ? 'concluídas' : 'aguardando conferência'} não podem ser editadas`
-                                    : 'Editar'
-                                }
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setDeletingObra(obra);
-                                }}
-                                className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
-                                title="Excluir"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
                           </div>
+                          {index < obrasPagination.paginatedItems.length - 1 && (
+                            <div className="mx-5 border-b border-[#EDEFE4] dark:border-gray-800"></div>
+                          )}
                         </div>
-                        {index < obrasPagination.paginatedItems.length - 1 && (
-                          <div className="mx-5 border-b border-[#EDEFE4] dark:border-gray-800"></div>
-                        )}
-                      </div>
-                    );
-                  })}
-                  
-                  {/* 🚀 PAGINAÇÃO - List View */}
-                  <div className="p-4 border-t border-gray-200 dark:border-gray-800">
-                    <Pagination
-                      currentPage={obrasPagination.currentPage}
-                      totalPages={obrasPagination.totalPages}
-                      onPageChange={obrasPagination.setCurrentPage}
-                      totalItems={obrasPagination.totalItems}
-                      itemsPerPage={obrasPagination.itemsPerPage}
-                    />
-                  </div>
+                      );
+                    })}
+
+                    {/* 🚀 PAGINAÇÃO - List View */}
+                    <div className="p-4 border-t border-gray-200 dark:border-gray-800">
+                      <Pagination
+                        currentPage={obrasPagination.currentPage}
+                        totalPages={obrasPagination.totalPages}
+                        onPageChange={obrasPagination.setCurrentPage}
+                        totalItems={obrasPagination.totalItems}
+                        itemsPerPage={obrasPagination.itemsPerPage}
+                      />
+                    </div>
                   </>
                 ) : (
                   obras.length === 0 ? (
@@ -884,13 +877,13 @@ const AdminDashboard: React.FC = () => {
                           <p className="text-[#101828] dark:text-white font-normal text-base leading-6">
                             Nenhuma obra {
                               obraFilter === 'novo' ? 'nova' :
-                              obraFilter === 'em_andamento' ? 'em andamento' :
-                              obraFilter === 'conferencia' ? 'em conferência' :
-                              obraFilter === 'concluidas' ? 'concluída' : ''
+                                obraFilter === 'em_andamento' ? 'em andamento' :
+                                  obraFilter === 'conferencia' ? 'em conferência' :
+                                    obraFilter === 'concluidas' ? 'concluída' : ''
                             }
                           </p>
                           <p className="text-[#6a7282] dark:text-gray-400 text-sm leading-5">
-                            {obraFilter === 'todas' 
+                            {obraFilter === 'todas'
                               ? 'Nenhuma obra encontrada'
                               : 'Altere o filtro para ver outras obras'
                             }
@@ -937,42 +930,42 @@ const AdminDashboard: React.FC = () => {
                 <>
                   <div className="bg-white dark:bg-gray-900 rounded-lg overflow-hidden">
                     {usersPagination.paginatedItems.map((user, index) => (
-                    <div key={user.id}>
-                      <div className="px-5 py-4 flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className={`w-10 h-10 rounded-full ${getAvatarColor(user.id)} text-white flex items-center justify-center font-medium flex-shrink-0`}>
-                            {user.nome.charAt(0).toUpperCase()}
+                      <div key={user.id}>
+                        <div className="px-5 py-4 flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className={`w-10 h-10 rounded-full ${getAvatarColor(user.id)} text-white flex items-center justify-center font-medium flex-shrink-0`}>
+                              {user.nome.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-gray-900 dark:text-white truncate">
+                                {user.nome}
+                              </div>
+                              <div className="text-sm text-gray-600 dark:text-gray-400">
+                                {user.tipo}
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-gray-900 dark:text-white truncate">
-                              {user.nome}
-                            </div>
-                            <div className="text-sm text-gray-600 dark:text-gray-400">
-                              {user.tipo}
-                            </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setEditingUser(user)}
+                              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
+                              title="Editar"
+                            >
+                              <Edit2 className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() => setDeletingUser(user)}
+                              className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
+                              title="Excluir"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
                           </div>
                         </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => setEditingUser(user)}
-                            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
-                            title="Editar"
-                          >
-                            <Edit2 className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() => setDeletingUser(user)}
-                            className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
-                            title="Excluir"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </button>
-                        </div>
+                        {index < usersPagination.paginatedItems.length - 1 && (
+                          <div className="mx-5 border-b border-[#EDEFE4] dark:border-gray-800"></div>
+                        )}
                       </div>
-                      {index < usersPagination.paginatedItems.length - 1 && (
-                        <div className="mx-5 border-b border-[#EDEFE4] dark:border-gray-800"></div>
-                      )}
-                    </div>
                     ))}
                   </div>
 
@@ -989,8 +982,8 @@ const AdminDashboard: React.FC = () => {
                 <div className="text-center py-16">
                   <Users className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-700" />
                   <p className="text-gray-500 dark:text-gray-400">
-                    {userFilter === 'todos' 
-                      ? 'Nenhum usuário encontrado' 
+                    {userFilter === 'todos'
+                      ? 'Nenhum usuário encontrado'
                       : `Nenhum ${userFilter === 'Encarregado' ? 'encarregado' : 'administrador'} encontrado`}
                   </p>
                 </div>
@@ -1016,7 +1009,7 @@ const AdminDashboard: React.FC = () => {
           </Suspense>
         )}
       </AnimatePresence>
-      
+
       <AnimatePresence mode="wait">
         {showCreateUser && (
           <Suspense fallback={<LoadingSpinner />}>
@@ -1030,7 +1023,7 @@ const AdminDashboard: React.FC = () => {
           </Suspense>
         )}
       </AnimatePresence>
-      
+
       <AnimatePresence mode="wait">
         {editingObra && (
           <Suspense fallback={<LoadingSpinner />}>
@@ -1046,7 +1039,7 @@ const AdminDashboard: React.FC = () => {
           </Suspense>
         )}
       </AnimatePresence>
-      
+
       <AnimatePresence mode="wait">
         {editingUser && (
           <Suspense fallback={<LoadingSpinner />}>
@@ -1061,7 +1054,7 @@ const AdminDashboard: React.FC = () => {
           </Suspense>
         )}
       </AnimatePresence>
-      
+
       {viewingObra && (
         <Suspense fallback={<LoadingSpinner />}>
           <ViewRespostasModal
@@ -1072,7 +1065,7 @@ const AdminDashboard: React.FC = () => {
           />
         </Suspense>
       )}
-      
+
       {deletingObra && (
         <ConfirmModal
           isOpen={!!deletingObra}
@@ -1085,7 +1078,7 @@ const AdminDashboard: React.FC = () => {
           onCancel={() => setDeletingObra(null)}
         />
       )}
-      
+
       {deletingUser && (
         <ConfirmModal
           isOpen={!!deletingUser}
@@ -1121,7 +1114,7 @@ const AdminDashboard: React.FC = () => {
         }}
         searchValue={activeTab === 'obras' ? searchObra : searchUser}
       />
-      
+
       {/* 🔒 CORREÇÃO #7: Modal de confirmação de logout com dados pendentes */}
       <ConfirmModal
         isOpen={showLogoutConfirm}
@@ -1133,7 +1126,7 @@ const AdminDashboard: React.FC = () => {
         onConfirm={forceLogout}
         onCancel={cancelLogout}
       />
-      
+
       {/* Toast Component */}
       {ToastComponent}
     </div>
