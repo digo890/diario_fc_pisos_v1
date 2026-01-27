@@ -1,6 +1,6 @@
 # Configuração do Supabase para Diário de Obras FC Pisos
 
-project_id = "SEU_PROJECT_ID_AQUI"
+project_id = "cjwuooaappcnsqxgdpta"
 
 [api]
 enabled = true

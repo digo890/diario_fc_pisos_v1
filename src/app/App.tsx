@@ -28,7 +28,7 @@ const DiagnosticoPage = lazy(() => import('./components/DiagnosticoPage'));
 // Componente principal que decide qual rota renderizar
 const AppContent: React.FC = () => {
   const { currentUser, isLoading } = useAuth();
-  
+
   useEffect(() => {
     // Inicializar banco de dados e dados iniciais
     const init = async () => {
@@ -48,7 +48,7 @@ const AppContent: React.FC = () => {
         // O usuário ainda pode usar funcionalidades online
       }
     };
-    
+
     // 🔧 CORREÇÃO HMR: Só inicializar após o componente estar montado
     init();
   }, []);
@@ -57,23 +57,11 @@ const AppContent: React.FC = () => {
   const path = window.location.pathname;
   const isValidationRoute = path.startsWith('/validar/') || path.startsWith('/conferencia/');
   const isDiagnosticoRoute = path.startsWith('/diagnostico');
-  
-  if (isDiagnosticoRoute) {
-    return (
-      <Suspense fallback={
-        <div className="min-h-screen bg-white dark:bg-gray-950 flex items-center justify-center">
-          <LoadingSpinner />
-        </div>
-      }>
-        <DiagnosticoPage />
-      </Suspense>
-    );
-  }
-  
+
   if (isValidationRoute) {
     // Suportar ambas as rotas: /validar/ e /conferencia/
-    const token = path.startsWith('/validar/') 
-      ? path.split('/validar/')[1] 
+    const token = path.startsWith('/validar/')
+      ? path.split('/validar/')[1]
       : path.split('/conferencia/')[1];
     return (
       <Suspense fallback={
@@ -108,16 +96,21 @@ const AppContent: React.FC = () => {
     );
   }
 
-  // Renderizar dashboard apropriado baseado no tipo de usuário
+  // Renderizar dashboard apropriado baseado no tipo de usuário ou rota
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-white dark:bg-gray-950 flex items-center justify-center">
         <LoadingSpinner />
       </div>
     }>
-      {currentUser.tipo === 'Administrador' && <AdminDashboard />}
-      {currentUser.tipo === 'Encarregado' && <EncarregadoDashboard />}
-      {currentUser.tipo === 'Diagnóstico' && <DiagnosticoPage />}
+      {isDiagnosticoRoute ? (
+        <DiagnosticoPage />
+      ) : (
+        <>
+          {currentUser.tipo === 'Administrador' && <AdminDashboard />}
+          {currentUser.tipo === 'Encarregado' && <EncarregadoDashboard />}
+        </>
+      )}
       <PWAInstallPrompt />
       <OnlineStatus />
       <SyncStatus />
