@@ -153,7 +153,7 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
         <form onSubmit={handleSubmit} className="max-w-3xl mx-auto p-4 space-y-3">
           {/* Nome */}
           <div className="relative group">
-            <UserRound className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
+            <UserRound className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521] dark:group-focus-within:text-[#FD5521]" />
             <input
               type="text"
               value={formData.nome}
@@ -207,7 +207,7 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
 
           {/* Email */}
           <div className="relative group">
-            <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
+            <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521] dark:group-focus-within:text-[#FD5521]" />
             <input
               type="email"
               value={formData.email}
@@ -225,7 +225,7 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
 
           {/* Telefone */}
           <div className="relative group">
-            <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
+            <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521] dark:group-focus-within:text-[#FD5521]" />
             <input
               type="tel"
               value={formData.telefone}
@@ -241,7 +241,7 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
 
           {/* Senha */}
           <div className="relative group">
-            <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
+            <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521] dark:group-focus-within:text-[#FD5521]" />
             <input
               type={showPassword ? 'text' : 'password'}
               value={formData.senha}
@@ -265,7 +265,7 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
 
           {/* Confirmar Senha */}
           <div className="relative group">
-            <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
+            <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521] dark:group-focus-within:text-[#FD5521]" />
             <input
               type={showConfirmPassword ? 'text' : 'password'}
               value={formData.confirmarSenha}

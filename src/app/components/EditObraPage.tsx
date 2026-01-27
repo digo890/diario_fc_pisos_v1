@@ -192,7 +192,7 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
 
           {/* Cliente */}
           <div className="relative group">
-            <UserRound className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
+            <UserRound className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none transition-colors group-focus-within:text-[#FD5521] dark:group-focus-within:text-[#FD5521]" />
             <input
               type="text"
               value={formData.cliente}
@@ -210,7 +210,7 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
 
           {/* Obra */}
           <div className="relative group">
-            <Building2 className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
+            <Building2 className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none transition-colors group-focus-within:text-[#FD5521] dark:group-focus-within:text-[#FD5521]" />
             <input
               type="text"
               value={formData.obra}
@@ -228,7 +228,7 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
 
           {/* Cidade */}
           <div className="relative group">
-            <MapPin className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
+            <MapPin className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none transition-colors group-focus-within:text-[#FD5521] dark:group-focus-within:text-[#FD5521]" />
             <input
               type="text"
               value={formData.cidade}
@@ -246,7 +246,7 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
 
           {/* Data */}
           <div className="relative group">
-            <Calendar className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
+            <Calendar className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none transition-colors group-focus-within:text-[#FD5521] dark:group-focus-within:text-[#FD5521]" />
             <input
               type="date"
               value={formData.data}
@@ -260,7 +260,7 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
 
           {/* Encarregado - Bottom Sheet Trigger */}
           <div className="relative group">
-            <HardHat className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none z-10 transition-colors group-focus-within:text-[#FD5521]" />
+            <HardHat className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none z-10 transition-colors group-focus-within:text-[#FD5521] dark:group-focus-within:text-[#FD5521]" />
             <button
               type="button"
               onClick={() => setActiveSheet('encarregado')}
@@ -280,7 +280,7 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
 
           {/* Preposto - Nome */}
           <div className="relative group">
-            <UserRound className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
+            <UserRound className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none transition-colors group-focus-within:text-[#FD5521] dark:group-focus-within:text-[#FD5521]" />
             <input
               type="text"
               value={formData.prepostoNome}
@@ -296,7 +296,7 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
 
           {/* Preposto - Email */}
           <div className="relative group">
-            <Mail className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
+            <Mail className="absolute left-4 top-3.5 w-5 h-5 text-[#C6CCC2] pointer-events-none transition-colors group-focus-within:text-[#FD5521] dark:group-focus-within:text-[#FD5521]" />
             <input
               type="email"
               value={formData.prepostoEmail}

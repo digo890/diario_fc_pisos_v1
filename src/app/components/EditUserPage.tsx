@@ -155,7 +155,7 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
 
           {/* Nome */}
           <div className="relative group">
-            <UserRound className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
+            <UserRound className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521] dark:group-focus-within:text-[#FD5521]" />
             <input
               type="text"
               value={formData.nome}
@@ -203,7 +203,7 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
 
           {/* Email */}
           <div className="relative group">
-            <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
+            <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521] dark:group-focus-within:text-[#FD5521]" />
             <input
               type="email"
               value={formData.email}
@@ -219,7 +219,7 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
 
           {/* Telefone */}
           <div className="relative group">
-            <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
+            <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521] dark:group-focus-within:text-[#FD5521]" />
             <input
               type="tel"
               value={formData.telefone}
@@ -235,7 +235,7 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
 
           {/* Nova Senha */}
           <div className="relative group">
-            <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
+            <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521] dark:group-focus-within:text-[#FD5521]" />
             <input
               type={showPassword ? 'text' : 'password'}
               value={formData.senha}
@@ -259,7 +259,7 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
 
           {/* Confirmar Nova Senha */}
           <div className="relative group">
-            <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521]" />
+            <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#C6CCC2] dark:text-gray-600 pointer-events-none transition-colors group-focus-within:text-[#FD5521] dark:group-focus-within:text-[#FD5521]" />
             <input
               type={showConfirmPassword ? 'text' : 'password'}
               value={formData.confirmarSenha}
