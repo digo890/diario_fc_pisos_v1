@@ -1,5 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense, useMemo, useCallback } from 'react';
-import { Plus, Edit2, Trash2, FileText, Moon, Sun, LogOut, Download, Building2, Users, BarChart3, Filter, LayoutGrid, LayoutList, FolderOpen } from 'lucide-react';
+import { Plus, Edit2, Trash2, Moon, Sun, LogOut, Building2, Users, BarChart3, Filter, LayoutGrid, LayoutList, FolderOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -70,7 +70,6 @@ const AdminDashboard: React.FC = () => {
   const [obraFilter, setObraFilter] = useState<ObraFilter>('todas');
   const [userFilter, setUserFilter] = useState<UserFilter>('todos');
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false); // 🆕 CORREÇÃO URGENTE #2: Prevenir loadData simultâneo
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid'); // Para desktop apenas
   const [searchObra, setSearchObra] = useState('');
@@ -402,8 +401,8 @@ const AdminDashboard: React.FC = () => {
             <button
               onClick={() => setActiveTab('resultados')}
               className={`py-4 px-2 border-b-2 font-medium transition-colors flex items-center gap-2 ${activeTab === 'resultados'
-                  ? 'border-[#FD5521] text-[#FD5521]'
-                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                ? 'border-[#FD5521] text-[#FD5521]'
+                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
             >
               <BarChart3 className="w-5 h-5" />
@@ -412,8 +411,8 @@ const AdminDashboard: React.FC = () => {
             <button
               onClick={() => setActiveTab('obras')}
               className={`py-4 px-2 border-b-2 font-medium transition-colors flex items-center gap-2 ${activeTab === 'obras'
-                  ? 'border-[#FD5521] text-[#FD5521]'
-                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                ? 'border-[#FD5521] text-[#FD5521]'
+                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
             >
               <Building2 className="w-5 h-5" />
@@ -423,8 +422,8 @@ const AdminDashboard: React.FC = () => {
             <button
               onClick={() => setActiveTab('usuarios')}
               className={`py-4 px-2 border-b-2 font-medium transition-colors flex items-center gap-2 ${activeTab === 'usuarios'
-                  ? 'border-[#FD5521] text-[#FD5521]'
-                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                ? 'border-[#FD5521] text-[#FD5521]'
+                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
             >
               <Users className="w-5 h-5" />
@@ -541,12 +540,12 @@ const AdminDashboard: React.FC = () => {
                     >
                       {/* Container com gradiente */}
                       <div className={`rounded-xl px-5 py-4 mb-2.5 ${statusReal === 'novo'
-                          ? 'bg-gradient-to-r from-[#fff5df] to-[#f7e3cc] dark:from-gray-800 dark:to-gray-800'
-                          : statusReal === 'enviado_preposto'
-                            ? 'bg-gradient-to-r from-[#dbf3f3] to-[#ccdbf7] dark:from-gray-800 dark:to-gray-800'
-                            : statusReal === 'concluido'
-                              ? 'bg-gradient-to-r from-[#afffb5] to-[#c1f3ff] dark:from-gray-800 dark:to-gray-800'
-                              : 'bg-gradient-to-r from-[#e7f3db] to-[#ccf7f3] dark:from-gray-800 dark:to-gray-800'
+                        ? 'bg-gradient-to-r from-[#fff5df] to-[#f7e3cc] dark:from-gray-800 dark:to-gray-800'
+                        : statusReal === 'enviado_preposto'
+                          ? 'bg-gradient-to-r from-[#dbf3f3] to-[#ccdbf7] dark:from-gray-800 dark:to-gray-800'
+                          : statusReal === 'concluido'
+                            ? 'bg-gradient-to-r from-[#afffb5] to-[#c1f3ff] dark:from-gray-800 dark:to-gray-800'
+                            : 'bg-gradient-to-r from-[#e7f3db] to-[#ccf7f3] dark:from-gray-800 dark:to-gray-800'
                         }`}>
                         {/* Título da Obra */}
                         <h3 className="font-semibold text-xl leading-6 text-gray-900 dark:text-white mb-3">
@@ -600,11 +599,11 @@ const AdminDashboard: React.FC = () => {
                             </svg>
                           </div>
                           <span className={`font-medium text-base leading-normal ${status.color.includes('blue') ? 'text-blue-600' :
-                              status.color.includes('green') ? 'text-green-600' :
-                                status.color.includes('yellow') ? 'text-yellow-600' :
-                                  status.color.includes('purple') ? 'text-purple-600' :
-                                    status.color.includes('orange') ? 'text-orange-600' :
-                                      'text-gray-600'
+                            status.color.includes('green') ? 'text-green-600' :
+                              status.color.includes('yellow') ? 'text-yellow-600' :
+                                status.color.includes('purple') ? 'text-purple-600' :
+                                  status.color.includes('orange') ? 'text-orange-600' :
+                                    'text-gray-600'
                             }`}>
                             {status.label}
                           </span>
@@ -626,8 +625,8 @@ const AdminDashboard: React.FC = () => {
                               setEditingObra(obra);
                             }}
                             className={`p-2 rounded-[10px] transition-colors ${statusReal === 'concluido' || statusReal === 'enviado_preposto'
-                                ? 'opacity-40 cursor-not-allowed text-gray-400 dark:text-gray-600'
-                                : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
+                              ? 'opacity-40 cursor-not-allowed text-gray-400 dark:text-gray-600'
+                              : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
                               }`}
                             title={
                               statusReal === 'concluido' || statusReal === 'enviado_preposto'
@@ -770,9 +769,9 @@ const AdminDashboard: React.FC = () => {
                                       </svg>
                                     </div>
                                     <span className={`font-medium text-sm ${status.color.includes('blue') ? 'text-blue-600' :
-                                        status.color.includes('green') ? 'text-green-600' :
-                                          status.color.includes('yellow') ? 'text-yellow-600' :
-                                            'text-gray-600'
+                                      status.color.includes('green') ? 'text-green-600' :
+                                        status.color.includes('yellow') ? 'text-yellow-600' :
+                                          'text-gray-600'
                                       }`}>
                                       {status.label}
                                     </span>
@@ -809,8 +808,8 @@ const AdminDashboard: React.FC = () => {
                                     setEditingObra(obra);
                                   }}
                                   className={`p-2 rounded-lg transition-colors ${obra.status === 'concluido' || obra.status === 'enviado_preposto'
-                                      ? 'opacity-40 cursor-not-allowed text-gray-400 dark:text-gray-600'
-                                      : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
+                                    ? 'opacity-40 cursor-not-allowed text-gray-400 dark:text-gray-600'
+                                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
                                     }`}
                                   title={
                                     obra.status === 'concluido' || obra.status === 'enviado_preposto'

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, Save, Send, Share2, Copy, Check, MessageCircle, Mail, X } from 'lucide-react';
+import { ArrowLeft, Save, Send, Share2, Copy, Check, Mail, X } from 'lucide-react';
 import { getFormByObraId, saveForm, saveObra } from '../utils/database';
 import { obraApi, formularioApi } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,7 +10,7 @@ import { safeLog, safeError } from '../utils/logSanitizer';
 import { useSessionCheck } from '../hooks/useSessionCheck';
 import { debounce } from '../utils/performance';
 import { getStatusDisplayWithFormulario } from '../utils/diarioHelpers';
-import type { Obra, FormData, ServicoData } from '../types';
+import type { Obra, FormData } from '../types';
 import CondicoesAmbientaisSection from './form-sections/CondicoesAmbientaisSection';
 import ServicosSection from './form-sections/ServicosSection';
 import DadosObraSection from './form-sections/DadosObraSection';
@@ -585,8 +585,8 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
         {/* Indicador de Auto-save flutuante */}
         {!isReadOnly && !isPreposto && autoSaveStatus !== 'idle' && (
           <div className={`fixed bottom-20 right-4 px-4 py-2 rounded-full shadow-lg transition-all duration-300 flex items-center gap-2 ${autoSaveStatus === 'saving'
-              ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
-              : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+            ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
+            : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
             }`}>
             {autoSaveStatus === 'saving' ? (
               <>

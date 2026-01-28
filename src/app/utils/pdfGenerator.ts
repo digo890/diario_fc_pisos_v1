@@ -789,8 +789,8 @@ export async function generateFormPDF(
     yPos += 8;
 
     const status = formData.prepostoConfirmado
-      ? "✓ APROVADO"
-      : "✗ REPROVADO";
+      ? "APROVADO"
+      : "REPROVADO";
     const statusColor = formData.prepostoConfirmado
       ? "#22C55E"
       : "#EF4444";
@@ -948,10 +948,10 @@ function checkPageBreak(
 function getClimaLabel(clima?: string): string {
   if (!clima) return "N/A";
   const labels: Record<string, string> = {
-    sol: "☀️ Sol",
-    nublado: "☁️ Nublado",
-    chuva: "🌧️ Chuva",
-    lua: "🌙 Lua",
+    sol: "Sol",
+    nublado: "Nublado",
+    chuva: "Chuva",
+    lua: "Lua",
   };
   return labels[clima] || clima;
 }
