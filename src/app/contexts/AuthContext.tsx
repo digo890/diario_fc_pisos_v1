@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { supabase } from '/utils/supabase/client';
 import { projectId, publicAnonKey } from '/utils/supabase/info';
 import { setAuthToken } from '../utils/api';
+import { getUserById } from '../utils/database';
 import { safeLog, safeError } from '../utils/logSanitizer';
 import type { User } from '../types';
 
@@ -26,7 +27,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateToken = (token: string | null) => {
     setAccessTokenState(token);
     setAuthToken(token); // Atualizar token no api.ts
-    
+
     if (token) {
       safeLog('✅ Token atualizado com sucesso');
     }
@@ -36,20 +37,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshSession = async () => {
     try {
       safeLog('🔄 Renovando sessão...');
-      
+
       // ✅ CORREÇÃO: Verificar se há sessão antes de tentar renovar
       const { data: { session: currentSession } } = await supabase.auth.getSession();
-      
+
       if (!currentSession) {
         safeLog('⚠️ Nenhuma sessão ativa para renovar. Usuário precisa fazer login novamente.');
         return;
       }
-      
+
       const { data: { session }, error } = await supabase.auth.refreshSession();
-      
+
       if (error) {
         safeError('❌ Erro ao renovar sessão:', error.message);
-        
+
         // ✅ CORREÇÃO: Só fazer logout se o erro for crítico (não Auth session missing)
         if (error.message !== 'Auth session missing!') {
           // Se falhar ao renovar, fazer logout
@@ -61,7 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (session?.access_token) {
         safeLog('✅ Sessão renovada com sucesso');
         updateToken(session.access_token);
-        
+
         // Agendar próxima renovação (50 minutos - token expira em 1h)
         scheduleTokenRefresh();
       }
@@ -76,12 +77,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (refreshTimeoutRef.current) {
       clearTimeout(refreshTimeoutRef.current);
     }
-    
+
     // ✅ CORREÇÃO: Renovar a cada 45 minutos (token expira em 1h)
     // Isso garante renovação preventiva antes da expiração
     refreshTimeoutRef.current = setTimeout(async () => {
       safeLog('⏰ Renovação preventiva de token agendada');
-      
+
       // ✅ VERIFICAR: Confirmar que ainda há sessão ativa antes de renovar
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -109,13 +110,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!response.ok) {
         const errorText = await response.text();
         safeError('❌ Erro ao buscar dados do usuário:', errorText);
-        return null;
+        return null; // Non-200 responses are NOT treated as offline
       }
 
       const { data } = await response.json();
       return data;
     } catch (error) {
-      safeError('❌ Erro ao buscar dados do usuário:', error);
+      // 🚨 CRITICAL FIX: Offline Fallback
+      // If network fails, try to load user from local cache using ID from token
+      try {
+        // Decode JWT payload (part 2) to get 'sub' (User ID)
+        // Format: header.payload.signature
+        const payloadBase64 = token.split('.')[1];
+        if (payloadBase64) {
+          const payloadJson = atob(payloadBase64);
+          const payload = JSON.parse(payloadJson);
+          const userId = payload.sub;
+
+          if (userId) {
+            const cachedUser = await getUserById(userId);
+            if (cachedUser) {
+              // Return cached user silently (no new logging as requested)
+              return cachedUser;
+            }
+          }
+        }
+      } catch (decodeError) {
+        // Ignore decoding errors, fall through to main error handling
+      }
+
+      safeError('❌ Erro ao buscar dados do usuário (Network):', error);
       return null;
     }
   };
@@ -125,7 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const loadSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
-        
+
         if (error) {
           setIsLoading(false);
           return;
@@ -133,7 +157,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (session?.access_token) {
           updateToken(session.access_token);
-          
+
           // Buscar dados do usuário
           const userData = await fetchUserData(session.access_token);
           if (userData) {
@@ -158,7 +182,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateToken(null);
       } else if (session?.access_token) {
         updateToken(session.access_token);
-        
+
         // Buscar dados do usuário
         const userData = await fetchUserData(session.access_token);
         if (userData) {
@@ -175,7 +199,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         clearTimeout(refreshTimeoutRef.current);
         refreshTimeoutRef.current = null;
       }
-      
+
       subscription.unsubscribe();
     };
   }, []);
@@ -197,21 +221,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (data.session?.access_token) {
         updateToken(data.session.access_token);
-        
+
         // Buscar dados do usuário
         const url = `https://${projectId}.supabase.co/functions/v1/make-server-1ff231a2/auth/me`;
-        
+
         const headers = {
           'Authorization': `Bearer ${publicAnonKey}`,
           'X-User-Token': data.session.access_token,
           'Content-Type': 'application/json',
         };
-        
+
         const response = await fetch(url, { headers });
-        
+
         if (!response.ok) {
           const errorText = await response.text();
-          
+
           try {
             const errorData = JSON.parse(errorText);
             throw new Error(errorData.error || 'Erro ao buscar dados do usuário');
@@ -223,7 +247,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const responseText = await response.text();
         const { data: userData } = JSON.parse(responseText);
         setCurrentUser(userData);
-        
+
         // ✅ CORREÇÃO: Agendar renovação preventiva após login
         scheduleTokenRefresh();
       } else {
@@ -240,7 +264,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       clearTimeout(refreshTimeoutRef.current);
       refreshTimeoutRef.current = null;
     }
-    
+
     await supabase.auth.signOut();
     setCurrentUser(null);
     updateToken(null);
@@ -255,7 +279,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  
+
   // Durante HMR (Hot Module Replacement), o context pode estar temporariamente undefined
   // Retornar valores padrão em vez de quebrar a aplicação
   if (!context) {
@@ -266,22 +290,22 @@ export const useAuth = () => {
       if (import.meta.env.VITE_DEBUG_AUTH === 'true') {
         console.debug('🔄 useAuth: aguardando AuthProvider (HMR reload)');
       }
-      
+
       // Retornar valores padrão seguros durante HMR
       return {
         currentUser: null,
         login: async () => { throw new Error('AuthProvider não inicializado'); },
-        logout: async () => {},
+        logout: async () => { },
         isLoading: true,
         accessToken: null,
-        refreshSession: async () => {}
+        refreshSession: async () => { }
       };
     }
-    
+
     // Em produção, lançar erro
     throw new Error('useAuth deve ser usado dentro de AuthProvider');
   }
-  
+
   return context;
 };
 

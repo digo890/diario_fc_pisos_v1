@@ -33,11 +33,11 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
   const [formData, setFormData] = useState<FormData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const [activeServico, setActiveServico] = useState<'servico1' | 'servico2' | 'servico3'>('servico1');
   const [showShareModal, setShowShareModal] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
-  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const [isDirty, setIsDirty] = useState(false); // 🎯 DIRTY FLAG: Controla se há mudanças não salvas
 
   // Função auxiliar para formatar data
   const formatDataCurta = (timestamp: number) => {
@@ -48,98 +48,48 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
     return `${day}/${month}/${year}`;
   };
 
-  // ✅ OTIMIZAÇÃO V2: Auto-save otimizado com dirty flag
-  const performAutoSave = useCallback(async (dataToSave: FormData, forceSave = false) => {
-    // 🛡️ Proteção: Não salvar se não há mudanças (a menos que seja forçado)
-    if (!forceSave && !isDirty) {
-      safeLog('⏭️ Auto-save ignorado: sem mudanças (isDirty=false)');
-      return;
-    }
 
-    // 🛡️ Proteção: Não salvar se já estiver salvando
-    if (saving) {
-      safeLog('⏭️ Auto-save ignorado: já está salvando');
-      return;
-    }
+  // ============================================================================
+  // AUTO-SAVE: Modelo Simplificado (NÃO MODIFICAR SEM REVISÃO)
+  // ============================================================================
+  // - Salva APENAS no IndexedDB (não toca backend)
+  // - Backend só é sincronizado no SUBMIT
+  // - Navegação interna SEMPRE salva antes de sair
+  // - beforeunload propositalmente IGNORADO (risco aceito)
+  // - Estados: apenas 'saving' e 'lastSavedAt'
+  // - Trigger: debounce 600ms + navegação
+  // ============================================================================
 
+  // Auto-save simplificado: salva apenas no IndexedDB
+  const saveLocal = useCallback(async (dataToSave: FormData) => {
     if (!dataToSave) return;
 
+    // Usar functional update para evitar stale state
+    setSaving(prev => {
+      if (prev) return prev; // Já está salvando
+      return true;
+    });
+
     try {
-      setSaving(true);
-      setAutoSaveStatus('saving');
-
-      // 🎨 UI/UX: Delay mínimo para garantir que o usuário veja o indicador
-      const saveStartTime = Date.now();
-
-      // Atualizar timestamp de última modificação
       const updatedForm = {
         ...dataToSave,
         updatedAt: Date.now()
       };
 
-      // Salvar no IndexedDB
       await saveForm(updatedForm);
-
-      // 🎯 CORREÇÃO: Atualizar status da obra para "em_preenchimento" quando começar a preencher
-      if (obra.status === 'novo') {
-        // Verificar se há algum dado preenchido (além dos campos padrão)
-        const hasData =
-          (updatedForm.clima && Object.keys(updatedForm.clima).length > 0) ||
-          updatedForm.temperaturaMin ||
-          updatedForm.temperaturaMax ||
-          updatedForm.umidade ||
-          (updatedForm.servicos && Object.keys(updatedForm.servicos).length > 0) ||
-          updatedForm.ucrete ||
-          updatedForm.horarioInicio ||
-          updatedForm.horarioTermino ||
-          updatedForm.area ||
-          updatedForm.espessura ||
-          updatedForm.rodape ||
-          updatedForm.estadoSubstrato ||
-          updatedForm.estadoSubstratoObs ||
-          (updatedForm.registros && Object.keys(updatedForm.registros).length > 0) ||
-          updatedForm.observacoes;
-
-        if (hasData) {
-          const updatedObra = {
-            ...obra,
-            status: 'em_preenchimento' as const,
-            updatedAt: Date.now()
-          };
-          await saveObra(updatedObra);
-          safeLog('✅ Status da obra atualizado para "em_preenchimento"');
-        }
-      }
-
-      // 🎨 UI/UX: Garantir que o indicador "Salvando..." apareça por pelo menos 300ms
-      const elapsedTime = Date.now() - saveStartTime;
-      if (elapsedTime < 300) {
-        await new Promise(resolve => setTimeout(resolve, 300 - elapsedTime));
-      }
-
-      safeLog('💾 Auto-save: formulário salvo localmente');
-      setAutoSaveStatus('saved');
-      setIsDirty(false); // 🎯 Limpar dirty flag após salvar com sucesso
-      setSaving(false);
-    } catch (error) {
-      safeError('❌ Erro no auto-save:', error);
-      setAutoSaveStatus('idle');
+      setLastSavedAt(Date.now());
+    } finally {
       setSaving(false);
     }
-  }, [isDirty, saving, obra]);
+  }, []);
 
   // Criar função debounced (mantém referência estável)
-  const debouncedAutoSave = useRef(
-    debounce((data: FormData) => performAutoSave(data), 600) // 🎯 OTIMIZADO: 600ms (meio termo 500-800ms)
+  const debouncedSaveLocal = useRef(
+    debounce((data: FormData) => saveLocal(data), 600)
   ).current;
 
-  // 🏆 OTIMIZAÇÃO HÍBRIDA: onBlur para salvar ao sair do campo
-  const handleFieldBlur = useCallback(() => {
-    if (formData && !saving && !loading && isDirty) {
-      performAutoSave(formData);
-      // ❌ REMOVIDO: setAutoSaveStatus('saving') - performAutoSave já controla o status
-    }
-  }, [formData, saving, loading, isDirty, performAutoSave]);
+
+
 
   useEffect(() => {
     // ✅ CORREÇÃO #5: Adicionar cleanup para evitar memory leak
@@ -192,31 +142,19 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
   }, []);
 
   useEffect(() => {
-    // Não executar auto-save se não houver formData ou se estiver salvando
-    if (!formData || saving || loading || !isDirty) {
-      return;
-    }
+    // Auto-save debounced: aguardar 600ms após última edição (mas não em read-only)
+    if (!formData || saving || loading || isReadOnly || isPreposto) return;
 
-    // Debounce: aguardar 600ms após última edição
-    debouncedAutoSave(formData);
-    // ❌ REMOVIDO: setAutoSaveStatus('saving') - performAutoSave já controla o status
-  }, [formData, saving, loading, isDirty, debouncedAutoSave]);
+    debouncedSaveLocal(formData);
+  }, [formData, saving, loading, isReadOnly, isPreposto, debouncedSaveLocal]);
 
-  // Esconder indicador "saved" após 3 segundos
-  useEffect(() => {
-    if (autoSaveStatus === 'saved') {
-      const timer = setTimeout(() => {
-        setAutoSaveStatus('idle');
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [autoSaveStatus]);
+
 
   const handleSubmit = async () => {
     if (!formData) return;
 
     // 🔒 BLOQUEIO LÓGICO: Prevenir múltiplos cliques/submits
-    if (saving) return;
+    if (submitting) return;
 
     // 🔐 VERIFICAÇÃO DE SESSÃO ANTES DE AÇÃO CRÍTICA
     const sessionCheck = await checkSession();
@@ -237,14 +175,14 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
       return;
     }
 
-    setSaving(true);
+    setSubmitting(true);
 
     try {
       if (isPreposto) {
         // Preposto envia para admin
         if (!formData.prepostoConfirmado) {
           showToast('É necessário confirmar a conferência antes de enviar', 'warning');
-          setSaving(false);
+          setSubmitting(false);
           return;
         }
 
@@ -365,7 +303,7 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
               }
             }
 
-            setSaving(false);
+            setSubmitting(false);
 
             // ✅ Mensagem baseada no que REALMENTE aconteceu
             if (emailEnviado && obra.prepostoEmail) {
@@ -386,7 +324,7 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
             await saveForm(formData);
             await saveObra(obra);
 
-            setSaving(false);
+            setSubmitting(false);
             return; // ❌ NÃO continuar sem sincronizar
           }
         } catch (syncError) {
@@ -397,14 +335,14 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
           await saveObra(obra);
 
           showToast('Erro ao sincronizar com servidor. Tente novamente em alguns instantes.', 'error');
-          setSaving(false);
+          setSubmitting(false);
           return; // ❌ NÃO enviar email nem continuar
         }
       }
     } catch (error) {
       safeError('❌ Erro ao enviar formulário:', error);
       showToast('Erro ao enviar formulário. Tente novamente.', 'error');
-      setSaving(false);
+      setSubmitting(false);
     }
   };
 
@@ -451,46 +389,25 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
     });
 
     setFormData(newFormData);
-    setIsDirty(true); // 🎯 DIRTY FLAG: Marcar como sujo quando há mudanças
   };
 
-  // 🎯 SAVE OBRIGATÓRIO: Trocar aba de serviço
+  // Salvar antes de trocar aba de serviço
   const handleTabChange = useCallback(async (newTab: 'servico1' | 'servico2' | 'servico3') => {
-    // Salvar antes de trocar de aba
-    if (formData && isDirty) {
-      await performAutoSave(formData, true); // forceSave = true
+    if (formData) {
+      await saveLocal(formData);
     }
     setActiveServico(newTab);
-  }, [formData, isDirty, performAutoSave]);
+  }, [formData, saveLocal]);
 
-  // 🎯 SAVE OBRIGATÓRIO: Voltar (sair do formulário)
+  // Salvar antes de voltar
   const handleBack = useCallback(async () => {
-    // Salvar antes de voltar
-    if (formData && isDirty) {
-      await performAutoSave(formData, true); // forceSave = true
+    if (formData) {
+      await saveLocal(formData);
     }
     onBack();
-  }, [formData, isDirty, performAutoSave, onBack]);
+  }, [formData, saveLocal, onBack]);
 
-  // 🎯 SAVE OBRIGATÓRIO: beforeunload (fechar navegador/aba)
-  useEffect(() => {
-    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
-      if (formData && isDirty && !isReadOnly) {
-        // Salvar síncronamente antes de sair
-        await performAutoSave(formData, true);
 
-        // Mostrar aviso ao usuário
-        e.preventDefault();
-        e.returnValue = ''; // Chrome requer returnValue
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [formData, isDirty, isReadOnly, performAutoSave]);
 
   if (loading) {
     return (
@@ -517,7 +434,7 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
       {ToastComponent}
 
       {/* ✅ CORREÇÃO #8: Overlay de bloqueio durante envio */}
-      {saving && (
+      {submitting && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm">
           <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4 max-w-sm mx-4">
             <svg className="animate-spin h-12 w-12 text-[#FD5521]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -582,35 +499,12 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
 
       {/* Formulário */}
       <div className="max-w-3xl mx-auto px-4 py-6 pb-24">
-        {/* Indicador de Auto-save flutuante */}
-        {!isReadOnly && !isPreposto && autoSaveStatus !== 'idle' && (
-          <div className={`fixed bottom-20 right-4 px-4 py-2 rounded-full shadow-lg transition-all duration-300 flex items-center gap-2 ${autoSaveStatus === 'saving'
-            ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
-            : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-            }`}>
-            {autoSaveStatus === 'saving' ? (
-              <>
-                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span className="text-sm font-medium">Salvando...</span>
-              </>
-            ) : (
-              <>
-                <Check className="w-4 h-4" />
-                <span className="text-sm font-medium">Salvo automaticamente</span>
-              </>
-            )}
-          </div>
-        )}
 
         <div className="space-y-8">
           <CondicoesAmbientaisSection
             data={formData}
             onChange={updateFormData}
             isReadOnly={isReadOnly || isPreposto}
-            onBlur={handleFieldBlur}
           />
 
           <ServicosSection
@@ -620,14 +514,12 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
             isPreposto={isPreposto}
             activeServico={activeServico}
             setActiveServico={handleTabChange}
-            onBlur={handleFieldBlur}
           />
 
           <DadosObraSection
             data={formData}
             onChange={updateFormData}
             isReadOnly={isReadOnly || isPreposto}
-            onBlur={handleFieldBlur}
           />
 
           <RegistrosSection
@@ -635,14 +527,12 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
             onChange={updateFormData}
             isReadOnly={isReadOnly || isPreposto}
             activeServico={activeServico}
-            onBlur={handleFieldBlur}
           />
 
           <ObservacoesSection
             data={formData}
             onChange={updateFormData}
             isReadOnly={isReadOnly || isPreposto}
-            onBlur={handleFieldBlur}
           />
 
           {isPreposto && (

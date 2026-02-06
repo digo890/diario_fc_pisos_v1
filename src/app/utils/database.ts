@@ -115,7 +115,12 @@ export const saveBatchUsers = async (users: User[]): Promise<void> => {
 
     users.forEach(user => {
       try {
-        store.put(user);
+        const request = store.put(user);
+        // 🚨 CRITICAL FIX: Capturar erros assíncronos de escrita (ex: ConstraintError)
+        request.onerror = () => {
+          safeWarn(`❌ Falha ao salvar usuário ${user.id}:`, request.error);
+          error = request.error;
+        };
       } catch (e) {
         error = e as DOMException;
       }
@@ -186,7 +191,12 @@ export const saveBatchObras = async (obras: Obra[]): Promise<void> => {
 
     obras.forEach(obra => {
       try {
-        store.put(obra);
+        const request = store.put(obra);
+        // 🚨 CRITICAL FIX: Capturar erros assíncronos de escrita
+        request.onerror = () => {
+          safeWarn(`❌ Falha ao salvar obra ${obra.id}:`, request.error);
+          error = request.error;
+        };
       } catch (e) {
         error = e as DOMException;
       }

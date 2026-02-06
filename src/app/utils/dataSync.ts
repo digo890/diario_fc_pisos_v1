@@ -136,8 +136,15 @@ function getMostRecent<T extends TimestampedData>(
   local: T | undefined,
   remote: T
 ): T {
-  // ✅ SEMPRE retornar versão do backend (fonte da verdade)
-  // IndexedDB é cache descartável, não fonte de verdade
+  if (!local) return remote;
+
+  const localTs = local.updatedAt || local.createdAt || 0;
+  const remoteTs = remote.updatedAt || remote.createdAt || 0;
+
+  if (localTs >= remoteTs) {
+    return local;
+  }
+
   return remote;
 }
 

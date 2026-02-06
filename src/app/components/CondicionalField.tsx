@@ -4,6 +4,7 @@ import { Label } from './ui/label';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { Camera, Image as ImageIcon, X } from 'lucide-react';
+import { compressImage } from '../utils/imageCompression';
 
 interface CondicionalFieldProps {
   label: string;
@@ -30,15 +31,12 @@ export function CondicionalField({ label, value, onChange, disabled = false }: C
     onChange({ ...value, comentario });
   };
 
-  const handleFotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (disabled) return;
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        onChange({ ...value, foto: reader.result as string });
-      };
-      reader.readAsDataURL(file);
+      const compressedBase64 = await compressImage(file);
+      onChange({ ...value, foto: compressedBase64 });
     }
   };
 
@@ -58,27 +56,25 @@ export function CondicionalField({ label, value, onChange, disabled = false }: C
   return (
     <div className="space-y-3 p-4 border border-border rounded-xl">
       <Label>{label}</Label>
-      
+
       {/* Switch Não/Sim - Design tipo toggle */}
       <div className="bg-[#edefe3] dark:bg-gray-800 rounded-full p-1 relative">
         {/* Background verde que desliza */}
-        <div 
-          className={`absolute top-1 bottom-1 left-1 right-1 w-[calc(50%-4px)] bg-[#DBEA8D] dark:bg-[#DBEA8D] rounded-full transition-transform duration-300 ease-in-out ${
-            value.resposta === true ? 'translate-x-full' : 'translate-x-0'
-          }`}
+        <div
+          className={`absolute top-1 bottom-1 left-1 right-1 w-[calc(50%-4px)] bg-[#DBEA8D] dark:bg-[#DBEA8D] rounded-full transition-transform duration-300 ease-in-out ${value.resposta === true ? 'translate-x-full' : 'translate-x-0'
+            }`}
         />
-        
+
         {/* Botões de texto */}
         <div className="relative flex">
           <button
             type="button"
             onClick={() => value.resposta !== false && handleRespostaChange(false)}
             disabled={disabled}
-            className={`w-1/2 px-5 py-2.5 rounded-full text-xs font-bold transition-opacity duration-300 disabled:cursor-not-allowed z-10 ${
-              value.resposta === false
-                ? 'text-black opacity-100'
-                : 'text-black dark:text-gray-400 opacity-40'
-            }`}
+            className={`w-1/2 px-5 py-2.5 rounded-full text-xs font-bold transition-opacity duration-300 disabled:cursor-not-allowed z-10 ${value.resposta === false
+              ? 'text-black opacity-100'
+              : 'text-black dark:text-gray-400 opacity-40'
+              }`}
           >
             Não
           </button>
@@ -86,11 +82,10 @@ export function CondicionalField({ label, value, onChange, disabled = false }: C
             type="button"
             onClick={() => value.resposta !== true && handleRespostaChange(true)}
             disabled={disabled}
-            className={`w-1/2 px-5 py-2.5 rounded-full text-xs font-bold transition-opacity duration-300 disabled:cursor-not-allowed z-10 ${
-              value.resposta === true
-                ? 'text-black opacity-100'
-                : 'text-black dark:text-gray-400 opacity-40'
-            }`}
+            className={`w-1/2 px-5 py-2.5 rounded-full text-xs font-bold transition-opacity duration-300 disabled:cursor-not-allowed z-10 ${value.resposta === true
+              ? 'text-black opacity-100'
+              : 'text-black dark:text-gray-400 opacity-40'
+              }`}
           >
             Sim
           </button>
@@ -113,7 +108,7 @@ export function CondicionalField({ label, value, onChange, disabled = false }: C
 
           <div className="space-y-2">
             <Label className="text-sm">Foto (opcional)</Label>
-            
+
             {value.foto ? (
               <div className="relative">
                 <img

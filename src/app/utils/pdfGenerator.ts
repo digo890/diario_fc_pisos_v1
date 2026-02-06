@@ -649,7 +649,7 @@ export async function generateFormPDF(
           },
           columnStyles: {
             0: {
-              cellWidth: 40,
+              cellWidth: 90, // 50% da largura disponível (180mm)
               fontStyle: "bold",
               fillColor: [249, 250, 251],
             },
@@ -695,7 +695,7 @@ export async function generateFormPDF(
         },
         columnStyles: {
           0: {
-            cellWidth: 100,
+            cellWidth: 90, // 50% da largura disponível (180mm)
             fontStyle: "bold",
           },
         },

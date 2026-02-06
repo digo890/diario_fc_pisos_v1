@@ -8,7 +8,7 @@ import { safeLog, safeError, safeWarn } from './logSanitizer';
 import { initDB } from './database';
 
 // Tipos de operações suportadas
-export type SyncOperation = 
+export type SyncOperation =
   | 'create_obra'
   | 'update_obra'
   | 'delete_obra'
@@ -39,16 +39,16 @@ const RETRY_DELAY = 5000; // 5 segundos entre tentativas
  */
 function getErrorMessage(error: any): string {
   if (!error) return 'Erro desconhecido';
-  
+
   // Se for string, retornar diretamente
   if (typeof error === 'string') return error;
-  
+
   // Se tiver message
   if (error.message) return error.message;
-  
+
   // Se tiver error (resposta de API)
   if (error.error) return error.error;
-  
+
   // Se for objeto, tentar JSON.stringify
   try {
     const str = JSON.stringify(error);
@@ -56,7 +56,7 @@ function getErrorMessage(error: any): string {
   } catch (e) {
     // Ignorar erro de stringify
   }
-  
+
   // Fallback
   return 'Erro ao processar operação';
 }
@@ -94,7 +94,7 @@ class SyncQueueManager {
         safeLog(`✅ Operação adicionada à fila: ${operation} (${entityId})`);
         this.notifyListeners();
         resolve(item.id);
-        
+
         // Tentar processar imediatamente se online
         if (navigator.onLine) {
           this.processQueue();
@@ -154,7 +154,7 @@ class SyncQueueManager {
         if (item) {
           const updatedItem = { ...item, ...updates };
           const putRequest = store.put(updatedItem);
-          
+
           putRequest.onsuccess = () => {
             this.notifyListeners();
             resolve();
@@ -193,44 +193,57 @@ class SyncQueueManager {
    * Processa a fila de sincronização
    */
   async processQueue(): Promise<void> {
-    // Evitar processamento simultâneo
-    if (this.isProcessing) {
-      safeLog('⏳ Fila já está sendo processada...');
-      return;
-    }
-
-    // Verificar se está online
-    if (!navigator.onLine) {
-      safeWarn('📡 Offline - fila não será processada');
-      return;
-    }
-
-    this.isProcessing = true;
-    safeLog('🔄 Iniciando processamento da fila de sincronização...');
-
-    try {
-      const pendingItems = await this.getPendingItems();
-      
-      if (pendingItems.length === 0) {
-        safeLog('✅ Fila vazia - nada para sincronizar');
+    const execute = async () => {
+      // Evitar processamento simultâneo
+      if (this.isProcessing) {
+        safeLog('⏳ Fila já está sendo processada...');
         return;
       }
 
-      safeLog(`📋 ${pendingItems.length} operação(ões) pendente(s) encontrada(s)`);
-
-      // Processar itens em ordem cronológica
-      const sortedItems = pendingItems.sort((a, b) => a.timestamp - b.timestamp);
-
-      for (const item of sortedItems) {
-        await this.processItem(item);
+      // Verificar se está online
+      if (!navigator.onLine) {
+        safeWarn('📡 Offline - fila não será processada');
+        return;
       }
 
-      safeLog('✅ Processamento da fila concluído');
-    } catch (error) {
-      safeError('❌ Erro ao processar fila:', error);
-    } finally {
-      this.isProcessing = false;
-      this.notifyListeners();
+      this.isProcessing = true;
+      safeLog('🔄 Iniciando processamento da fila de sincronização...');
+
+      try {
+        const pendingItems = await this.getPendingItems();
+
+        if (pendingItems.length === 0) {
+          safeLog('✅ Fila vazia - nada para sincronizar');
+          return;
+        }
+
+        safeLog(`📋 ${pendingItems.length} operação(ões) pendente(s) encontrada(s)`);
+
+        // Processar itens em ordem cronológica
+        const sortedItems = pendingItems.sort((a, b) => a.timestamp - b.timestamp);
+
+        for (const item of sortedItems) {
+          await this.processItem(item);
+        }
+
+        safeLog('✅ Processamento da fila concluído');
+      } catch (error) {
+        safeError('❌ Erro ao processar fila:', error);
+      } finally {
+        this.isProcessing = false;
+        this.notifyListeners();
+      }
+    };
+
+    // 🔒 MUTEX: Cross-tab locking com Navigator Locks API
+    if (typeof navigator !== 'undefined' && 'locks' in navigator) {
+      await navigator.locks.request('sync_queue_mutex', { ifAvailable: true }, async (lock) => {
+        if (!lock) return; // Silent exit se já estiver processando em outra aba
+        await execute();
+      });
+    } else {
+      // Fallback para navegadores sem suporte a Locks API (apenas proteção intra-tab)
+      await execute();
     }
   }
 
@@ -311,7 +324,7 @@ class SyncQueueManager {
       // 🔐 PROTEÇÃO SESSÃO EXPIRADA: Se for 401, PAUSA mas NÃO REMOVE
       const errorMsg = getErrorMessage(error);
       const is401 = errorMsg.includes('401') || errorMsg.includes('Unauthorized') || errorMsg.includes('JWT');
-      
+
       if (is401) {
         safeWarn(`🔐 Sessão expirada detectada - pausando item sem contar retry: ${item.operation}`);
         await this.updateItem(item.id, {
@@ -320,7 +333,7 @@ class SyncQueueManager {
         });
         return; // IMPORTANTE: retorna sem incrementar contador
       }
-      
+
       safeError(`❌ Erro ao processar ${item.operation}:`, error);
 
       // Incrementar contador de tentativas (APENAS para erros não-401)
@@ -379,7 +392,7 @@ class SyncQueueManager {
 
     const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
     const allItems = await this.getAllItems();
-    
+
     const itemsToRemove = allItems.filter(
       item => item.status === 'success' && item.timestamp < sevenDaysAgo
     );
@@ -421,7 +434,7 @@ class SyncQueueManager {
 
     request.onsuccess = async () => {
       const failedItems = request.result || [];
-      
+
       for (const item of failedItems) {
         await this.updateItem(item.id, {
           status: 'pending',
@@ -447,20 +460,25 @@ export const syncQueue = new SyncQueueManager();
  */
 export async function initSyncQueue(): Promise<void> {
   safeLog('✅ Fila de sincronização inicializada');
-  
+
+  // 🔄 RECOVERY: Tentar recuperar itens falhados ao iniciar
+  await syncQueue.retryFailedItems();
+
   // Processar fila imediatamente se online
   if (navigator.onLine) {
     await syncQueue.processQueue();
   }
-  
+
   // Limpar itens antigos
   await syncQueue.cleanupOldItems();
 }
 
 // Auto-processar quando voltar online
 if (typeof window !== 'undefined') {
-  window.addEventListener('online', () => {
-    safeLog('📡 Conexão restaurada - processando fila...');
+  window.addEventListener('online', async () => {
+    safeLog('📡 Conexão restaurada - verificando falhas e processando fila...');
+    // 🔄 RECOVERY: Tentar recuperar itens falhados ao reconectar
+    await syncQueue.retryFailedItems();
     syncQueue.processQueue();
   });
 

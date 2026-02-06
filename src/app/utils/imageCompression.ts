@@ -4,11 +4,15 @@
  */
 
 import imageCompression from 'browser-image-compression';
+import { safeLog, safeError } from './logSanitizer';
 
 const DEFAULT_OPTIONS = {
-  maxSizeMB: 1,          // Tamanho máximo: 1MB
-  maxWidthOrHeight: 1920, // Resolução máxima
-  useWebWorker: true,     // Usar Web Worker para não bloquear UI
+  maxSizeMB: 0.6,
+  maxWidthOrHeight: 1920,
+  useWebWorker: true,
+  fileType: 'image/jpeg',
+  initialQuality: 0.85,
+  alwaysKeepResolution: false
 };
 
 /**
@@ -31,16 +35,21 @@ export async function compressImage(
   options?: Partial<typeof DEFAULT_OPTIONS>
 ): Promise<string> {
   try {
+    safeLog(`📸 Comprimindo: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+
     const opts = { ...DEFAULT_OPTIONS, ...options };
-    
+
     const compressedFile = await imageCompression(file, opts);
-    
+
+    const reduction = ((1 - compressedFile.size / file.size) * 100).toFixed(1);
+    safeLog(`✅ Compressão: ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB (${reduction}% redução)`);
+
     // Converter para Base64
     const base64 = await fileToBase64(compressedFile);
-    
+
     return base64;
   } catch (error) {
-    console.error('❌ Erro ao comprimir imagem:', error);
+    safeError('⚠️ Erro ao comprimir, usando original:', error);
     // Fallback: retornar imagem original sem compressão
     return fileToBase64(file);
   }

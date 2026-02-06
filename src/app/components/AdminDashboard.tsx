@@ -71,6 +71,7 @@ const AdminDashboard: React.FC = () => {
   const [userFilter, setUserFilter] = useState<UserFilter>('todos');
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false); // 🆕 CORREÇÃO URGENTE #2: Prevenir loadData simultâneo
+  const [isLoadingDashboard, setIsLoadingDashboard] = useState(true); // 🎯 SKELETON: Estado de carregamento inicial
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid'); // Para desktop apenas
   const [searchObra, setSearchObra] = useState('');
   const [searchUser, setSearchUser] = useState('');
@@ -215,6 +216,7 @@ const AdminDashboard: React.FC = () => {
   const loadData = async () => {
     if (isLoadingData) return; // 🆕 CORREÇÃO URGENTE #2: Prevenir loadData simultâneo
     setIsLoadingData(true);
+    setIsLoadingDashboard(true); // 🎯 SKELETON: Iniciar carregamento
     try {
       // ✅ CORREÇÃO: Buscar dados local e remote simultaneamente
       const [localObras, localUsers, localFormularios] = await Promise.all([
@@ -323,6 +325,7 @@ const AdminDashboard: React.FC = () => {
       setUsers([]);
     } finally {
       setIsLoadingData(false);
+      setIsLoadingDashboard(false); // 🎯 SKELETON: Finalizar carregamento
     }
   };
 
@@ -416,8 +419,8 @@ const AdminDashboard: React.FC = () => {
                 }`}
             >
               <Building2 className="w-5 h-5" />
-              <span className="md:hidden">({obras.length})</span>
-              <span className="hidden md:inline">Obras ({obras.length})</span>
+              <span className="md:hidden">({isLoadingDashboard ? '—' : obras.length})</span>
+              <span className="hidden md:inline">Obras ({isLoadingDashboard ? '—' : obras.length})</span>
             </button>
             <button
               onClick={() => setActiveTab('usuarios')}
@@ -490,6 +493,42 @@ const AdminDashboard: React.FC = () => {
               {/* Lista de Obras */}
               {/* Visualização em Cards - Sempre no mobile, opcional no desktop */}
               <div className={`space-y-3 ${viewMode === 'list' ? 'md:hidden' : ''}`}>
+                {/* 🎯 SKELETON: Mensagem de carregamento */}
+                {isLoadingDashboard && (
+                  <p className="text-sm text-gray-600 dark:text-gray-400 text-center py-2">
+                    Carregando obras...
+                  </p>
+                )}
+
+                {/* 🎯 SKELETON: Cards de carregamento */}
+                {isLoadingDashboard && Array.from({ length: 4 }).map((_, index) => (
+                  <div
+                    key={`skeleton-${index}`}
+                    className="bg-white dark:bg-gray-900 rounded-xl p-3 animate-pulse"
+                  >
+                    <div className="rounded-xl px-5 py-4 mb-2.5 bg-gray-200 dark:bg-gray-800">
+                      {/* Título skeleton */}
+                      <div className="h-6 bg-gray-300 dark:bg-gray-700 rounded mb-3 w-3/4"></div>
+
+                      {/* ID e Data skeleton */}
+                      <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded mb-4 w-1/3"></div>
+
+                      {/* Info blocks skeleton */}
+                      <div className="space-y-2.5">
+                        <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-2/3"></div>
+                        <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-3/4"></div>
+                        <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-1/2"></div>
+                      </div>
+                    </div>
+
+                    {/* Botões skeleton */}
+                    <div className="flex gap-2 justify-end mt-2">
+                      <div className="w-9 h-9 bg-gray-200 dark:bg-gray-800 rounded-lg"></div>
+                      <div className="w-9 h-9 bg-gray-200 dark:bg-gray-800 rounded-lg"></div>
+                    </div>
+                  </div>
+                ))}
+
                 {/* 🎯 SKELETON: Card de obra em criação */}
                 {creatingSkeleton && (
                   <motion.div
@@ -526,7 +565,8 @@ const AdminDashboard: React.FC = () => {
                   </motion.div>
                 )}
 
-                {obrasPagination.paginatedItems.map(obra => {
+                {/* 🎯 Lista real de obras - só mostra após carregar */}
+                {!isLoadingDashboard && obrasPagination.paginatedItems.map(obra => {
                   // 🎯 REGRA DE DOMÍNIO: Aplicar status real baseado no formulário
                   const formulario = formularios.find(f => f.obra_id === obra.id);
                   const status = getStatusDisplayWithFormulario(obra, formulario);
@@ -652,7 +692,8 @@ const AdminDashboard: React.FC = () => {
                   );
                 })}
 
-                {filteredObras.length === 0 && (
+                {/* 🎯 Empty state - só mostra após carregar */}
+                {!isLoadingDashboard && filteredObras.length === 0 && (
                   obras.length === 0 ? (
                     <button
                       onClick={() => setShowCreateObra(true)}
