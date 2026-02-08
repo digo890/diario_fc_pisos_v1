@@ -61,6 +61,9 @@ function getErrorMessage(error: any): string {
   return 'Erro ao processar operação';
 }
 
+// Flag para garantir inicialização única
+let hasInitialized = false;
+
 class SyncQueueManager {
   private isProcessing = false;
   private listeners: Set<() => void> = new Set();
@@ -427,27 +430,36 @@ class SyncQueueManager {
   async retryFailedItems(): Promise<void> {
     const db = await initDB();
 
-    const transaction = db.transaction([QUEUE_STORE_NAME], 'readwrite');
-    const store = transaction.objectStore(QUEUE_STORE_NAME);
-    const index = store.index('status');
-    const request = index.getAll('failed');
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([QUEUE_STORE_NAME], 'readwrite');
+      const store = transaction.objectStore(QUEUE_STORE_NAME);
+      const index = store.index('status');
+      const request = index.getAll('failed');
 
-    request.onsuccess = async () => {
-      const failedItems = request.result || [];
+      request.onsuccess = async () => {
+        try {
+          const failedItems = request.result || [];
 
-      for (const item of failedItems) {
-        await this.updateItem(item.id, {
-          status: 'pending',
-          retries: 0, // Resetar contador
-          lastError: undefined
-        });
-      }
+          for (const item of failedItems) {
+            await this.updateItem(item.id, {
+              status: 'pending',
+              retries: 0, // Resetar contador
+              lastError: undefined
+            });
+          }
 
-      if (failedItems.length > 0) {
-        safeLog(`🔄 ${failedItems.length} item(ns) falhado(s) reagendado(s)`);
-        this.processQueue();
-      }
-    };
+          if (failedItems.length > 0) {
+            safeLog(`🔄 ${failedItems.length} item(ns) falhado(s) reagendado(s)`);
+            // Nota: processQueue() deve ser chamado pelo caller
+          }
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      };
+
+      request.onerror = () => reject(request.error);
+    });
   }
 }
 
@@ -459,6 +471,12 @@ export const syncQueue = new SyncQueueManager();
  * (Compatibilidade com código legado - a inicialização é automática)
  */
 export async function initSyncQueue(): Promise<void> {
+  // Idempotência: Se já inicializou, não fazer nada
+  if (hasInitialized) {
+    return;
+  }
+
+  hasInitialized = true;
   safeLog('✅ Fila de sincronização inicializada');
 
   // 🔄 RECOVERY: Tentar recuperar itens falhados ao iniciar
@@ -479,7 +497,7 @@ if (typeof window !== 'undefined') {
     safeLog('📡 Conexão restaurada - verificando falhas e processando fila...');
     // 🔄 RECOVERY: Tentar recuperar itens falhados ao reconectar
     await syncQueue.retryFailedItems();
-    syncQueue.processQueue();
+    await syncQueue.processQueue();
   });
 
   // Processar fila periodicamente (a cada 2 minutos se online)

@@ -47,11 +47,11 @@ class TokenManager {
       if (error || !session?.access_token) {
         this.clearToken();
         this.isRefreshing = false;
-        
+
         // Notificar assinantes sobre falha
         this.refreshSubscribers.forEach((callback) => callback(''));
         this.refreshSubscribers = [];
-        
+
         return null;
       }
 
@@ -65,7 +65,8 @@ class TokenManager {
 
       return newToken;
     } catch (error) {
-      console.error('❌ Erro ao renovar token:', error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      reportProductionError(err, { context: 'TokenManager.refreshToken' });
       this.clearToken();
       this.isRefreshing = false;
       this.refreshSubscribers = [];
@@ -115,7 +116,7 @@ async function request<T>(
   if (requireAuth) {
     // Sempre enviar publicAnonKey no Authorization para passar pelo CORS
     headers['Authorization'] = `Bearer ${publicAnonKey}`;
-    
+
     // Adicionar token de usuário se disponível
     const accessToken = tokenManager.getToken();
     if (accessToken) {
@@ -131,8 +132,8 @@ async function request<T>(
 
     // Se 401 e ainda não tentou renovar, renovar token e tentar novamente
     if (response.status === 401 && requireAuth && retryCount === 0) {
-      console.warn('⚠️ [API] Token inválido (401), tentando renovar...');
-      
+
+
       // 🚨 MONITOR: Reportar erro de autenticação
       reportProductionError(
         new Error('Token inválido ou expirado (401)'),
@@ -142,46 +143,34 @@ async function request<T>(
           statusCode: 401
         }
       );
-      
+
       const newToken = await tokenManager.refreshToken();
-      
+
       if (newToken) {
-        console.log('✅ [API] Token renovado, tentando requisição novamente...');
+
         // Tentar novamente com novo token (retryCount = 1 para evitar loop infinito)
         return request<T>(endpoint, options, retryCount + 1);
       } else {
-        console.error('❌ [API] Falha ao renovar token, redirecionando para login...');
-        // Se falhar ao renovar, forçar logout
+        const err = new Error('Sessão expirada. Por favor, faça login novamente.');
+        reportProductionError(err, { url, method: fetchOptions.method || 'GET', statusCode: 401, context: 'token_renewal_failed' });
         window.location.href = '/';
-        throw new Error('Sessão expirada. Por favor, faça login novamente.');
+        throw err;
       }
     }
 
-    // ✅ CORREÇÃO: Verificar se resposta é JSON antes de parsear
-    const contentType = response.headers.get('content-type');
-    const isJson = contentType && contentType.includes('application/json');
-    
+    // ✅ CORREÇÃO: Ler body uma única vez para evitar erro "body already consumed"
+    const rawText = await response.text();
+
     let data: any;
-    if (isJson) {
-      try {
-        data = await response.json();
-      } catch (jsonError) {
-        // Se falhar ao parsear JSON, retornar erro
-        const text = await response.text();
-        console.error('❌ [API] Resposta não é JSON válido:', text.substring(0, 200));
-        throw new Error(`Resposta inválida do servidor: ${text.substring(0, 100)}`);
-      }
+    if (!rawText) {
+      data = null;
     } else {
-      // Se não é JSON, pegar como texto
-      const text = await response.text();
-      console.error('❌ [API] Resposta não é JSON:', text.substring(0, 200));
-      
-      // Se for erro 401 e não é JSON, provavelmente é erro de autenticação
-      if (response.status === 401) {
-        throw new Error('Sessão expirada. Por favor, faça login novamente.');
+      try {
+        data = JSON.parse(rawText);
+      } catch (e) {
+        // Se falhar parse, usar texto cru (preserva conteúdo para logs)
+        data = rawText;
       }
-      
-      throw new Error(`Erro do servidor: ${text.substring(0, 100)}`);
     }
 
     if (!response.ok) {
@@ -201,16 +190,17 @@ async function request<T>(
 
     return data;
   } catch (error: any) {
-    console.error(`❌ Erro na requisição ${endpoint}:`, error.message || error);
-    
+    const err = error instanceof Error ? error : new Error(String(error));
+
+
     // 🚨 MONITOR: Reportar qualquer erro não tratado
-    reportProductionError(error, {
+    reportProductionError(err, {
       url,
       method: fetchOptions.method || 'GET',
       endpoint
     });
-    
-    throw error;
+
+    throw err;
   }
 }
 
@@ -355,7 +345,7 @@ export const conferenciaApi = {
   async getFormulario(formularioId: string): Promise<ApiResponse> {
     const url = `${CONFERENCIA_BASE_URL}/${formularioId}`;
     console.log('🔍 [CONFERÊNCIA PÚBLICA] Buscando formulário:', url);
-    
+
     try {
       const response = await fetch(url, {
         method: 'GET',
@@ -363,7 +353,7 @@ export const conferenciaApi = {
           'Content-Type': 'application/json',
         },
       });
-      
+
       const data = await response.json();
       return data;
     } catch (error) {
@@ -376,7 +366,7 @@ export const conferenciaApi = {
   async assinarFormulario(formularioId: string, data: any): Promise<ApiResponse> {
     const url = `${CONFERENCIA_BASE_URL}/${formularioId}/assinar`;
     console.log('✍️ [CONFERÊNCIA PÚBLICA] Assinando formulário:', url);
-    
+
     try {
       const response = await fetch(url, {
         method: 'POST',
@@ -385,7 +375,7 @@ export const conferenciaApi = {
         },
         body: JSON.stringify(data),
       });
-      
+
       const result = await response.json();
       return result;
     } catch (error) {
