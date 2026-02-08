@@ -40,16 +40,29 @@ export const initDB = (): Promise<IDBDatabase> => {
       }
 
       // ✅ MIGRAÇÃO V3: Recriar store de formulários com keyPath correto
-      if (database.objectStoreNames.contains('forms')) {
-        // Deletar store antiga com keyPath 'obraId' (errado)
-        database.deleteObjectStore('forms');
-        console.log('🔄 Migração V3: Store "forms" deletada (keyPath antigo: obraId)');
+      // ✅ MIGRAÇÃO V3 (CORRIGIDA): Preservar dados offline
+      if (!database.objectStoreNames.contains('forms')) {
+        // Se NÃO existe: criar normalmente (comportamento padrão)
+        const formStore = database.createObjectStore('forms', { keyPath: 'obra_id' });
+        formStore.createIndex('status', 'status', { unique: false });
+        formStore.createIndex('createdBy', 'createdBy', { unique: false });
+        console.log('✅ Store "forms" criada (instalação nova)');
+      } else {
+        // Se JÁ existe: NÃO deletar. Apenas garantir índices.
+        const transaction = (event.target as IDBOpenDBRequest).transaction!;
+        const formStore = transaction.objectStore('forms');
+
+        // Verificar índices ausentes e criar se necessário
+        if (!formStore.indexNames.contains('status')) {
+          formStore.createIndex('status', 'status', { unique: false });
+          console.log('✅ Index "status" criado em store existente');
+        }
+        if (!formStore.indexNames.contains('createdBy')) {
+          formStore.createIndex('createdBy', 'createdBy', { unique: false });
+          console.log('✅ Index "createdBy" criado em store existente');
+        }
+        console.log('ℹ️ Store "forms" preservada (upgrade seguro)');
       }
-      // Criar nova store com keyPath 'obra_id' (correto)
-      const formStore = database.createObjectStore('forms', { keyPath: 'obra_id' });
-      formStore.createIndex('status', 'status', { unique: false });
-      formStore.createIndex('createdBy', 'createdBy', { unique: false });
-      console.log('✅ Migração V3: Store "forms" criada (keyPath novo: obra_id)');
 
       // Store de configurações
       if (!database.objectStoreNames.contains('config')) {
