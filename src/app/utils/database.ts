@@ -291,6 +291,38 @@ export const saveForm = async (form: FormData): Promise<void> => {
   });
 };
 
+// 🆕 OTIMIZAÇÃO: Salvar formulários em lote (single transaction)
+export const saveBatchForms = async (forms: FormData[]): Promise<void> => {
+  if (forms.length === 0) return;
+  const database = await initDB();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(['forms'], 'readwrite');
+    const store = transaction.objectStore('forms');
+
+    let error: DOMException | null = null;
+
+    forms.forEach(form => {
+      // Validação básica igual ao saveForm
+      if (!form.obra_id) {
+        safeWarn(`❌ Erro ao salvar formulário em lote: obra_id ausente`);
+        return;
+      }
+      try {
+        const request = store.put(form);
+        request.onerror = () => {
+          safeWarn(`❌ Falha ao salvar formulário ${form.obra_id}:`, request.error);
+          error = request.error;
+        };
+      } catch (e) {
+        error = e as DOMException;
+      }
+    });
+
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(error || transaction.error);
+  });
+};
+
 // 🆕 CORREÇÃO URGENTE #1: Deletar formulário associado a uma obra
 export const deleteForm = async (obraId: string): Promise<void> => {
   const database = await initDB();
