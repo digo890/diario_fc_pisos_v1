@@ -3,7 +3,7 @@ import { Plus, Edit2, Trash2, Moon, Sun, LogOut, Building2, Users, BarChart3, Fi
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { getObras, getUsers, saveObra, deleteObra, saveUser, deleteUser, getAllForms, getFormByObraId, deleteForm, saveForm } from '../utils/database';
+import { getObras, getUsers, saveObra, deleteObra, saveUser, deleteUser, getAllForms, getFormByObraId, deleteForm, saveForm, saveBatchForms } from '../utils/database';
 import { obraApi, userApi, formularioApi } from '../utils/api';
 import { getStatusDisplay, getStatusDisplayWithFormulario, getObraStatusReal } from '../utils/diarioHelpers';
 import { mergeObras, mergeUsers, normalizeFormularioFromBackend } from '../utils/dataSync';
@@ -25,7 +25,7 @@ const EditUserPage = lazy(() => import('./EditUserPage'));
 const ViewRespostasModal = lazy(() => import('./ViewRespostasModal'));
 const ResultadosDashboard = lazy(() => import('./ResultadosDashboard'));
 const FilterModal = lazy(() => import('./FilterModal'));
-const ProductionMonitorDashboard = lazy(() => import('./ProductionMonitorDashboard')); // 🚨 MONITOR
+const ProductionMonitorDashboard = lazy(() => import('./ProductionMonitorDashboard').then(module => ({ default: module.ProductionMonitorDashboard }))); // 🚨 MONITOR
 
 type TabType = 'resultados' | 'obras' | 'usuarios';
 type ObraFilter = 'todas' | 'novo' | 'em_andamento' | 'conferencia' | 'concluidas';
@@ -217,115 +217,110 @@ const AdminDashboard: React.FC = () => {
     if (isLoadingData) return; // 🆕 CORREÇÃO URGENTE #2: Prevenir loadData simultâneo
     setIsLoadingData(true);
     setIsLoadingDashboard(true); // 🎯 SKELETON: Iniciar carregamento
+
     try {
-      // ✅ CORREÇÃO: Buscar dados local e remote simultaneamente
-      const [localObras, localUsers, localFormularios] = await Promise.all([
-        getObras(),
-        getUsers(),
-        getAllForms() // 🎯 Carregar formulários para regra de domínio
-      ]);
+      // 🚀 OTIMIZAÇÃO: Disparar carregamento local e remoto em paralelo
+      // O local resolve rápido e libera a UI. O remoto atualiza depois.
 
-      // Tentar buscar do backend (se online)
-      if (navigator.onLine) {
+      // 1. Definição da carga Local
+      const loadLocalPromise = (async () => {
+        const [localObras, localUsers, localFormularios] = await Promise.all([
+          getObras(),
+          getUsers(),
+          getAllForms()
+        ]);
+
+        // Aplicar dados locais imediatamente para liberar UI
+        const obrasValidas = localObras.filter((obra: Obra) =>
+          // 🚀 OTIMIZAÇÃO: Filtro único para validar obras
+          obra.id && obra.cliente && obra.obra && obra.cidade && obra.encarregadoId
+        );
+
+        setObras(obrasValidas);
+        setUsers(localUsers);
+        setFormularios(localFormularios);
+
+        // 🎯 SKELETON: Desativa skeleton assim que dados locais chegam
+        setCreatingSkeleton(false);
+        setIsLoadingDashboard(false); // Libera UI
+        safeLog(`📂 Dados locais carregados: ${obrasValidas.length} obras, ${localUsers.length} usuários`);
+
+        return { localObras: obrasValidas, localUsers, localFormularios };
+      })();
+
+      // 2. Definição da carga Remota
+      const loadRemotePromise = (async () => {
+        if (!navigator.onLine) {
+          showToast('📡 Modo offline. Exibindo dados locais.', 'warning');
+          return;
+        }
+
         try {
-          safeLog('🔄 Buscando dados do backend...');
+          safeLog('🔄 Buscando dados do backend (paralelo)...');
 
-          // Buscar usuários, obras e formulários do backend
+          // Buscar tudo em paralelo
           const [usersResponse, obrasResponse, formulariosResponse] = await Promise.all([
             userApi.list(),
             obraApi.list(),
-            formularioApi.list() // 🎯 Carregar formulários para regra de domínio
+            formularioApi.list()
           ]);
 
-          // ✅ CORREÇÃO: Merge inteligente de usuários
+          // Processar Usuários (Upsert Merge)
           if (usersResponse.success && usersResponse.data) {
             const remoteUsers = usersResponse.data;
-            const mergedUsers = await mergeUsers(localUsers, remoteUsers);
-            setUsers(mergedUsers);
-            safeLog(`✅ ${mergedUsers.length} usuários sincronizados (merge)`);
+            setUsers(currentUsers => {
+              const userMap = new Map(currentUsers.map(u => [u.id, u]));
+              remoteUsers.forEach((u: User) => userMap.set(u.id, u)); // Atualiza ou insere
+              return Array.from(userMap.values());
+            });
           }
 
-          // ✅ CORREÇÃO: Merge inteligente de obras
+          // Processar Obras (Upsert Merge)
           if (obrasResponse.success && obrasResponse.data) {
             const remoteObras = obrasResponse.data;
-            const mergedObras = await mergeObras(localObras, remoteObras);
-
-            // ✅ CORREÇÃO: Usar status do backend diretamente - NÃO sobrescrever
-            // O backend é a fonte da verdade para o status da obra
-            setObras(mergedObras);
-            safeLog(`✅ ${mergedObras.length} obras sincronizadas (merge)`);
+            setObras(currentObras => {
+              const obraMap = new Map(currentObras.map(o => [o.id, o]));
+              remoteObras.forEach((o: Obra) => obraMap.set(o.id, o)); // Atualiza ou insere
+              return Array.from(obraMap.values());
+            });
           }
 
-          // 🎯 CORREÇÃO: Carregar formulários do backend
+          // Processar Formulários (Upsert Merge)
           if (formulariosResponse.success && formulariosResponse.data) {
-            // 🎯 CORREÇÃO: Normalizar formulários do backend (snake_case -> camelCase)
-            const remoteFormularios = formulariosResponse.data.map((f: any) => normalizeFormularioFromBackend(f));
-            // Salvar formulários localmente
-            for (const form of remoteFormularios) {
-              await saveForm(form);
-            }
-            setFormularios(remoteFormularios);
-            safeLog(`✅ ${remoteFormularios.length} formulários sincronizados`);
-          } else {
-            // Fallback: usar formulários locais
-            setFormularios(localFormularios);
-            safeLog(`📂 ${localFormularios.length} formulários locais carregados`);
+            const remoteFormulariosRaw = formulariosResponse.data;
+            const remoteFormularios = remoteFormulariosRaw.map((f: any) => normalizeFormularioFromBackend(f));
+
+            // 🚀 OTIMIZAÇÃO: Salvar no banco local em bulk (single transaction)
+            void saveBatchForms(remoteFormularios).catch(err =>
+              safeWarn('⚠️ Erro ao salvar formulários em cache:', err)
+            );
+
+            setFormularios(currentForms => {
+              const formMap = new Map(currentForms.map(f => [f.obra_id, f]));
+              remoteFormularios.forEach((f: FormData) => formMap.set(f.obra_id, f));
+              return Array.from(formMap.values());
+            });
           }
 
-          // 🎯 SKELETON: Desativa skeleton após carregar dados
-          setCreatingSkeleton(false);
-
-          return; // Sucesso
         } catch (apiError) {
-          safeWarn('⚠️ Erro ao buscar dados do backend, usando cache local:', apiError);
-          // ✅ FEEDBACK VISUAL: Avisar usuário que está offline/sem sincronizar
-          showToast('⚠️ Sem conexão com servidor. Exibindo dados locais (podem estar desatualizados).', 'warning');
-          // Continua para usar dados locais
+          safeWarn('⚠️ Erro parcial ao buscar backend:', apiError);
+          // Não bloqueia UI pois dados locais já estão lá
         }
-      } else {
-        // ✅ FEEDBACK VISUAL: Avisar que está offline
-        showToast('📡 Modo offline. Exibindo dados locais.', 'warning');
-      }
+      })().catch(err => {
+        // 🛡️ ROBUSTEX: Capturar erros não tratados da promise remota
+        safeWarn('🚨 Falha crítica no carregamento remoto:', err);
+      });
 
-      // Fallback: usar dados locais (offline ou erro na API)
-      safeLog('📂 Usando dados locais do IndexedDB');
+      // Aguardar carga LOCAL para garantir que a UI mostre algo
+      // Remoto continua em background se demorar mais
+      await loadLocalPromise;
 
-      // Filtrar obras válidas
-      const obrasValidas = localObras.filter((obra: Obra) =>
-        obra.id && obra.cliente && obra.obra && obra.cidade && obra.encarregadoId
-      );
-
-      // Remover obras inválidas do IndexedDB
-      const obrasInvalidas = localObras.filter((obra: Obra) =>
-        !obra.id || !obra.cliente || !obra.obra || !obra.cidade || !obra.encarregadoId
-      );
-
-      if (obrasInvalidas.length > 0) {
-        safeWarn(`⚠️ Removendo ${obrasInvalidas.length} obra(s) corrompida(s)`);
-        await Promise.all(
-          obrasInvalidas.map(async (obra: Obra) => {
-            if (obra.id) {
-              await deleteObra(obra.id);
-            }
-          })
-        );
-      }
-
-      // ✅ FASE 2: Removido loop de atualização automática de status
-      // Status agora é gerenciado exclusivamente pelo backend
-      setObras(obrasValidas);
-      setUsers(localUsers);
-      setFormularios(localFormularios);
-
-      // 🎯 SKELETON: Desativa skeleton após carregar dados locais
-      setCreatingSkeleton(false);
     } catch (error) {
-      safeError('❌ Erro ao carregar dados:', error);
-      setObras([]);
-      setUsers([]);
+      safeError('❌ Erro crítico ao carregar dashboard:', error);
+      // Se falhar tudo (nem local carregar), parar loading
+      setIsLoadingDashboard(false);
     } finally {
       setIsLoadingData(false);
-      setIsLoadingDashboard(false); // 🎯 SKELETON: Finalizar carregamento
     }
   };
 

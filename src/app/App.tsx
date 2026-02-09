@@ -41,7 +41,7 @@ const AppContent: React.FC = () => {
 
         await initDB();
         await seedInitialData();
-        await initSyncQueue();
+        // initSyncQueue movido para useEffect do currentUser (background)
       } catch (error) {
         safeError('Erro ao inicializar aplicação:', error);
         // Não quebrar a aplicação, apenas logar
@@ -49,9 +49,32 @@ const AppContent: React.FC = () => {
       }
     };
 
+
     // 🔧 CORREÇÃO HMR: Só inicializar após o componente estar montado
     init();
   }, []);
+
+  // 🚀 OTIMIZAÇÃO: Iniciar fila de sincronização em background, mas APENAS após login
+  // Isso evita concorrência de rede durante o carregamento crítico inicial
+  useEffect(() => {
+    if (currentUser) {
+      // Usar requestIdleCallback se disponível, com fallback para setTimeout
+      const startSync = () => {
+        if ('requestIdleCallback' in window) {
+          (window as any).requestIdleCallback(() => {
+            initSyncQueue(); // Não await - background fire-and-forget
+          }, { timeout: 5000 });
+        } else {
+          // Fallback para setTimeout
+          setTimeout(() => {
+            initSyncQueue();
+          }, 300);
+        }
+      };
+
+      startSync();
+    }
+  }, [currentUser]);
 
   // Verificar se é rota de validação pública
   const path = window.location.pathname;

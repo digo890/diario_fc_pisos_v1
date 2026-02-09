@@ -22,6 +22,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [accessToken, setAccessTokenState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Ref para armazenar a promise de fetchUserData em andamento (Deduplicação)
+  const fetchUserPromiseRef = useRef<{ token: string; promise: Promise<User | null> } | null>(null);
 
   // Helper para atualizar token
   const updateToken = (token: string | null) => {
@@ -95,53 +97,73 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Função para buscar dados do usuário
   const fetchUserData = async (token: string): Promise<User | null> => {
-    try {
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-1ff231a2/auth/me`,
-        {
-          headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
-            'X-User-Token': token,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+    // 🚀 OTIMIZAÇÃO: In-flight Promise De-duplication por Token
+    // Só reutiliza se for exatamente o mesmo token
+    if (fetchUserPromiseRef.current && fetchUserPromiseRef.current.token === token) {
+      safeLog('🔄 Reutilizando requisição /me em andamento...');
+      return fetchUserPromiseRef.current.promise;
+    }
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        safeError('❌ Erro ao buscar dados do usuário:', errorText);
-        return null; // Non-200 responses are NOT treated as offline
-      }
-
-      const { data } = await response.json();
-      return data;
-    } catch (error) {
-      // 🚨 CRITICAL FIX: Offline Fallback
-      // If network fails, try to load user from local cache using ID from token
+    const fetchPromise = (async () => {
       try {
-        // Decode JWT payload (part 2) to get 'sub' (User ID)
-        // Format: header.payload.signature
-        const payloadBase64 = token.split('.')[1];
-        if (payloadBase64) {
-          const payloadJson = atob(payloadBase64);
-          const payload = JSON.parse(payloadJson);
-          const userId = payload.sub;
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-1ff231a2/auth/me`,
+          {
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`,
+              'X-User-Token': token,
+              // 'Content-Type': 'application/json', // ❌ REMOVIDO: Evitar preflight em GET
+            },
+          }
+        );
 
-          if (userId) {
-            const cachedUser = await getUserById(userId);
-            if (cachedUser) {
-              // Return cached user silently (no new logging as requested)
-              return cachedUser;
+        if (!response.ok) {
+          const errorText = await response.text();
+          safeError('❌ Erro ao buscar dados do usuário:', errorText);
+          return null; // Non-200 responses are NOT treated as offline
+        }
+
+        const { data } = await response.json();
+        return data;
+      } catch (error) {
+        // 🚨 CRITICAL FIX: Offline Fallback
+        // If network fails, try to load user from local cache using ID from token
+        try {
+          // Decode JWT payload (part 2) to get 'sub' (User ID)
+          // Format: header.payload.signature
+          const payloadBase64 = token.split('.')[1];
+          if (payloadBase64) {
+            const payloadJson = atob(payloadBase64);
+            const payload = JSON.parse(payloadJson);
+            const userId = payload.sub;
+
+            if (userId) {
+              const cachedUser = await getUserById(userId);
+              if (cachedUser) {
+                // Return cached user silently (no new logging as requested)
+                return cachedUser;
+              }
             }
           }
+        } catch (decodeError) {
+          // Ignore decoding errors, fall through to main error handling
         }
-      } catch (decodeError) {
-        // Ignore decoding errors, fall through to main error handling
-      }
 
-      safeError('❌ Erro ao buscar dados do usuário (Network):', error);
-      return null;
-    }
+        safeError('❌ Erro ao buscar dados do usuário (Network):', error);
+        return null;
+      } finally {
+        // Limpar a referência APENAS se for a mesma promise que iniciou
+        // (embora na prática seja sempre a mesma ref para o mesmo token)
+        if (fetchUserPromiseRef.current?.token === token) {
+          fetchUserPromiseRef.current = null;
+        }
+      }
+    })();
+
+    // Armazenar a promise e token na ref
+    fetchUserPromiseRef.current = { token, promise: fetchPromise };
+
+    return fetchPromise;
   };
 
   useEffect(() => {
