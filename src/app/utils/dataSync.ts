@@ -97,7 +97,8 @@ export function normalizeFormularioFromBackend(formBackend: any): FormData {
     // Confirmação Preposto
     prepostoConfirmado: formBackend.preposto_confirmado || formBackend.prepostoConfirmado,
     nomeCompletoPreposto: formBackend.nome_completo_preposto || formBackend.nomeCompletoPreposto,
-    prepostoMotivoReprovacao: formBackend.preposto_motivo_reprovacao || formBackend.prepostoMotivoReprovacao,
+    prepostoMotivoReprovacao:
+      formBackend.preposto_motivo_reprovacao || formBackend.prepostoMotivoReprovacao,
     statusPreposto: formBackend.status_preposto || formBackend.statusPreposto,
 
     // Metadata
@@ -127,15 +128,12 @@ export function normalizeFormularioFromBackend(formBackend: any): FormData {
 
 /**
  * Compara timestamps e retorna a versão mais recente
- * 
+ *
  * ✅ CORREÇÃO v1.0.0: Backend SEMPRE vence (fonte da verdade)
  * Razão: Backend pode não ter updatedAt, então comparação por timestamp é falha.
  * Estratégia: Cache local serve apenas para exibição rápida, backend é autoritativo.
  */
-function getMostRecent<T extends TimestampedData>(
-  local: T | undefined,
-  remote: T
-): T {
+function getMostRecent<T extends TimestampedData>(local: T | undefined, remote: T): T {
   if (!local) return remote;
 
   const localTs = local.updatedAt || local.createdAt || 0;
@@ -154,14 +152,11 @@ function getMostRecent<T extends TimestampedData>(
  * @param remoteObras Obras do backend (em snake_case)
  * @returns Array de obras merged (em camelCase)
  */
-export async function mergeObras(
-  localObras: Obra[],
-  remoteObras: any[]
-): Promise<Obra[]> {
+export async function mergeObras(localObras: Obra[], remoteObras: any[]): Promise<Obra[]> {
   const merged = new Map<string, Obra>();
 
   // Adicionar todas as obras locais ao mapa
-  localObras.forEach(obra => {
+  localObras.forEach((obra) => {
     merged.set(obra.id, obra);
   });
 
@@ -194,14 +189,11 @@ export async function mergeObras(
  * @param remoteUsers Usuários do backend (em snake_case)
  * @returns Array de usuários merged (em camelCase)
  */
-export async function mergeUsers(
-  localUsers: User[],
-  remoteUsers: any[]
-): Promise<User[]> {
+export async function mergeUsers(localUsers: User[], remoteUsers: any[]): Promise<User[]> {
   const merged = new Map<string, User>();
 
   // Adicionar todos os usuários locais ao mapa
-  localUsers.forEach(user => {
+  localUsers.forEach((user) => {
     merged.set(user.id, user);
   });
 

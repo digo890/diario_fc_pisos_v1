@@ -21,7 +21,11 @@ const ObservacoesSection: React.FC<Props> = ({ data, onChange, isReadOnly }) => 
         value={data.observacoes || ''}
         onChange={(e) => onChange({ observacoes: e.target.value })}
         disabled={isReadOnly}
-        placeholder={isReadOnly ? '' : 'Adicione observações gerais sobre o trabalho executado, condições especiais, ocorrências ou qualquer informação relevante...'}
+        placeholder={
+          isReadOnly
+            ? ''
+            : 'Adicione observações gerais sobre o trabalho executado, condições especiais, ocorrências ou qualquer informação relevante...'
+        }
         rows={6}
         className="w-full px-4 py-3 rounded-xl 
                  bg-white dark:bg-gray-800 text-gray-900 dark:text-white

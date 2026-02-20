@@ -1,9 +1,9 @@
 /**
  * 🔒 CORREÇÃO #7: Hook para Logout Seguro
- * 
+ *
  * Verifica se há dados pendentes de sincronização antes de fazer logout
  * Protege contra perda silenciosa de dados
- * 
+ *
  * @version 1.1.0
  */
 
@@ -24,7 +24,7 @@ export function useSafeLogout() {
     try {
       // Verificar se há dados pendentes na fila de sincronização
       const count = await syncQueue.getPendingCount();
-      
+
       if (count > 0) {
         // Tem dados pendentes - mostrar confirmação
         safeLog(`⚠️ Logout bloqueado: ${count} operação(ões) pendente(s)`);
@@ -64,6 +64,6 @@ export function useSafeLogout() {
     forceLogout,
     cancelLogout,
     showLogoutConfirm,
-    pendingCount
+    pendingCount,
   };
 }

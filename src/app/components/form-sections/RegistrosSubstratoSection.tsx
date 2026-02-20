@@ -14,10 +14,7 @@ export function RegistrosSubstratoSection({
   onChange,
   disabled,
 }: RegistrosSubstratoSectionProps) {
-  const updateField = <K extends keyof RegistrosSubstrato>(
-    field: K,
-    value: CondicionalItem
-  ) => {
+  const updateField = <K extends keyof RegistrosSubstrato>(field: K, value: CondicionalItem) => {
     onChange({
       ...data,
       registrosSubstrato: {

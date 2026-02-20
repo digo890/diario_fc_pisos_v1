@@ -22,7 +22,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
   currentFilter,
   onFilterChange,
   onSearchChange,
-  searchValue = ''
+  searchValue = '',
 }) => {
   const [localSearch, setLocalSearch] = useState(searchValue);
 
@@ -40,14 +40,14 @@ const FilterModal: React.FC<FilterModalProps> = ({
     onFilterChange(filter);
     onClose();
   };
-  
+
   // Função para fechar o modal ao apertar Enter
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       onClose();
     }
   };
-  
+
   // Função para limpar o campo de busca
   const handleClearSearch = () => {
     setLocalSearch('');
@@ -59,13 +59,13 @@ const FilterModal: React.FC<FilterModalProps> = ({
     { value: 'novo', label: 'Novo' },
     { value: 'em_andamento', label: 'Em andamento' },
     { value: 'conferencia', label: 'Conferência' },
-    { value: 'concluidas', label: 'Concluídas' }
+    { value: 'concluidas', label: 'Concluídas' },
   ];
 
   const userFilters: { value: UserFilter; label: string }[] = [
     { value: 'todos', label: 'Todos' },
     { value: 'Encarregado', label: 'Encarregados' },
-    { value: 'Administrador', label: 'Administradores' }
+    { value: 'Administrador', label: 'Administradores' },
   ];
 
   const filters = type === 'obras' ? obraFilters : userFilters;

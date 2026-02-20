@@ -126,7 +126,7 @@ export const saveBatchUsers = async (users: User[]): Promise<void> => {
 
     let error: DOMException | null = null;
 
-    users.forEach(user => {
+    users.forEach((user) => {
       try {
         const request = store.put(user);
         // 🚨 CRITICAL FIX: Capturar erros assíncronos de escrita (ex: ConstraintError)
@@ -202,7 +202,7 @@ export const saveBatchObras = async (obras: Obra[]): Promise<void> => {
 
     let error: DOMException | null = null;
 
-    obras.forEach(obra => {
+    obras.forEach((obra) => {
       try {
         const request = store.put(obra);
         // 🚨 CRITICAL FIX: Capturar erros assíncronos de escrita
@@ -275,7 +275,7 @@ export const saveForm = async (form: FormData): Promise<void> => {
     safeLog(`💾 Salvando formulário no IndexedDB:`, {
       obra_id: form.obra_id,
       formId: (form as any).id,
-      status: form.status
+      status: form.status,
     });
 
     const request = store.put(form);
@@ -301,7 +301,7 @@ export const saveBatchForms = async (forms: FormData[]): Promise<void> => {
 
     let error: DOMException | null = null;
 
-    forms.forEach(form => {
+    forms.forEach((form) => {
       // Validação básica igual ao saveForm
       if (!form.obra_id) {
         safeWarn(`❌ Erro ao salvar formulário em lote: obra_id ausente`);
@@ -368,6 +368,8 @@ export const seedInitialData = async (): Promise<void> => {
   // ✅ REMOVIDO: Não criar mais usuários de exemplo automaticamente
   // Os usuários devem ser criados via interface de administração
   if (users.length === 0) {
-    console.log('ℹ️ Nenhum usuário encontrado. Use a interface de administração para criar usuários.');
+    console.log(
+      'ℹ️ Nenhum usuário encontrado. Use a interface de administração para criar usuários.'
+    );
   }
 };

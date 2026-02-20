@@ -35,7 +35,7 @@ const ETAPAS = [
   { label: 'Reparo de Revestimento em Muretas', unit: 'ml' },
   { label: 'Reparo de Revestimento em Rodapé', unit: 'ml' },
   { label: 'Quantos botijões de gás foram utilizados?', unit: '' },
-  { label: 'Quantas bisnagas de selante foram utilizadas?', unit: '' }
+  { label: 'Quantas bisnagas de selante foram utilizadas?', unit: '' },
 ];
 
 const REGISTROS_LABELS = [
@@ -60,7 +60,7 @@ const REGISTROS_LABELS = [
   'As áreas concluídas foram protegidas e isoladas?',
   'O substrato foi fotografado?',
   'Ocorreu alguma desconformidade durante ou após as aplicações?',
-  'Você relatou ao preposto as desconformidades?'
+  'Você relatou ao preposto as desconformidades?',
 ];
 
 export async function generateFormExcel(
@@ -73,17 +73,17 @@ export async function generateFormExcel(
   const XLSX = (XLSXModule as any).default || XLSXModule;
 
   const getUserName = (id: string) => {
-    const user = users.find(u => u.id === id);
+    const user = users.find((u) => u.id === id);
     return user?.nome || 'N/A';
   };
 
   const getClimaLabel = (clima?: string) => {
     if (!clima) return 'Não informado';
     const labels: Record<string, string> = {
-      'sol': 'Sol',
-      'nublado': 'Nublado',
-      'chuva': 'Chuva',
-      'lua': 'Lua'
+      sol: 'Sol',
+      nublado: 'Nublado',
+      chuva: 'Chuva',
+      lua: 'Lua',
     };
     return labels[clima] || clima;
   };
@@ -117,14 +117,20 @@ export async function generateFormExcel(
   XLSX.utils.book_append_sheet(wb, ws1, 'Informações Gerais');
 
   // Abas de Serviços
-  const servicosKeys: Array<'servico1' | 'servico2' | 'servico3'> = ['servico1', 'servico2', 'servico3'];
+  const servicosKeys: Array<'servico1' | 'servico2' | 'servico3'> = [
+    'servico1',
+    'servico2',
+    'servico3',
+  ];
 
   servicosKeys.forEach((key, idx) => {
     const servico = formData.servicos[key];
     if (!servico) return;
 
     // Verificar se tem conteúdo
-    const hasContent = servico.horario || servico.local ||
+    const hasContent =
+      servico.horario ||
+      servico.local ||
       Object.keys(servico.etapas || {}).length > 0 ||
       Object.keys(servico.registros || {}).length > 0;
 
@@ -137,7 +143,7 @@ export async function generateFormExcel(
       ['Local:', servico.local || '-'],
       [''],
       ['ETAPAS DE EXECUÇÃO (Itens 1-34)'],
-      ['Item', 'Descrição', 'Valor', 'Unidade']
+      ['Item', 'Descrição', 'Valor', 'Unidade'],
     ];
 
     // Adicionar etapas
@@ -157,7 +163,10 @@ export async function generateFormExcel(
         const parts = valor.split('|');
         const valor1 = parts[0] || '-';
         const valor2 = parts[1] || '-';
-        valor = valor1 !== '-' && valor2 !== '-' ? `${valor1} ${etapa.units?.[0]}, ${valor2} ${etapa.units?.[1]}` : '-';
+        valor =
+          valor1 !== '-' && valor2 !== '-'
+            ? `${valor1} ${etapa.units?.[0]}, ${valor2} ${etapa.units?.[1]}`
+            : '-';
       }
 
       if (etapa.isMultiSelect && valor !== '-') {
@@ -171,7 +180,11 @@ export async function generateFormExcel(
               if (etapa.label === 'Aplicação de Uretano') {
                 if (tipo === 'Uretano para rodapé') {
                   resultados.push(`${tipo}: ${valorNum} ml`);
-                } else if (tipo === 'Uretano para muretas' || tipo === 'Uretano para Paredes' || tipo === 'Uretano para Paredes, base e pilares') {
+                } else if (
+                  tipo === 'Uretano para muretas' ||
+                  tipo === 'Uretano para Paredes' ||
+                  tipo === 'Uretano para Paredes, base e pilares'
+                ) {
                   // Para campos duplos dentro do multiselect (usa ~ como separador)
                   const [val1, val2] = valorNum.split('~');
                   if (val1 && val2) {
@@ -201,7 +214,7 @@ export async function generateFormExcel(
         numeroItem,
         etapa.label,
         valor,
-        valor !== '-' && etapa.unit && !etapa.isMultiSelect ? etapa.unit : ''
+        valor !== '-' && etapa.unit && !etapa.isMultiSelect ? etapa.unit : '',
       ]);
     });
 
@@ -247,17 +260,10 @@ export async function generateFormExcel(
 
   // Aba de Validação
   if (formData.prepostoConfirmado) {
-    const wsDataValidacao: any[][] = [
-      ['VALIDAÇÃO DO PREPOSTO'],
-      [''],
-      ['Status:', 'Validado ✓'],
-    ];
+    const wsDataValidacao: any[][] = [['VALIDAÇÃO DO PREPOSTO'], [''], ['Status:', 'Validado ✓']];
 
     if (formData.nomeCompletoPreposto) {
-      wsDataValidacao.push([
-        'Nome:',
-        formData.nomeCompletoPreposto
-      ]);
+      wsDataValidacao.push(['Nome:', formData.nomeCompletoPreposto]);
     }
 
     if (formData.prepostoReviewedAt) {
@@ -268,8 +274,8 @@ export async function generateFormExcel(
           month: '2-digit',
           year: 'numeric',
           hour: '2-digit',
-          minute: '2-digit'
-        })
+          minute: '2-digit',
+        }),
       ]);
     }
 

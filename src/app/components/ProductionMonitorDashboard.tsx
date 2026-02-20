@@ -9,7 +9,7 @@ import {
   exportErrorsAsCSV,
   ErrorCategory,
   type ProductionError,
-  type HealthCheckResult
+  type HealthCheckResult,
 } from '../utils/productionMonitor';
 
 interface ProductionMonitorDashboardProps {
@@ -26,7 +26,7 @@ export function ProductionMonitorDashboard({ isOpen, onClose }: ProductionMonito
   const loadData = async () => {
     const storedErrors = getStoredErrors();
     setErrors(storedErrors);
-    
+
     const healthStatus = await checkBackendHealth();
     setHealth(healthStatus);
   };
@@ -39,7 +39,7 @@ export function ProductionMonitorDashboard({ isOpen, onClose }: ProductionMonito
 
   useEffect(() => {
     if (!autoRefresh) return;
-    
+
     const interval = setInterval(loadData, 5000); // Atualizar a cada 5s
     return () => clearInterval(interval);
   }, [autoRefresh]);
@@ -83,12 +83,14 @@ export function ProductionMonitorDashboard({ isOpen, onClose }: ProductionMonito
 
   const categoryColors: Record<ErrorCategory, string> = {
     [ErrorCategory.EDGE_FUNCTION]: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-    [ErrorCategory.AUTH]: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+    [ErrorCategory.AUTH]:
+      'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
     [ErrorCategory.RLS]: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
     [ErrorCategory.QUERY]: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-    [ErrorCategory.SECRET]: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+    [ErrorCategory.SECRET]:
+      'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
     [ErrorCategory.NETWORK]: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400',
-    [ErrorCategory.UNKNOWN]: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400'
+    [ErrorCategory.UNKNOWN]: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400',
   };
 
   const categoryEmojis: Record<ErrorCategory, string> = {
@@ -98,7 +100,7 @@ export function ProductionMonitorDashboard({ isOpen, onClose }: ProductionMonito
     [ErrorCategory.QUERY]: '📊',
     [ErrorCategory.SECRET]: '🔑',
     [ErrorCategory.NETWORK]: '🌐',
-    [ErrorCategory.UNKNOWN]: '❓'
+    [ErrorCategory.UNKNOWN]: '❓',
   };
 
   return (
@@ -152,13 +154,15 @@ export function ProductionMonitorDashboard({ isOpen, onClose }: ProductionMonito
 
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               {/* Overall Status */}
-              <div className={`p-4 rounded-lg ${
-                health.overall === 'healthy'
-                  ? 'bg-green-100 dark:bg-green-900/30'
-                  : health.overall === 'degraded'
-                  ? 'bg-yellow-100 dark:bg-yellow-900/30'
-                  : 'bg-red-100 dark:bg-red-900/30'
-              }`}>
+              <div
+                className={`p-4 rounded-lg ${
+                  health.overall === 'healthy'
+                    ? 'bg-green-100 dark:bg-green-900/30'
+                    : health.overall === 'degraded'
+                      ? 'bg-yellow-100 dark:bg-yellow-900/30'
+                      : 'bg-red-100 dark:bg-red-900/30'
+                }`}
+              >
                 <div className="flex items-center gap-2 mb-2">
                   {health.overall === 'healthy' ? (
                     <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
@@ -167,14 +171,20 @@ export function ProductionMonitorDashboard({ isOpen, onClose }: ProductionMonito
                   ) : (
                     <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
                   )}
-                  <span className={`text-sm font-medium ${
-                    health.overall === 'healthy'
-                      ? 'text-green-700 dark:text-green-400'
+                  <span
+                    className={`text-sm font-medium ${
+                      health.overall === 'healthy'
+                        ? 'text-green-700 dark:text-green-400'
+                        : health.overall === 'degraded'
+                          ? 'text-yellow-700 dark:text-yellow-400'
+                          : 'text-red-700 dark:text-red-400'
+                    }`}
+                  >
+                    {health.overall === 'healthy'
+                      ? 'Saudável'
                       : health.overall === 'degraded'
-                      ? 'text-yellow-700 dark:text-yellow-400'
-                      : 'text-red-700 dark:text-red-400'
-                  }`}>
-                    {health.overall === 'healthy' ? 'Saudável' : health.overall === 'degraded' ? 'Degradado' : 'Fora do ar'}
+                        ? 'Degradado'
+                        : 'Fora do ar'}
                   </span>
                 </div>
                 <p className="text-xs text-gray-600 dark:text-gray-400">Status Geral</p>
@@ -185,7 +195,7 @@ export function ProductionMonitorDashboard({ isOpen, onClose }: ProductionMonito
                 edgeFunctions: 'Edge Functions',
                 auth: 'Auth',
                 database: 'Database',
-                storage: 'Storage'
+                storage: 'Storage',
               }).map(([key, label]) => {
                 const isHealthy = health.checks[key as keyof typeof health.checks];
                 return (
@@ -203,11 +213,13 @@ export function ProductionMonitorDashboard({ isOpen, onClose }: ProductionMonito
                       ) : (
                         <XCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
                       )}
-                      <span className={`text-xs font-medium ${
-                        isHealthy
-                          ? 'text-green-700 dark:text-green-400'
-                          : 'text-red-700 dark:text-red-400'
-                      }`}>
+                      <span
+                        className={`text-xs font-medium ${
+                          isHealthy
+                            ? 'text-green-700 dark:text-green-400'
+                            : 'text-red-700 dark:text-red-400'
+                        }`}
+                      >
                         {isHealthy ? 'OK' : 'Erro'}
                       </span>
                     </div>
@@ -270,7 +282,9 @@ export function ProductionMonitorDashboard({ isOpen, onClose }: ProductionMonito
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${categoryColors[error.category]}`}>
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-medium ${categoryColors[error.category]}`}
+                        >
                           {categoryEmojis[error.category]} {error.category}
                         </span>
                         <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -282,15 +296,9 @@ export function ProductionMonitorDashboard({ isOpen, onClose }: ProductionMonito
                       </p>
                       {error.context && (
                         <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-                          {error.context.url && (
-                            <p>URL: {error.context.url}</p>
-                          )}
-                          {error.context.statusCode && (
-                            <p>Status: {error.context.statusCode}</p>
-                          )}
-                          {error.context.method && (
-                            <p>Método: {error.context.method}</p>
-                          )}
+                          {error.context.url && <p>URL: {error.context.url}</p>}
+                          {error.context.statusCode && <p>Status: {error.context.statusCode}</p>}
+                          {error.context.method && <p>Método: {error.context.method}</p>}
                         </div>
                       )}
                     </div>
@@ -321,7 +329,9 @@ export function ProductionMonitorDashboard({ isOpen, onClose }: ProductionMonito
                   <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Categoria
                   </p>
-                  <span className={`inline-block px-3 py-1 rounded text-sm font-medium ${categoryColors[selectedError.category]}`}>
+                  <span
+                    className={`inline-block px-3 py-1 rounded text-sm font-medium ${categoryColors[selectedError.category]}`}
+                  >
                     {categoryEmojis[selectedError.category]} {selectedError.category}
                   </span>
                 </div>

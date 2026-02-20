@@ -4,7 +4,7 @@ import type { User } from '../types';
 
 /**
  * 🚀 PERFORMANCE: Hook com cache em memória para usuários
- * 
+ *
  * Evita múltiplas queries ao IndexedDB mantendo os dados em memória
  * TTL (Time To Live) de 5 minutos - após isso, recarrega automaticamente
  */
@@ -26,7 +26,7 @@ export const useUsersCache = () => {
   useEffect(() => {
     isMounted.current = true;
     loadUsers();
-    
+
     return () => {
       isMounted.current = false;
     };
@@ -35,7 +35,7 @@ export const useUsersCache = () => {
   const loadUsers = async () => {
     // Verificar se o cache está válido
     const now = Date.now();
-    if (globalCache && (now - globalCache.timestamp) < CACHE_TTL) {
+    if (globalCache && now - globalCache.timestamp < CACHE_TTL) {
       // Cache válido - usar dados em memória
       setUsers(globalCache.data);
       setLoading(false);
@@ -45,15 +45,15 @@ export const useUsersCache = () => {
     // Cache inválido ou não existe - buscar do IndexedDB
     try {
       const usersData = await getUsers();
-      
+
       if (isMounted.current) {
         setUsers(usersData);
         setLoading(false);
-        
+
         // Atualizar cache global
         globalCache = {
           data: usersData,
-          timestamp: now
+          timestamp: now,
         };
       }
     } catch (error) {
@@ -74,7 +74,7 @@ export const useUsersCache = () => {
 
   // Função helper para buscar usuário por ID (usa cache em memória)
   const getUserById = (id: string): User | undefined => {
-    return users.find(u => u.id === id);
+    return users.find((u) => u.id === id);
   };
 
   // Função helper para buscar nome do usuário
@@ -88,7 +88,7 @@ export const useUsersCache = () => {
     loading,
     refreshUsers,
     getUserById,
-    getUserName
+    getUserName,
   };
 };
 

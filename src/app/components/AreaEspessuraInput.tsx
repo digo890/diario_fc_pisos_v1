@@ -9,7 +9,12 @@ interface AreaEspessuraInputProps {
   disabled?: boolean;
 }
 
-export function AreaEspessuraInput({ label, value, onChange, disabled = false }: AreaEspessuraInputProps) {
+export function AreaEspessuraInput({
+  label,
+  value,
+  onChange,
+  disabled = false,
+}: AreaEspessuraInputProps) {
   const handleAreaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     onChange({

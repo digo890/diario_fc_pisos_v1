@@ -28,10 +28,7 @@ const DadosObraSection: React.FC<Props> = ({ data, onChange, isReadOnly }) => {
     if (!isOpen) return null;
 
     return (
-      <div
-        className="fixed inset-0 bg-black/50 z-50 flex items-end"
-        onClick={onClose}
-      >
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-end" onClick={onClose}>
         <div
           className="bg-white dark:bg-gray-900 rounded-t-xl w-full max-h-[80vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}

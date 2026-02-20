@@ -34,7 +34,19 @@ export function NumberInput({
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // Permitir teclas de controle
-    const controlKeys = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Tab', 'Enter', 'Escape', 'Home', 'End'];
+    const controlKeys = [
+      'Backspace',
+      'Delete',
+      'ArrowLeft',
+      'ArrowRight',
+      'ArrowUp',
+      'ArrowDown',
+      'Tab',
+      'Enter',
+      'Escape',
+      'Home',
+      'End',
+    ];
     if (controlKeys.includes(e.key) || e.ctrlKey || e.metaKey) {
       return;
     }
@@ -50,12 +62,10 @@ export function NumberInput({
     const selectionStart = input.selectionStart || 0;
     const selectionEnd = input.selectionEnd || 0;
     const currentValue = displayValue;
-    
+
     // Construir o novo valor que seria criado após a digitação
-    const newValue = 
-      currentValue.substring(0, selectionStart) + 
-      e.key + 
-      currentValue.substring(selectionEnd);
+    const newValue =
+      currentValue.substring(0, selectionStart) + e.key + currentValue.substring(selectionEnd);
 
     // Se o novo valor contém apenas ponto/vírgula, permitir (digitação parcial)
     if (/^[.,]$/.test(newValue) || /^\d+[.,]$/.test(newValue)) {
@@ -78,7 +88,7 @@ export function NumberInput({
       e.preventDefault();
       return;
     }
-    
+
     if (max !== undefined && num > max) {
       e.preventDefault();
       return;
@@ -87,7 +97,7 @@ export function NumberInput({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value;
-    
+
     // Se estiver vazio, permitir
     if (inputValue === '') {
       setDisplayValue('');
@@ -102,7 +112,7 @@ export function NumberInput({
 
     // Converter para número para validar
     const num = parseFloat(inputValue.replace(',', '.'));
-    
+
     if (isNaN(num)) {
       // Permitir digitação parcial como "1." ou "1,"
       if (/^\d+[.,]$/.test(inputValue)) {
@@ -115,7 +125,7 @@ export function NumberInput({
     if (min !== undefined && num < min) {
       return;
     }
-    
+
     if (max !== undefined && num > max) {
       return;
     }
@@ -127,16 +137,16 @@ export function NumberInput({
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
-    
+
     const pastedText = e.clipboardData.getData('text');
-    
+
     // Permitir apenas números, ponto e vírgula
     if (!/^-?\d*[.,]?\d*$/.test(pastedText)) {
       return;
     }
 
     const num = parseFloat(pastedText.replace(',', '.'));
-    
+
     if (isNaN(num)) {
       return;
     }
@@ -145,7 +155,7 @@ export function NumberInput({
     if (min !== undefined && num < min) {
       return;
     }
-    
+
     if (max !== undefined && num > max) {
       return;
     }

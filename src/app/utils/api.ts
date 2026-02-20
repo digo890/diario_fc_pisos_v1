@@ -42,7 +42,10 @@ class TokenManager {
     this.isRefreshing = true;
 
     try {
-      const { data: { session }, error } = await supabase.auth.refreshSession();
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.refreshSession();
 
       if (error || !session?.access_token) {
         this.clearToken();
@@ -108,7 +111,7 @@ async function request<T>(
   // Construir headers dinamicamente
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(fetchOptions.headers as Record<string, string> || {}),
+    ...((fetchOptions.headers as Record<string, string>) || {}),
   };
 
   // ✅ CORREÇÃO: Apenas enviar Authorization se for requisição autenticada
@@ -132,27 +135,26 @@ async function request<T>(
 
     // Se 401 e ainda não tentou renovar, renovar token e tentar novamente
     if (response.status === 401 && requireAuth && retryCount === 0) {
-
-
       // 🚨 MONITOR: Reportar erro de autenticação
-      reportProductionError(
-        new Error('Token inválido ou expirado (401)'),
-        {
-          url,
-          method: fetchOptions.method || 'GET',
-          statusCode: 401
-        }
-      );
+      reportProductionError(new Error('Token inválido ou expirado (401)'), {
+        url,
+        method: fetchOptions.method || 'GET',
+        statusCode: 401,
+      });
 
       const newToken = await tokenManager.refreshToken();
 
       if (newToken) {
-
         // Tentar novamente com novo token (retryCount = 1 para evitar loop infinito)
         return request<T>(endpoint, options, retryCount + 1);
       } else {
         const err = new Error('Sessão expirada. Por favor, faça login novamente.');
-        reportProductionError(err, { url, method: fetchOptions.method || 'GET', statusCode: 401, context: 'token_renewal_failed' });
+        reportProductionError(err, {
+          url,
+          method: fetchOptions.method || 'GET',
+          statusCode: 401,
+          context: 'token_renewal_failed',
+        });
         window.location.href = '/';
         throw err;
       }
@@ -176,15 +178,12 @@ async function request<T>(
     if (!response.ok) {
       // 🚨 MONITOR: Reportar erro HTTP
       const errorMsg = data.error || `HTTP error! status: ${response.status}`;
-      reportProductionError(
-        new Error(errorMsg),
-        {
-          url,
-          method: fetchOptions.method || 'GET',
-          statusCode: response.status,
-          responseBody: JSON.stringify(data).substring(0, 500)
-        }
-      );
+      reportProductionError(new Error(errorMsg), {
+        url,
+        method: fetchOptions.method || 'GET',
+        statusCode: response.status,
+        responseBody: JSON.stringify(data).substring(0, 500),
+      });
       throw new Error(errorMsg);
     }
 
@@ -192,12 +191,11 @@ async function request<T>(
   } catch (error: any) {
     const err = error instanceof Error ? error : new Error(String(error));
 
-
     // 🚨 MONITOR: Reportar qualquer erro não tratado
     reportProductionError(err, {
       url,
       method: fetchOptions.method || 'GET',
-      endpoint
+      endpoint,
     });
 
     throw err;

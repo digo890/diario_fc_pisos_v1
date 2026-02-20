@@ -19,14 +19,14 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
     email: '',
     telefone: '',
     senha: '',
-    confirmarSenha: ''
+    confirmarSenha: '',
   });
 
   const [errors, setErrors] = useState({
     nome: false,
     tipo: false,
     email: false,
-    senhas: false
+    senhas: false,
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -76,7 +76,7 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
         nome: formData.nome,
         email: formData.email,
         senha: formData.senha || 'senha123', // Senha padrão se não fornecida
-        tipo: formData.tipo
+        tipo: formData.tipo,
       });
 
       if (response.success) {
@@ -87,7 +87,7 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
           tipo: formData.tipo as UserRole,
           email: formData.email,
           telefone: formData.telefone,
-          createdAt: Date.now()
+          createdAt: Date.now(),
         };
 
         await saveUser(novoUser);
@@ -142,9 +142,7 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
           >
             <ArrowLeft className="w-6 h-6" />
           </button>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-            Novo Usuário
-          </h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Novo Usuário</h1>
         </div>
       </header>
 
@@ -171,21 +169,27 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
 
           {/* Tipo de Perfil - Bottom Sheet Trigger */}
           <div>
-            <div className={`relative inline-flex w-full p-1 bg-[#DDE1D7] dark:bg-gray-800 rounded-lg ${errors.tipo ? 'ring-2 ring-red-500' : ''}`}>
+            <div
+              className={`relative inline-flex w-full p-1 bg-[#DDE1D7] dark:bg-gray-800 rounded-lg ${errors.tipo ? 'ring-2 ring-red-500' : ''}`}
+            >
               {/* Background slider */}
               <div
-                className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-gray-900 rounded-md shadow-md transition-transform duration-200 ease-out ${formData.tipo === 'Administrador' ? 'translate-x-[calc(100%+8px)]' : 'translate-x-0'
-                  }`}
+                className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-gray-900 rounded-md shadow-md transition-transform duration-200 ease-out ${
+                  formData.tipo === 'Administrador'
+                    ? 'translate-x-[calc(100%+8px)]'
+                    : 'translate-x-0'
+                }`}
               />
 
               {/* Encarregado Button */}
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, tipo: 'Encarregado' })}
-                className={`relative z-10 flex-1 px-4 py-2.5 text-sm font-medium rounded-md transition-colors ${formData.tipo === 'Encarregado'
+                className={`relative z-10 flex-1 px-4 py-2.5 text-sm font-medium rounded-md transition-colors ${
+                  formData.tipo === 'Encarregado'
                     ? 'text-[#FD5521]'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                  }`}
+                }`}
               >
                 Encarregado
               </button>
@@ -194,10 +198,11 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, tipo: 'Administrador' })}
-                className={`relative z-10 flex-1 px-4 py-2.5 text-sm font-medium rounded-md transition-colors ${formData.tipo === 'Administrador'
+                className={`relative z-10 flex-1 px-4 py-2.5 text-sm font-medium rounded-md transition-colors ${
+                  formData.tipo === 'Administrador'
                     ? 'text-[#FD5521]'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                  }`}
+                }`}
               >
                 Administrador
               </button>
@@ -257,7 +262,7 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
               type="button"
               className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#C6CCC2] dark:text-gray-600"
               onClick={() => setShowPassword(!showPassword)}
-              aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+              aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
@@ -282,11 +287,17 @@ const CreateUserPage: React.FC<Props> = ({ onBack, onSuccess }) => {
               type="button"
               className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#C6CCC2] dark:text-gray-600"
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              aria-label={showConfirmPassword ? "Ocultar confirmação de senha" : "Mostrar confirmação de senha"}
+              aria-label={
+                showConfirmPassword
+                  ? 'Ocultar confirmação de senha'
+                  : 'Mostrar confirmação de senha'
+              }
             >
               {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
-            {errors.senhas && <p className="text-red-500 text-xs mt-1 ml-1">As senhas não coincidem</p>}
+            {errors.senhas && (
+              <p className="text-red-500 text-xs mt-1 ml-1">As senhas não coincidem</p>
+            )}
           </div>
 
           {/* Submit Button */}

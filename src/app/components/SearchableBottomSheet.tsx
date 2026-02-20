@@ -24,7 +24,7 @@ const SearchableBottomSheet: React.FC<Props> = ({
   options,
   selectedId,
   onSelect,
-  searchPlaceholder = "Buscar..."
+  searchPlaceholder = 'Buscar...',
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -43,7 +43,7 @@ const SearchableBottomSheet: React.FC<Props> = ({
   if (!isOpen) return null;
 
   // Filtrar opções baseado no termo de busca
-  const filteredOptions = options.filter(option => {
+  const filteredOptions = options.filter((option) => {
     const searchLower = searchTerm.toLowerCase();
     return (
       option.label.toLowerCase().includes(searchLower) ||
@@ -65,9 +65,7 @@ const SearchableBottomSheet: React.FC<Props> = ({
         >
           {/* Header */}
           <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              {title}
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
             <button
               onClick={onClose}
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full text-gray-500 dark:text-gray-400 transition-colors"
@@ -126,17 +124,19 @@ const SearchableBottomSheet: React.FC<Props> = ({
                       onClose();
                     }}
                     className={`w-full px-4 py-4 flex items-center justify-between transition-colors rounded-xl mb-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FD5521]/40 ${
-                      selectedId === option.id 
-                        ? 'bg-[#FD5521]/10' 
+                      selectedId === option.id
+                        ? 'bg-[#FD5521]/10'
                         : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                     }`}
                   >
                     <div className="flex-1 text-left">
-                      <div className={`font-medium ${
-                        selectedId === option.id 
-                          ? 'text-[#FD5521]' 
-                          : 'text-gray-900 dark:text-white'
-                      }`}>
+                      <div
+                        className={`font-medium ${
+                          selectedId === option.id
+                            ? 'text-[#FD5521]'
+                            : 'text-gray-900 dark:text-white'
+                        }`}
+                      >
                         {option.label}
                       </div>
                       {option.sublabel && (
@@ -148,7 +148,11 @@ const SearchableBottomSheet: React.FC<Props> = ({
                     {selectedId === option.id && (
                       <div className="w-5 h-5 rounded-full bg-[#FD5521] flex items-center justify-center ml-3 flex-shrink-0">
                         <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          <path
+                            fillRule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clipRule="evenodd"
+                          />
                         </svg>
                       </div>
                     )}
@@ -162,7 +166,8 @@ const SearchableBottomSheet: React.FC<Props> = ({
           {searchTerm && filteredOptions.length > 0 && (
             <div className="px-6 py-3 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
               <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
-                {filteredOptions.length} {filteredOptions.length === 1 ? 'resultado encontrado' : 'resultados encontrados'}
+                {filteredOptions.length}{' '}
+                {filteredOptions.length === 1 ? 'resultado encontrado' : 'resultados encontrados'}
               </p>
             </div>
           )}

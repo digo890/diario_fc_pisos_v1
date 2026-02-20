@@ -1,7 +1,7 @@
 /**
  * 🚨 PRODUCTION MONITORING SYSTEM
  * Captura e reporta erros críticos que só acontecem em produção
- * 
+ *
  * PROBLEMAS DETECTADOS:
  * - Edge Functions failures (500, timeout, auth)
  * - JWT/Auth errors (invalid token, expired, missing)
@@ -24,7 +24,7 @@ export enum ErrorCategory {
   QUERY = 'QUERY',
   SECRET = 'SECRET',
   NETWORK = 'NETWORK',
-  UNKNOWN = 'UNKNOWN'
+  UNKNOWN = 'UNKNOWN',
 }
 
 export interface ProductionError {
@@ -57,13 +57,13 @@ function storeError(error: ProductionError): void {
   try {
     const stored = localStorage.getItem(ERROR_STORAGE_KEY);
     const errors: ProductionError[] = stored ? JSON.parse(stored) : [];
-    
+
     // Adicionar novo erro no início
     errors.unshift(error);
-    
+
     // Limitar ao máximo de erros
     const trimmed = errors.slice(0, MAX_ERRORS_STORED);
-    
+
     localStorage.setItem(ERROR_STORAGE_KEY, JSON.stringify(trimmed));
   } catch (e) {
     // Se localStorage falhar, apenas logar
@@ -104,7 +104,7 @@ export function clearStoredErrors(): void {
  */
 function categorizeError(error: any, context?: any): ErrorCategory {
   const errorMsg = (error?.message || String(error)).toLowerCase();
-  
+
   // 1. EDGE FUNCTION ERRORS
   if (
     errorMsg.includes('edge function') ||
@@ -117,7 +117,7 @@ function categorizeError(error: any, context?: any): ErrorCategory {
   ) {
     return ErrorCategory.EDGE_FUNCTION;
   }
-  
+
   // 2. AUTH ERRORS
   if (
     errorMsg.includes('jwt') ||
@@ -128,11 +128,11 @@ function categorizeError(error: any, context?: any): ErrorCategory {
     errorMsg.includes('session') ||
     errorMsg.includes('login') ||
     errorMsg.includes('access denied') ||
-    (context?.statusCode === 401)
+    context?.statusCode === 401
   ) {
     return ErrorCategory.AUTH;
   }
-  
+
   // 3. RLS ERRORS
   if (
     errorMsg.includes('rls') ||
@@ -140,11 +140,11 @@ function categorizeError(error: any, context?: any): ErrorCategory {
     errorMsg.includes('policy') ||
     errorMsg.includes('permission denied') ||
     errorMsg.includes('insufficient privileges') ||
-    (context?.statusCode === 403)
+    context?.statusCode === 403
   ) {
     return ErrorCategory.RLS;
   }
-  
+
   // 4. QUERY ERRORS
   if (
     errorMsg.includes('query') ||
@@ -159,21 +159,20 @@ function categorizeError(error: any, context?: any): ErrorCategory {
   ) {
     return ErrorCategory.QUERY;
   }
-  
+
   // 5. SECRET/ENV ERRORS
   if (
     errorMsg.includes('env') ||
     errorMsg.includes('environment variable') ||
-    errorMsg.includes('undefined') && (
-      errorMsg.includes('key') ||
-      errorMsg.includes('secret') ||
-      errorMsg.includes('api_key') ||
-      errorMsg.includes('supabase')
-    )
+    (errorMsg.includes('undefined') &&
+      (errorMsg.includes('key') ||
+        errorMsg.includes('secret') ||
+        errorMsg.includes('api_key') ||
+        errorMsg.includes('supabase')))
   ) {
     return ErrorCategory.SECRET;
   }
-  
+
   // 6. NETWORK ERRORS
   if (
     errorMsg.includes('network') ||
@@ -186,7 +185,7 @@ function categorizeError(error: any, context?: any): ErrorCategory {
   ) {
     return ErrorCategory.NETWORK;
   }
-  
+
   return ErrorCategory.UNKNOWN;
 }
 
@@ -209,18 +208,18 @@ export function reportProductionError(
   }
 ): void {
   const category = categorizeError(error, context);
-  
+
   const productionError: ProductionError = {
     category,
     timestamp: Date.now(),
     message: error?.message || String(error),
     stack: error?.stack,
-    context
+    context,
   };
-  
+
   // Armazenar para análise
   storeError(productionError);
-  
+
   // Log estruturado por categoria
   const emoji = {
     [ErrorCategory.EDGE_FUNCTION]: '🔥',
@@ -229,18 +228,15 @@ export function reportProductionError(
     [ErrorCategory.QUERY]: '📊',
     [ErrorCategory.SECRET]: '🔑',
     [ErrorCategory.NETWORK]: '🌐',
-    [ErrorCategory.UNKNOWN]: '❓'
+    [ErrorCategory.UNKNOWN]: '❓',
   }[category];
-  
-  safeError(
-    `${emoji} [${category}] ${productionError.message}`,
-    {
-      timestamp: new Date(productionError.timestamp).toISOString(),
-      context: productionError.context,
-      stack: productionError.stack?.split('\n').slice(0, 5).join('\n') // Primeiras 5 linhas
-    }
-  );
-  
+
+  safeError(`${emoji} [${category}] ${productionError.message}`, {
+    timestamp: new Date(productionError.timestamp).toISOString(),
+    context: productionError.context,
+    stack: productionError.stack?.split('\n').slice(0, 5).join('\n'), // Primeiras 5 linhas
+  });
+
   // Sugestões específicas por categoria
   provideSuggestion(category, productionError);
 }
@@ -250,28 +246,28 @@ export function reportProductionError(
  */
 function provideSuggestion(category: ErrorCategory, error: ProductionError): void {
   const suggestions: Record<ErrorCategory, string> = {
-    [ErrorCategory.EDGE_FUNCTION]: 
+    [ErrorCategory.EDGE_FUNCTION]:
       '💡 SUGESTÃO: Verifique logs da Edge Function em supabase.com/dashboard → Edge Functions → Logs',
-    
-    [ErrorCategory.AUTH]: 
+
+    [ErrorCategory.AUTH]:
       '💡 SUGESTÃO: Verifique JWT token, sessão expirada ou credenciais inválidas. Tente fazer logout/login.',
-    
-    [ErrorCategory.RLS]: 
+
+    [ErrorCategory.RLS]:
       '💡 SUGESTÃO: Verifique políticas RLS em supabase.com/dashboard → Authentication → Policies. Usuário pode não ter permissão.',
-    
-    [ErrorCategory.QUERY]: 
+
+    [ErrorCategory.QUERY]:
       '💡 SUGESTÃO: Verifique schema do banco, tipos de dados e constraints. Query pode estar desatualizada.',
-    
-    [ErrorCategory.SECRET]: 
+
+    [ErrorCategory.SECRET]:
       '💡 SUGESTÃO: Verifique se variáveis de ambiente estão configuradas em supabase.com/dashboard → Edge Functions → Secrets',
-    
-    [ErrorCategory.NETWORK]: 
+
+    [ErrorCategory.NETWORK]:
       '💡 SUGESTÃO: Verifique conexão, CORS, DNS ou se backend está acessível. Tente recarregar a página.',
-    
-    [ErrorCategory.UNKNOWN]: 
-      '💡 SUGESTÃO: Erro desconhecido. Verifique stack trace completo para mais detalhes.'
+
+    [ErrorCategory.UNKNOWN]:
+      '💡 SUGESTÃO: Erro desconhecido. Verifique stack trace completo para mais detalhes.',
   };
-  
+
   safeWarn(suggestions[category]);
 }
 
@@ -282,33 +278,27 @@ function provideSuggestion(category: ErrorCategory, error: ProductionError): voi
 /**
  * Wrapper para fetch que captura erros automaticamente
  */
-export async function monitoredFetch(
-  url: string,
-  options?: RequestInit
-): Promise<Response> {
+export async function monitoredFetch(url: string, options?: RequestInit): Promise<Response> {
   try {
     const response = await fetch(url, options);
-    
+
     // Capturar erros HTTP
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'Unable to read response body');
-      
-      reportProductionError(
-        new Error(`HTTP ${response.status}: ${response.statusText}`),
-        {
-          url,
-          method: options?.method || 'GET',
-          statusCode: response.status,
-          responseBody: errorBody.substring(0, 500) // Primeiros 500 chars
-        }
-      );
+
+      reportProductionError(new Error(`HTTP ${response.status}: ${response.statusText}`), {
+        url,
+        method: options?.method || 'GET',
+        statusCode: response.status,
+        responseBody: errorBody.substring(0, 500), // Primeiros 500 chars
+      });
     }
-    
+
     return response;
   } catch (error) {
     reportProductionError(error, {
       url,
-      method: options?.method || 'GET'
+      method: options?.method || 'GET',
     });
     throw error;
   }
@@ -327,7 +317,7 @@ export async function monitoredSupabaseQuery<T>(
   } catch (error) {
     reportProductionError(error, {
       queryName,
-      operation: 'supabase_query'
+      operation: 'supabase_query',
     });
     throw error;
   }
@@ -354,20 +344,20 @@ export interface HealthCheckResult {
  */
 export async function checkBackendHealth(): Promise<HealthCheckResult> {
   const errors = getStoredErrors();
-  const recentErrors = errors.filter(e => Date.now() - e.timestamp < 5 * 60 * 1000); // Últimos 5min
-  
+  const recentErrors = errors.filter((e) => Date.now() - e.timestamp < 5 * 60 * 1000); // Últimos 5min
+
   const result: HealthCheckResult = {
     overall: 'healthy',
     checks: {
       edgeFunctions: true,
       auth: true,
       database: true,
-      storage: true
+      storage: true,
     },
     errors: recentErrors,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   };
-  
+
   // Analisar erros recentes
   for (const error of recentErrors) {
     switch (error.category) {
@@ -383,15 +373,15 @@ export async function checkBackendHealth(): Promise<HealthCheckResult> {
         break;
     }
   }
-  
+
   // Determinar status geral
-  const failedChecks = Object.values(result.checks).filter(v => !v).length;
+  const failedChecks = Object.values(result.checks).filter((v) => !v).length;
   if (failedChecks >= 2) {
     result.overall = 'down';
   } else if (failedChecks === 1) {
     result.overall = 'degraded';
   }
-  
+
   return result;
 }
 
@@ -404,21 +394,24 @@ export async function checkBackendHealth(): Promise<HealthCheckResult> {
  */
 export function generateDiagnosticReport(): string {
   const errors = getStoredErrors();
-  
+
   if (errors.length === 0) {
     return '✅ Nenhum erro registrado! Sistema funcionando normalmente.';
   }
-  
+
   // Agrupar por categoria
-  const byCategory = errors.reduce((acc, error) => {
-    acc[error.category] = (acc[error.category] || 0) + 1;
-    return acc;
-  }, {} as Record<ErrorCategory, number>);
-  
+  const byCategory = errors.reduce(
+    (acc, error) => {
+      acc[error.category] = (acc[error.category] || 0) + 1;
+      return acc;
+    },
+    {} as Record<ErrorCategory, number>
+  );
+
   let report = '🚨 RELATÓRIO DE ERROS DE PRODUÇÃO\n\n';
   report += `Total de erros: ${errors.length}\n`;
   report += `Período: ${new Date(errors[errors.length - 1].timestamp).toLocaleString()} - ${new Date(errors[0].timestamp).toLocaleString()}\n\n`;
-  
+
   report += '📊 ERROS POR CATEGORIA:\n';
   Object.entries(byCategory)
     .sort(([, a], [, b]) => b - a)
@@ -426,7 +419,7 @@ export function generateDiagnosticReport(): string {
       const percentage = ((count / errors.length) * 100).toFixed(1);
       report += `  ${category}: ${count} (${percentage}%)\n`;
     });
-  
+
   report += '\n🔥 ERROS MAIS RECENTES:\n';
   errors.slice(0, 5).forEach((error, i) => {
     report += `\n${i + 1}. [${error.category}] ${new Date(error.timestamp).toLocaleString()}\n`;
@@ -435,7 +428,7 @@ export function generateDiagnosticReport(): string {
       report += `   Contexto: ${JSON.stringify(error.context, null, 2)}\n`;
     }
   });
-  
+
   return report;
 }
 
@@ -456,21 +449,23 @@ export function exportErrorsAsJSON(): string {
  */
 export function exportErrorsAsCSV(): string {
   const errors = getStoredErrors();
-  
+
   if (errors.length === 0) {
     return 'timestamp,category,message,statusCode,url\n';
   }
-  
+
   const header = 'timestamp,category,message,statusCode,url\n';
-  const rows = errors.map(error => {
-    const timestamp = new Date(error.timestamp).toISOString();
-    const category = error.category;
-    const message = `"${error.message.replace(/"/g, '""')}"`;
-    const statusCode = error.context?.statusCode || '';
-    const url = error.context?.url || '';
-    
-    return `${timestamp},${category},${message},${statusCode},${url}`;
-  }).join('\n');
-  
+  const rows = errors
+    .map((error) => {
+      const timestamp = new Date(error.timestamp).toISOString();
+      const category = error.category;
+      const message = `"${error.message.replace(/"/g, '""')}"`;
+      const statusCode = error.context?.statusCode || '';
+      const url = error.context?.url || '';
+
+      return `${timestamp},${category},${message},${statusCode},${url}`;
+    })
+    .join('\n');
+
   return header + rows;
 }

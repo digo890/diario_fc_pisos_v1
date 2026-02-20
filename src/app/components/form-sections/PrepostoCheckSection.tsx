@@ -20,21 +20,26 @@ const PrepostoCheckSection: React.FC<Props> = ({ data, onChange, onSubmit, isSub
         </h2>
 
         {/* Checkbox de confirmação */}
-        <label className="flex items-start gap-3 cursor-pointer group p-4 rounded-lg 
+        <label
+          className="flex items-start gap-3 cursor-pointer group p-4 rounded-lg 
                          bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 
-                         transition-colors">
+                         transition-colors"
+        >
           <Switch
             checked={data.prepostoConfirmado || false}
             onCheckedChange={(checked) => onChange({ prepostoConfirmado: checked })}
             className="mt-1"
           />
           <div className="flex-1">
-            <span className="font-medium text-gray-900 dark:text-white group-hover:text-[#FD5521] 
-                         dark:group-hover:text-[#FD5521] transition-colors">
+            <span
+              className="font-medium text-gray-900 dark:text-white group-hover:text-[#FD5521] 
+                         dark:group-hover:text-[#FD5521] transition-colors"
+            >
               Li e conferi cuidadosamente todas as informações
             </span>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 leading-relaxed">
-              Ao marcar esta opção e enviar o formulário, você está confirmando que revisou todos os dados preenchidos pelo encarregado e que as informações estão corretas e completas.
+              Ao marcar esta opção e enviar o formulário, você está confirmando que revisou todos os
+              dados preenchidos pelo encarregado e que as informações estão corretas e completas.
             </p>
           </div>
         </label>

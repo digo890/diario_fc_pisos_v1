@@ -6,7 +6,11 @@ import { useTheme } from '../contexts/ThemeContext';
 import { getObras, getUsers, getAllForms, getFormByObraId } from '../utils/database';
 import { safeLog, safeError, safeWarn } from '../utils/logSanitizer';
 import { useToast } from './Toast';
-import { getStatusDisplay, getStatusDisplayWithFormulario, getObraStatusReal } from '../utils/diarioHelpers';
+import {
+  getStatusDisplay,
+  getStatusDisplayWithFormulario,
+  getObraStatusReal,
+} from '../utils/diarioHelpers';
 import type { Obra, User, FormData } from '../types';
 import FcLogo from '../../imports/FcLogo';
 import LoadingSpinner from './LoadingSpinner';
@@ -22,13 +26,16 @@ const EncarregadoDashboard: React.FC = () => {
   const { showToast, ToastComponent } = useToast();
 
   // 🔒 CORREÇÃO #7: Hook de logout seguro v1.1.0
-  const { handleLogout, forceLogout, cancelLogout, showLogoutConfirm, pendingCount } = useSafeLogout();
+  const { handleLogout, forceLogout, cancelLogout, showLogoutConfirm, pendingCount } =
+    useSafeLogout();
 
   const [obras, setObras] = useState<Obra[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [formularios, setFormularios] = useState<FormData[]>([]);
   const [selectedObra, setSelectedObra] = useState<Obra | null>(null);
-  const [filtroStatus, setFiltroStatus] = useState<'todas' | 'novo' | 'em_andamento' | 'enviado_preposto' | 'concluidas'>('todas');
+  const [filtroStatus, setFiltroStatus] = useState<
+    'todas' | 'novo' | 'em_andamento' | 'enviado_preposto' | 'concluidas'
+  >('todas');
 
   useEffect(() => {
     loadData();
@@ -47,7 +54,10 @@ const EncarregadoDashboard: React.FC = () => {
       const form = await getFormByObraId(obra.id);
 
       if (!form) {
-        showToast('⚠️ Formulário não encontrado. Recarregue a página (F5) ou contate o administrador.', 'warning');
+        showToast(
+          '⚠️ Formulário não encontrado. Recarregue a página (F5) ou contate o administrador.',
+          'warning'
+        );
         return;
       }
     }
@@ -62,7 +72,7 @@ const EncarregadoDashboard: React.FC = () => {
     const allFormsData = await getAllForms();
 
     // Filtrar apenas obras atribuídas a este encarregado
-    const minhasObras = obrasData.filter(o => o.encarregadoId === currentUser?.id);
+    const minhasObras = obrasData.filter((o) => o.encarregadoId === currentUser?.id);
 
     // ✅ FASE 2: Removido loop de atualização automática de status
     // Status agora é gerenciado exclusivamente pelo backend
@@ -72,45 +82,48 @@ const EncarregadoDashboard: React.FC = () => {
   };
 
   const getUserName = (id: string) => {
-    const user = users.find(u => u.id === id);
+    const user = users.find((u) => u.id === id);
     return user?.nome || 'N/A';
   };
 
   // Filtrar obras com base no status selecionado
-  const obrasFiltradas = obras.filter(obra => {
-    if (filtroStatus === 'todas') return true;
+  const obrasFiltradas = obras
+    .filter((obra) => {
+      if (filtroStatus === 'todas') return true;
 
-    // 🎯 REGRA DE DOMÍNIO: Calcular status real baseado no formulário
-    const formulario = formularios.find(f => f.obra_id === obra.id);
-    const statusReal = getObraStatusReal(obra, formulario);
+      // 🎯 REGRA DE DOMÍNIO: Calcular status real baseado no formulário
+      const formulario = formularios.find((f) => f.obra_id === obra.id);
+      const statusReal = getObraStatusReal(obra, formulario);
 
-    if (filtroStatus === 'novo') return statusReal === 'novo';
-    if (filtroStatus === 'em_andamento') return statusReal === 'em_preenchimento' || statusReal === 'reprovado_preposto';
-    if (filtroStatus === 'enviado_preposto') return statusReal === 'enviado_preposto';
-    if (filtroStatus === 'concluidas') return statusReal === 'concluido';
-    return true;
-  }).sort((a, b) => b.createdAt - a.createdAt); // Ordenar por data de criação, mais recentes primeiro
+      if (filtroStatus === 'novo') return statusReal === 'novo';
+      if (filtroStatus === 'em_andamento')
+        return statusReal === 'em_preenchimento' || statusReal === 'reprovado_preposto';
+      if (filtroStatus === 'enviado_preposto') return statusReal === 'enviado_preposto';
+      if (filtroStatus === 'concluidas') return statusReal === 'concluido';
+      return true;
+    })
+    .sort((a, b) => b.createdAt - a.createdAt); // Ordenar por data de criação, mais recentes primeiro
 
   // Contar obras por status
   const contadores = {
     todas: obras.length,
-    novo: obras.filter(o => {
-      const formulario = formularios.find(f => f.obra_id === o.id);
+    novo: obras.filter((o) => {
+      const formulario = formularios.find((f) => f.obra_id === o.id);
       return getObraStatusReal(o, formulario) === 'novo';
     }).length,
-    em_andamento: obras.filter(o => {
-      const formulario = formularios.find(f => f.obra_id === o.id);
+    em_andamento: obras.filter((o) => {
+      const formulario = formularios.find((f) => f.obra_id === o.id);
       const statusReal = getObraStatusReal(o, formulario);
       return statusReal === 'em_preenchimento' || statusReal === 'reprovado_preposto';
     }).length,
-    enviado_preposto: obras.filter(o => {
-      const formulario = formularios.find(f => f.obra_id === o.id);
+    enviado_preposto: obras.filter((o) => {
+      const formulario = formularios.find((f) => f.obra_id === o.id);
       return getObraStatusReal(o, formulario) === 'enviado_preposto';
     }).length,
-    concluidas: obras.filter(o => {
-      const formulario = formularios.find(f => f.obra_id === o.id);
+    concluidas: obras.filter((o) => {
+      const formulario = formularios.find((f) => f.obra_id === o.id);
       return getObraStatusReal(o, formulario) === 'concluido';
-    }).length
+    }).length,
   };
 
   return (
@@ -130,7 +143,9 @@ const EncarregadoDashboard: React.FC = () => {
             <Suspense fallback={<LoadingSpinner />}>
               <FormularioPage
                 obra={selectedObra}
-                isReadOnly={selectedObra.status !== 'novo' && selectedObra.status !== 'em_preenchimento'}
+                isReadOnly={
+                  selectedObra.status !== 'novo' && selectedObra.status !== 'em_preenchimento'
+                }
                 onBack={() => {
                   setSelectedObra(null);
                   loadData();
@@ -156,9 +171,7 @@ const EncarregadoDashboard: React.FC = () => {
                       <FcLogo />
                     </div>
                     <div>
-                      <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                        Obras
-                      </h1>
+                      <h1 className="text-xl font-bold text-gray-900 dark:text-white">Obras</h1>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -168,7 +181,11 @@ const EncarregadoDashboard: React.FC = () => {
                                text-gray-600 dark:text-gray-400"
                       aria-label="Alternar tema claro/escuro"
                     >
-                      {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+                      {theme === 'light' ? (
+                        <Moon className="w-5 h-5" />
+                      ) : (
+                        <Sun className="w-5 h-5" />
+                      )}
                     </button>
                     <button
                       onClick={handleLogout}
@@ -189,46 +206,51 @@ const EncarregadoDashboard: React.FC = () => {
                 <div className="flex gap-6 overflow-x-auto scrollbar-hide">
                   <button
                     onClick={() => setFiltroStatus('todas')}
-                    className={`py-4 px-2 border-b-2 font-medium transition-colors whitespace-nowrap ${filtroStatus === 'todas'
+                    className={`py-4 px-2 border-b-2 font-medium transition-colors whitespace-nowrap ${
+                      filtroStatus === 'todas'
                         ? 'border-[#FD5521] text-[#FD5521]'
                         : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                      }`}
+                    }`}
                   >
                     Todas ({contadores.todas})
                   </button>
                   <button
                     onClick={() => setFiltroStatus('novo')}
-                    className={`py-4 px-2 border-b-2 font-medium transition-colors whitespace-nowrap ${filtroStatus === 'novo'
+                    className={`py-4 px-2 border-b-2 font-medium transition-colors whitespace-nowrap ${
+                      filtroStatus === 'novo'
                         ? 'border-[#FD5521] text-[#FD5521]'
                         : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                      }`}
+                    }`}
                   >
                     Nova ({contadores.novo})
                   </button>
                   <button
                     onClick={() => setFiltroStatus('em_andamento')}
-                    className={`py-4 px-2 border-b-2 font-medium transition-colors whitespace-nowrap ${filtroStatus === 'em_andamento'
+                    className={`py-4 px-2 border-b-2 font-medium transition-colors whitespace-nowrap ${
+                      filtroStatus === 'em_andamento'
                         ? 'border-[#FD5521] text-[#FD5521]'
                         : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                      }`}
+                    }`}
                   >
                     Em andamento ({contadores.em_andamento})
                   </button>
                   <button
                     onClick={() => setFiltroStatus('enviado_preposto')}
-                    className={`py-4 px-2 border-b-2 font-medium transition-colors whitespace-nowrap ${filtroStatus === 'enviado_preposto'
+                    className={`py-4 px-2 border-b-2 font-medium transition-colors whitespace-nowrap ${
+                      filtroStatus === 'enviado_preposto'
                         ? 'border-[#FD5521] text-[#FD5521]'
                         : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                      }`}
+                    }`}
                   >
                     Aguardando conferência ({contadores.enviado_preposto})
                   </button>
                   <button
                     onClick={() => setFiltroStatus('concluidas')}
-                    className={`py-4 px-2 border-b-2 font-medium transition-colors whitespace-nowrap ${filtroStatus === 'concluidas'
+                    className={`py-4 px-2 border-b-2 font-medium transition-colors whitespace-nowrap ${
+                      filtroStatus === 'concluidas'
                         ? 'border-[#FD5521] text-[#FD5521]'
                         : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                      }`}
+                    }`}
                   >
                     Concluídas ({contadores.concluidas})
                   </button>
@@ -247,16 +269,20 @@ const EncarregadoDashboard: React.FC = () => {
               >
                 {obrasFiltradas.map((obra, index) => {
                   // 🎯 REGRA DE DOMÍNIO: Aplicar status real baseado no formulário
-                  const formulario = formularios.find(f => f.obra_id === obra.id);
+                  const formulario = formularios.find((f) => f.obra_id === obra.id);
                   const status = getStatusDisplayWithFormulario(obra, formulario);
                   const statusReal = getObraStatusReal(obra, formulario);
 
                   // Determinar cor da borda baseado no status real
                   let borderColor = 'border-l-gray-300 dark:border-l-gray-700';
-                  if (statusReal === 'novo') borderColor = 'border-l-yellow-500 dark:border-l-yellow-600';
-                  if (statusReal === 'em_preenchimento' || statusReal === 'reprovado_preposto') borderColor = 'border-l-blue-500 dark:border-l-blue-600';
-                  if (statusReal === 'enviado_preposto') borderColor = 'border-l-purple-500 dark:border-l-purple-600';
-                  if (statusReal === 'concluido') borderColor = 'border-l-green-500 dark:border-l-green-600';
+                  if (statusReal === 'novo')
+                    borderColor = 'border-l-yellow-500 dark:border-l-yellow-600';
+                  if (statusReal === 'em_preenchimento' || statusReal === 'reprovado_preposto')
+                    borderColor = 'border-l-blue-500 dark:border-l-blue-600';
+                  if (statusReal === 'enviado_preposto')
+                    borderColor = 'border-l-purple-500 dark:border-l-purple-600';
+                  if (statusReal === 'concluido')
+                    borderColor = 'border-l-green-500 dark:border-l-green-600';
 
                   return (
                     <motion.div
@@ -277,7 +303,9 @@ const EncarregadoDashboard: React.FC = () => {
                             {obra.cidade}
                           </p>
                         </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${status.color}`}>
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${status.color}`}
+                        >
                           {status.label}
                         </span>
                       </div>
@@ -286,7 +314,9 @@ const EncarregadoDashboard: React.FC = () => {
                       <div className="grid grid-cols-2 gap-2 text-sm mb-3">
                         <div className="space-y-1">
                           <div className="text-gray-500 dark:text-gray-500 text-xs">Data</div>
-                          <div className="text-gray-900 dark:text-gray-100 font-medium">{obra.data}</div>
+                          <div className="text-gray-900 dark:text-gray-100 font-medium">
+                            {obra.data}
+                          </div>
                         </div>
                         <div className="space-y-1">
                           <div className="text-gray-500 dark:text-gray-500 text-xs">Preposto</div>

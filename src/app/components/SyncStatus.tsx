@@ -10,7 +10,8 @@ import { useSessionCheck } from '../hooks/useSessionCheck';
 import { useToast } from './Toast';
 
 export function SyncStatus() {
-  const { pendingCount, failedCount, isOnline, hasPendingOperations, processPending } = useSyncStatus();
+  const { pendingCount, failedCount, isOnline, hasPendingOperations, processPending } =
+    useSyncStatus();
   const { checkSession } = useSessionCheck();
   const { showToast } = useToast();
   const [isSyncing, setIsSyncing] = useState(false);
@@ -30,7 +31,7 @@ export function SyncStatus() {
       showToast(sessionCheck.message || 'Sessão expirada', 'error');
       return;
     }
-    
+
     setIsSyncing(true);
     try {
       await processPending();
@@ -49,8 +50,8 @@ export function SyncStatus() {
             hasError
               ? 'bg-red-50 dark:bg-red-950/50 border-red-300 dark:border-red-800'
               : isSyncing
-              ? 'bg-blue-50 dark:bg-blue-950/50 border-blue-300 dark:border-blue-800'
-              : 'bg-orange-50 dark:bg-orange-950/50 border-orange-300 dark:border-orange-800'
+                ? 'bg-blue-50 dark:bg-blue-950/50 border-blue-300 dark:border-blue-800'
+                : 'bg-orange-50 dark:bg-orange-950/50 border-orange-300 dark:border-orange-800'
           }
         `}
       >
@@ -65,7 +66,7 @@ export function SyncStatus() {
           ) : (
             <CloudUpload className="w-5 h-5 text-orange-600 dark:text-orange-400" />
           )}
-          
+
           {/* Badge de contagem */}
           {totalCount > 0 && !isSyncing && (
             <span className="absolute -top-2 -right-2 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-[#FD5521] rounded-full">
@@ -81,29 +82,27 @@ export function SyncStatus() {
               hasError
                 ? 'text-red-900 dark:text-red-200'
                 : isSyncing
-                ? 'text-blue-900 dark:text-blue-200'
-                : 'text-orange-900 dark:text-orange-200'
+                  ? 'text-blue-900 dark:text-blue-200'
+                  : 'text-orange-900 dark:text-orange-200'
             }`}
           >
             {hasError
               ? 'Erro na Sincronização'
               : isSyncing
-              ? 'Sincronizando...'
-              : !isOnline
-              ? 'Modo Offline'
-              : `${totalCount} ${totalCount === 1 ? 'item pendente' : 'itens pendentes'}`}
+                ? 'Sincronizando...'
+                : !isOnline
+                  ? 'Modo Offline'
+                  : `${totalCount} ${totalCount === 1 ? 'item pendente' : 'itens pendentes'}`}
           </span>
-          
+
           {hasError && (
             <span className="text-xs text-red-700 dark:text-red-300">
               {failedCount} operação(ões) falharam
             </span>
           )}
-          
+
           {!isOnline && (
-            <span className="text-xs text-gray-700 dark:text-gray-300">
-              Aguardando conexão
-            </span>
+            <span className="text-xs text-gray-700 dark:text-gray-300">Aguardando conexão</span>
           )}
         </div>
 

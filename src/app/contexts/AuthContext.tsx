@@ -41,14 +41,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       safeLog('🔄 Renovando sessão...');
 
       // ✅ CORREÇÃO: Verificar se há sessão antes de tentar renovar
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
 
       if (!currentSession) {
         safeLog('⚠️ Nenhuma sessão ativa para renovar. Usuário precisa fazer login novamente.');
         return;
       }
 
-      const { data: { session }, error } = await supabase.auth.refreshSession();
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.refreshSession();
 
       if (error) {
         safeError('❌ Erro ao renovar sessão:', error.message);
@@ -82,17 +87,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // ✅ CORREÇÃO: Renovar a cada 45 minutos (token expira em 1h)
     // Isso garante renovação preventiva antes da expiração
-    refreshTimeoutRef.current = setTimeout(async () => {
-      safeLog('⏰ Renovação preventiva de token agendada');
+    refreshTimeoutRef.current = setTimeout(
+      async () => {
+        safeLog('⏰ Renovação preventiva de token agendada');
 
-      // ✅ VERIFICAR: Confirmar que ainda há sessão ativa antes de renovar
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        refreshSession();
-      } else {
-        safeLog('⚠️ Renovação cancelada - sem sessão ativa');
-      }
-    }, 45 * 60 * 1000); // 45 minutos
+        // ✅ VERIFICAR: Confirmar que ainda há sessão ativa antes de renovar
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session) {
+          refreshSession();
+        } else {
+          safeLog('⚠️ Renovação cancelada - sem sessão ativa');
+        }
+      },
+      45 * 60 * 1000
+    ); // 45 minutos
   };
 
   // Função para buscar dados do usuário
@@ -110,7 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           `https://${projectId}.supabase.co/functions/v1/make-server-1ff231a2/auth/me`,
           {
             headers: {
-              'Authorization': `Bearer ${publicAnonKey}`,
+              Authorization: `Bearer ${publicAnonKey}`,
               'X-User-Token': token,
               // 'Content-Type': 'application/json', // ❌ REMOVIDO: Evitar preflight em GET
             },
@@ -170,7 +180,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Verificar se há sessão ativa
     const loadSession = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
 
         if (error) {
           setIsLoading(false);
@@ -198,7 +211,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loadSession();
 
     // Listener para mudanças de autenticação
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_OUT') {
         setCurrentUser(null);
         updateToken(null);
@@ -248,7 +263,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const url = `https://${projectId}.supabase.co/functions/v1/make-server-1ff231a2/auth/me`;
 
         const headers = {
-          'Authorization': `Bearer ${publicAnonKey}`,
+          Authorization: `Bearer ${publicAnonKey}`,
           'X-User-Token': data.session.access_token,
           'Content-Type': 'application/json',
         };
@@ -293,7 +308,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, login, logout, isLoading, accessToken, refreshSession }}>
+    <AuthContext.Provider
+      value={{ currentUser, login, logout, isLoading, accessToken, refreshSession }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -316,11 +333,13 @@ export const useAuth = () => {
       // Retornar valores padrão seguros durante HMR
       return {
         currentUser: null,
-        login: async () => { throw new Error('AuthProvider não inicializado'); },
-        logout: async () => { },
+        login: async () => {
+          throw new Error('AuthProvider não inicializado');
+        },
+        logout: async () => {},
         isLoading: true,
         accessToken: null,
-        refreshSession: async () => { }
+        refreshSession: async () => {},
       };
     }
 

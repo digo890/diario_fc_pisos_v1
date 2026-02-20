@@ -1,21 +1,21 @@
 /**
  * 🔒 SCHEMA CONGELADO — Versão 1.0.0
- * 
+ *
  * ⚠️ ATENÇÃO: Este arquivo NÃO DEVE SER EDITADO!
- * 
+ *
  * Qualquer alteração no schema do formulário requer:
  * 1. Criar novo arquivo SCHEMA_V1.1.0.ts (ou versão apropriada)
  * 2. Executar auditoria completa (front → código → backend → relatórios)
  * 3. Implementar migração de dados (se necessário)
  * 4. Atualizar SCHEMA_VERSION em formConstants.ts
- * 
+ *
  * Data de congelamento: 10/01/2026
  * Autor: Sistema Diário de Obras FC Pisos
  */
 
 /**
  * ✅ DEFINIÇÃO CANÔNICA — 34 CAMPOS DO FORMULÁRIO
- * 
+ *
  * Este é o schema oficial que TODOS os componentes devem seguir:
  * - ServicosSection.tsx (formulário)
  * - pdfGenerator.ts (exportação PDF)
@@ -53,7 +53,7 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: '°C',
     formatoSalvamento: '"25"',
-    validacao: { regex: '^[0-9.,/-]+$' }
+    validacao: { regex: '^[0-9.,/-]+$' },
   },
   {
     numero: 2,
@@ -62,7 +62,7 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: '%',
     formatoSalvamento: '"60"',
-    validacao: { regex: '^[0-9.,]+$', maxValue: 100 }
+    validacao: { regex: '^[0-9.,]+$', maxValue: 100 },
   },
   {
     numero: 3,
@@ -71,7 +71,7 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: '°C',
     formatoSalvamento: '"22"',
-    validacao: { regex: '^[0-9.,/-]+$' }
+    validacao: { regex: '^[0-9.,/-]+$' },
   },
   {
     numero: 4,
@@ -80,7 +80,7 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: '%',
     formatoSalvamento: '"4"',
-    validacao: { regex: '^[0-9.,]+$', maxValue: 100 }
+    validacao: { regex: '^[0-9.,]+$', maxValue: 100 },
   },
   {
     numero: 5,
@@ -89,7 +89,7 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: '°C',
     formatoSalvamento: '"18"',
-    validacao: { regex: '^[0-9.,/-]+$' }
+    validacao: { regex: '^[0-9.,/-]+$' },
   },
   {
     numero: 6,
@@ -98,7 +98,7 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: 'Minutos',
     formatoSalvamento: '"3"',
-    validacao: { regex: '^[0-9.,/-]+$' }
+    validacao: { regex: '^[0-9.,/-]+$' },
   },
   {
     numero: 7,
@@ -107,7 +107,7 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: '',
     formatoSalvamento: '"ABC123"',
-    validacao: { regex: '^[0-9.,/-]+$' }
+    validacao: { regex: '^[0-9.,/-]+$' },
   },
   {
     numero: 8,
@@ -116,7 +116,7 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: '',
     formatoSalvamento: '"DEF456"',
-    validacao: { regex: '^[0-9.,/-]+$' }
+    validacao: { regex: '^[0-9.,/-]+$' },
   },
   {
     numero: 9,
@@ -125,7 +125,7 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: '',
     formatoSalvamento: '"GHI789"',
-    validacao: { regex: '^[0-9.,/-]+$' }
+    validacao: { regex: '^[0-9.,/-]+$' },
   },
   {
     numero: 10,
@@ -134,7 +134,7 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: '',
     formatoSalvamento: '"10"',
-    validacao: { regex: '^[0-9.,/-]+$' }
+    validacao: { regex: '^[0-9.,/-]+$' },
   },
   {
     numero: 11,
@@ -143,7 +143,7 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: 'm²/Kit',
     formatoSalvamento: '"3.5"',
-    validacao: { regex: '^[0-9.,/-]+$' }
+    validacao: { regex: '^[0-9.,/-]+$' },
   },
   {
     numero: 12,
@@ -152,7 +152,7 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: 'm²/ml',
     formatoSalvamento: '"150"',
-    validacao: { regex: '^[0-9.,/-]+$' }
+    validacao: { regex: '^[0-9.,/-]+$' },
   },
   {
     numero: 13,
@@ -163,8 +163,8 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     options: 'ucrete',
     formatoSalvamento: '"tipo1:valor1|tipo2:valor2"',
     validacao: {
-      regex: '^([^:]+:[^|]+\\|?)*$' // tipo:valor|tipo:valor
-    }
+      regex: '^([^:]+:[^|]+\\|?)*$', // tipo:valor|tipo:valor
+    },
   },
   {
     numero: 14,
@@ -175,8 +175,8 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     options: 'pintura',
     formatoSalvamento: '"tipo1:valor1|tipo2:valor2"',
     validacao: {
-      regex: '^([^:]+:[^|]+\\|?)*$'
-    }
+      regex: '^([^:]+:[^|]+\\|?)*$',
+    },
   },
   {
     numero: 15,
@@ -187,8 +187,8 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     options: 'pinturaLayout',
     formatoSalvamento: '"tipo1:valor1|tipo2:valor2"',
     validacao: {
-      regex: '^([^:]+:[^|]+\\|?)*$'
-    }
+      regex: '^([^:]+:[^|]+\\|?)*$',
+    },
   },
   {
     numero: 16,
@@ -197,7 +197,7 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: 'm²',
     formatoSalvamento: '"200"',
-    validacao: { regex: '^[0-9.,/-]+$' }
+    validacao: { regex: '^[0-9.,/-]+$' },
   },
   {
     numero: 17,
@@ -206,7 +206,7 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: 'ml',
     formatoSalvamento: '"50"',
-    validacao: { regex: '^[0-9.,/-]+$' }
+    validacao: { regex: '^[0-9.,/-]+$' },
   },
   {
     numero: 18,
@@ -215,7 +215,7 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: 'ml',
     formatoSalvamento: '"30"',
-    validacao: { regex: '^[0-9.,/-]+$' }
+    validacao: { regex: '^[0-9.,/-]+$' },
   },
   {
     numero: 19,
@@ -224,7 +224,7 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: 'ml',
     formatoSalvamento: '"20"',
-    validacao: { regex: '^[0-9.,/-]+$' }
+    validacao: { regex: '^[0-9.,/-]+$' },
   },
   {
     numero: 20,
@@ -234,8 +234,8 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     units: ['m²', 'Espessura (cm)'],
     formatoSalvamento: '"150|4"',
     validacao: {
-      regex: '^[0-9.,/-]+\\|[0-9.,/-]+$' // valor1|valor2
-    }
+      regex: '^[0-9.,/-]+\\|[0-9.,/-]+$', // valor1|valor2
+    },
   },
   {
     numero: 21,
@@ -245,8 +245,8 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     units: ['m²', 'Espessura (cm)'],
     formatoSalvamento: '"80|3"',
     validacao: {
-      regex: '^[0-9.,/-]+\\|[0-9.,/-]+$'
-    }
+      regex: '^[0-9.,/-]+\\|[0-9.,/-]+$',
+    },
   },
   {
     numero: 22,
@@ -256,8 +256,8 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     units: ['m²', 'Espessura (cm)'],
     formatoSalvamento: '"200|5"',
     validacao: {
-      regex: '^[0-9.,/-]+\\|[0-9.,/-]+$'
-    }
+      regex: '^[0-9.,/-]+\\|[0-9.,/-]+$',
+    },
   },
   {
     numero: 23,
@@ -267,8 +267,8 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     units: ['m²', 'Espessura (cm)'],
     formatoSalvamento: '"100|6"',
     validacao: {
-      regex: '^[0-9.,/-]+\\|[0-9.,/-]+$'
-    }
+      regex: '^[0-9.,/-]+\\|[0-9.,/-]+$',
+    },
   },
   {
     numero: 24,
@@ -278,8 +278,8 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     units: ['m²', 'Espessura (cm)'],
     formatoSalvamento: '"120|4"',
     validacao: {
-      regex: '^[0-9.,/-]+\\|[0-9.,/-]+$'
-    }
+      regex: '^[0-9.,/-]+\\|[0-9.,/-]+$',
+    },
   },
   {
     numero: 25,
@@ -288,7 +288,7 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: 'ml',
     formatoSalvamento: '"15"',
-    validacao: { regex: '^[0-9.,/-]+$' }
+    validacao: { regex: '^[0-9.,/-]+$' },
   },
   {
     numero: 26,
@@ -297,7 +297,7 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: 'ml',
     formatoSalvamento: '"25"',
-    validacao: { regex: '^[0-9.,/-]+$' }
+    validacao: { regex: '^[0-9.,/-]+$' },
   },
   {
     numero: 27,
@@ -306,7 +306,7 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: 'm²',
     formatoSalvamento: '"100"',
-    validacao: { regex: '^[0-9.,/-]+$' }
+    validacao: { regex: '^[0-9.,/-]+$' },
   },
   {
     numero: 28,
@@ -315,7 +315,7 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: 'm²',
     formatoSalvamento: '"90"',
-    validacao: { regex: '^[0-9.,/-]+$' }
+    validacao: { regex: '^[0-9.,/-]+$' },
   },
   {
     numero: 29,
@@ -324,7 +324,7 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: 'm²',
     formatoSalvamento: '"85"',
-    validacao: { regex: '^[0-9.,/-]+$' }
+    validacao: { regex: '^[0-9.,/-]+$' },
   },
   {
     numero: 30,
@@ -334,8 +334,8 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     units: ['m²', 'Espessura (cm)'],
     formatoSalvamento: '"90|3"',
     validacao: {
-      regex: '^[0-9.,/-]+\\|[0-9.,/-]+$'
-    }
+      regex: '^[0-9.,/-]+\\|[0-9.,/-]+$',
+    },
   },
   {
     numero: 31,
@@ -344,7 +344,7 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: 'ml',
     formatoSalvamento: '"12"',
-    validacao: { regex: '^[0-9.,/-]+$' }
+    validacao: { regex: '^[0-9.,/-]+$' },
   },
   {
     numero: 32,
@@ -353,7 +353,7 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: 'ml',
     formatoSalvamento: '"8"',
-    validacao: { regex: '^[0-9.,/-]+$' }
+    validacao: { regex: '^[0-9.,/-]+$' },
   },
   {
     numero: 33,
@@ -362,7 +362,7 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: '',
     formatoSalvamento: '"5"',
-    validacao: { regex: '^[0-9.,/-]+$' }
+    validacao: { regex: '^[0-9.,/-]+$' },
   },
   {
     numero: 34,
@@ -371,8 +371,8 @@ export const ETAPAS_V1_0_0: readonly FieldDefinition[] = Object.freeze([
     tipo: 'simple',
     unit: '',
     formatoSalvamento: '"10"',
-    validacao: { regex: '^[0-9.,/-]+$' }
-  }
+    validacao: { regex: '^[0-9.,/-]+$' },
+  },
 ]);
 
 /**
@@ -406,23 +406,30 @@ export const PINTURA_LAYOUT_OPTIONS_V1_0_0: readonly string[] = Object.freeze([
 
 /**
  * 🔍 FUNÇÃO DE VALIDAÇÃO DE INTEGRIDADE
- * 
+ *
  * Verifica se um schema implementado está em conformidade com V1.0.0
  */
 export function validateSchemaIntegrity(
-  implementedFields: { label: string; unit?: string; isDualField?: boolean; isMultiSelect?: boolean }[]
+  implementedFields: {
+    label: string;
+    unit?: string;
+    isDualField?: boolean;
+    isMultiSelect?: boolean;
+  }[]
 ): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
 
   // Verificar quantidade de campos
   if (implementedFields.length !== ETAPAS_V1_0_0.length) {
-    errors.push(`❌ Quantidade de campos incorreta: esperado ${ETAPAS_V1_0_0.length}, encontrado ${implementedFields.length}`);
+    errors.push(
+      `❌ Quantidade de campos incorreta: esperado ${ETAPAS_V1_0_0.length}, encontrado ${implementedFields.length}`
+    );
   }
 
   // Verificar cada campo
   ETAPAS_V1_0_0.forEach((schemaField, index) => {
     const implField = implementedFields[index];
-    
+
     if (!implField) {
       errors.push(`❌ Campo ${schemaField.numero} ausente: "${schemaField.label}"`);
       return;
@@ -430,7 +437,9 @@ export function validateSchemaIntegrity(
 
     // Verificar label
     if (implField.label !== schemaField.label) {
-      errors.push(`❌ Campo ${schemaField.numero}: label incorreto. Esperado "${schemaField.label}", encontrado "${implField.label}"`);
+      errors.push(
+        `❌ Campo ${schemaField.numero}: label incorreto. Esperado "${schemaField.label}", encontrado "${implField.label}"`
+      );
     }
 
     // Verificar tipo
@@ -443,13 +452,15 @@ export function validateSchemaIntegrity(
 
     // Verificar unidade (campos simples)
     if (schemaField.tipo === 'simple' && implField.unit !== schemaField.unit) {
-      errors.push(`❌ Campo ${schemaField.numero}: unidade incorreta. Esperado "${schemaField.unit}", encontrado "${implField.unit}"`);
+      errors.push(
+        `❌ Campo ${schemaField.numero}: unidade incorreta. Esperado "${schemaField.unit}", encontrado "${implField.unit}"`
+      );
     }
   });
 
   return {
     isValid: errors.length === 0,
-    errors
+    errors,
   };
 }
 
@@ -463,12 +474,12 @@ export const SCHEMA_STATS = Object.freeze({
   camposMultiSelect: 3,
   camposObrigatorios: 0, // Nenhum campo é obrigatório na V1.0.0
   dataCongelamento: '2026-01-10',
-  hash: 'a7f3e8c9d2b1f4e6a8c9d2b1f4e6a8c9' // Placeholder - calcular com crypto
+  hash: 'a7f3e8c9d2b1f4e6a8c9d2b1f4e6a8c9', // Placeholder - calcular com crypto
 });
 
 /**
  * 🚨 NOTAS DE MIGRAÇÃO PARA FUTURAS VERSÕES
- * 
+ *
  * Ao criar V1.1.0:
  * 1. Copie este arquivo para SCHEMA_V1.1.0.ts
  * 2. Adicione campos novos com numero >= 35

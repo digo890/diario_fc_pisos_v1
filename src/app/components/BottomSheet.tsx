@@ -22,7 +22,7 @@ const BottomSheet: React.FC<Props> = ({
   title,
   options,
   selectedId,
-  onSelect
+  onSelect,
 }) => {
   useEffect(() => {
     if (isOpen) {
@@ -55,9 +55,7 @@ const BottomSheet: React.FC<Props> = ({
 
           {/* Header */}
           <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              {title}
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
             <button
               onClick={onClose}
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full text-gray-500 dark:text-gray-400"
@@ -87,11 +85,13 @@ const BottomSheet: React.FC<Props> = ({
                     }`}
                   >
                     <div className="flex-1 text-left">
-                      <div className={`font-medium ${
-                        selectedId === option.id 
-                          ? 'text-[#FD5521]' 
-                          : 'text-gray-900 dark:text-white'
-                      }`}>
+                      <div
+                        className={`font-medium ${
+                          selectedId === option.id
+                            ? 'text-[#FD5521]'
+                            : 'text-gray-900 dark:text-white'
+                        }`}
+                      >
                         {option.label}
                       </div>
                       {option.sublabel && (
@@ -103,7 +103,11 @@ const BottomSheet: React.FC<Props> = ({
                     {selectedId === option.id && (
                       <div className="w-5 h-5 rounded-full bg-[#FD5521] flex items-center justify-center ml-3">
                         <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          <path
+                            fillRule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clipRule="evenodd"
+                          />
                         </svg>
                       </div>
                     )}

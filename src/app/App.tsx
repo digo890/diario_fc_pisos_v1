@@ -49,7 +49,6 @@ const AppContent: React.FC = () => {
       }
     };
 
-
     // 🔧 CORREÇÃO HMR: Só inicializar após o componente estar montado
     init();
   }, []);
@@ -61,9 +60,12 @@ const AppContent: React.FC = () => {
       // Usar requestIdleCallback se disponível, com fallback para setTimeout
       const startSync = () => {
         if ('requestIdleCallback' in window) {
-          (window as any).requestIdleCallback(() => {
-            initSyncQueue(); // Não await - background fire-and-forget
-          }, { timeout: 5000 });
+          (window as any).requestIdleCallback(
+            () => {
+              initSyncQueue(); // Não await - background fire-and-forget
+            },
+            { timeout: 5000 }
+          );
         } else {
           // Fallback para setTimeout
           setTimeout(() => {
@@ -87,11 +89,13 @@ const AppContent: React.FC = () => {
       ? path.split('/validar/')[1]
       : path.split('/conferencia/')[1];
     return (
-      <Suspense fallback={
-        <div className="min-h-screen bg-white dark:bg-gray-950 flex items-center justify-center">
-          <LoadingSpinner />
-        </div>
-      }>
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-white dark:bg-gray-950 flex items-center justify-center">
+            <LoadingSpinner />
+          </div>
+        }
+      >
         <PrepostoValidationPage token={token} />
       </Suspense>
     );
@@ -109,11 +113,13 @@ const AppContent: React.FC = () => {
   // Se não houver usuário logado, mostrar tela de login
   if (!currentUser) {
     return (
-      <Suspense fallback={
-        <div className="min-h-screen bg-white dark:bg-gray-950 flex items-center justify-center">
-          <LoadingSpinner />
-        </div>
-      }>
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-white dark:bg-gray-950 flex items-center justify-center">
+            <LoadingSpinner />
+          </div>
+        }
+      >
         <Login />
       </Suspense>
     );
@@ -121,11 +127,13 @@ const AppContent: React.FC = () => {
 
   // Renderizar dashboard apropriado baseado no tipo de usuário ou rota
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-white dark:bg-gray-950 flex items-center justify-center">
-        <LoadingSpinner />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-white dark:bg-gray-950 flex items-center justify-center">
+          <LoadingSpinner />
+        </div>
+      }
+    >
       {isDiagnosticoRoute ? (
         <DiagnosticoPage />
       ) : (

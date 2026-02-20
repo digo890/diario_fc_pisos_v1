@@ -1,5 +1,16 @@
 import React, { useState } from 'react';
-import { ArrowLeft, ChevronRight, Calendar, UserRound, Building2, MapPin, HardHat, Mail, Phone, Hash } from 'lucide-react';
+import {
+  ArrowLeft,
+  ChevronRight,
+  Calendar,
+  UserRound,
+  Building2,
+  MapPin,
+  HardHat,
+  Mail,
+  Phone,
+  Hash,
+} from 'lucide-react';
 import { motion } from 'motion/react';
 import { saveObra } from '../utils/database';
 import { obraApi } from '../utils/api';
@@ -28,23 +39,23 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
     data: obra.data,
     encarregadoId: obra.encarregadoId,
     prepostoNome: obra.prepostoNome || '',
-    prepostoEmail: obra.prepostoEmail || ''
+    prepostoEmail: obra.prepostoEmail || '',
   });
 
   const [errors, setErrors] = useState({
     cliente: false,
     obra: false,
     cidade: false,
-    encarregadoId: false
+    encarregadoId: false,
   });
 
   const [isSaving, setIsSaving] = useState(false);
 
   const [activeSheet, setActiveSheet] = useState<'encarregado' | null>(null);
 
-  const encarregados = users.filter(u => u.tipo === 'Encarregado');
+  const encarregados = users.filter((u) => u.tipo === 'Encarregado');
 
-  const selectedEncarregado = encarregados.find(e => e.id === formData.encarregadoId);
+  const selectedEncarregado = encarregados.find((e) => e.id === formData.encarregadoId);
 
   // Função para formatar telefone brasileiro
   const formatPhoneNumber = (value: string) => {
@@ -77,7 +88,7 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
       cliente: !formData.cliente.trim(),
       obra: !formData.obra.trim(),
       cidade: !formData.cidade.trim(),
-      encarregadoId: !formData.encarregadoId
+      encarregadoId: !formData.encarregadoId,
     };
     setErrors(newErrors);
 
@@ -96,7 +107,7 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
         data: formData.data,
         encarregado_id: formData.encarregadoId,
         preposto_nome: formData.prepostoNome || undefined,
-        preposto_email: formData.prepostoEmail || undefined
+        preposto_email: formData.prepostoEmail || undefined,
       });
 
       if (response.success) {
@@ -111,7 +122,7 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
           data: formData.data,
           encarregadoId: formData.encarregadoId,
           prepostoNome: formData.prepostoNome || undefined,
-          prepostoEmail: formData.prepostoEmail || undefined
+          prepostoEmail: formData.prepostoEmail || undefined,
           // ✅ validationToken, validationTokenExpiry, status, progress são preservados
         };
 
@@ -131,7 +142,10 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
 
           if (!emailResult.success) {
             // Não bloqueia a atualização da obra se falhar o envio do email
-            showToast('⚠️ Obra atualizada mas houve erro ao enviar email ao encarregado', 'warning');
+            showToast(
+              '⚠️ Obra atualizada mas houve erro ao enviar email ao encarregado',
+              'warning'
+            );
           }
         }
 
@@ -169,9 +183,7 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
           >
             <ArrowLeft className="w-6 h-6" />
           </button>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-            Editar Obra
-          </h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Editar Obra</h1>
         </div>
       </header>
 
@@ -270,7 +282,13 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
                        focus:outline-none focus:ring-2 focus:ring-[#FD5521]/40
                        ${errors.encarregadoId ? 'ring-2 ring-red-500' : ''}`}
             >
-              <span className={selectedEncarregado ? 'text-gray-900 dark:text-white' : 'text-[#C6CCC2] dark:text-gray-600'}>
+              <span
+                className={
+                  selectedEncarregado
+                    ? 'text-gray-900 dark:text-white'
+                    : 'text-[#C6CCC2] dark:text-gray-600'
+                }
+              >
                 {selectedEncarregado?.nome || 'Encarregado *'}
               </span>
               <ChevronRight className="w-5 h-5 text-gray-400" />
@@ -315,9 +333,11 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
             type="submit"
             disabled={isSaving}
             className={`relative w-full px-6 py-3 rounded-xl text-white font-medium mt-4 overflow-hidden transition-colors
-                       ${isSaving
-                ? 'bg-[#E54A1D] cursor-not-allowed'
-                : 'bg-[#FD5521] hover:bg-[#E54A1D]'}`}
+                       ${
+                         isSaving
+                           ? 'bg-[#E54A1D] cursor-not-allowed'
+                           : 'bg-[#FD5521] hover:bg-[#E54A1D]'
+                       }`}
           >
             {/* Animação de carregamento - preenchimento da esquerda para direita */}
             {isSaving && (
@@ -328,7 +348,7 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
                 transition={{
                   duration: 1.5,
                   repeat: Infinity,
-                  ease: 'linear'
+                  ease: 'linear',
                 }}
               />
             )}
@@ -346,10 +366,10 @@ const EditObraPage: React.FC<Props> = ({ obra, users, onBack, onSuccess }) => {
         isOpen={activeSheet === 'encarregado'}
         onClose={() => setActiveSheet(null)}
         title="Selecione o Encarregado"
-        options={encarregados.map(enc => ({
+        options={encarregados.map((enc) => ({
           id: enc.id,
           label: enc.nome,
-          sublabel: enc.email || enc.telefone
+          sublabel: enc.email || enc.telefone,
         }))}
         selectedId={formData.encarregadoId}
         onSelect={(id) => setFormData({ ...formData, encarregadoId: id })}

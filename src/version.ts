@@ -1,6 +1,6 @@
 /**
  * Versionamento do sistema
- * 
+ *
  * Padrão Semântico (SemVer):
  * - MAJOR.MINOR.PATCH
  * - MAJOR: Mudanças incompatíveis/quebram a API

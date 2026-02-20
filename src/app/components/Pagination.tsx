@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-r
 
 /**
  * 🎯 PERFORMANCE: Componente de paginação
- * 
+ *
  * Design compatível com Material You e tema do app
  * Melhora performance ao limitar renderização de itens
  */
@@ -21,7 +21,7 @@ export const Pagination: React.FC<PaginationProps> = ({
   totalPages,
   onPageChange,
   totalItems,
-  itemsPerPage = 10
+  itemsPerPage = 10,
 }) => {
   if (totalPages <= 1) return null;
 
@@ -134,9 +134,10 @@ export const Pagination: React.FC<PaginationProps> = ({
                 onClick={() => onPageChange(pageNum)}
                 className={`
                   w-9 h-9 flex items-center justify-center rounded-lg font-medium transition-all
-                  ${isActive
-                    ? 'bg-[#FD5521] text-white shadow-md'
-                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  ${
+                    isActive
+                      ? 'bg-[#FD5521] text-white shadow-md'
+                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }
                 `}
                 aria-label={`Página ${pageNum}`}
@@ -179,7 +180,7 @@ export const Pagination: React.FC<PaginationProps> = ({
 
 /**
  * Hook auxiliar para gerenciar paginação
- * 
+ *
  * @param items Array de itens a paginar
  * @param itemsPerPage Quantidade de itens por página (padrão: 10)
  * @returns Objeto com itens paginados e controles

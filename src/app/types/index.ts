@@ -2,7 +2,12 @@
 
 export type UserRole = 'Administrador' | 'Encarregado';
 
-export type FormStatus = 'novo' | 'em_preenchimento' | 'enviado_preposto' | 'reprovado_preposto' | 'concluido';
+export type FormStatus =
+  | 'novo'
+  | 'em_preenchimento'
+  | 'enviado_preposto'
+  | 'reprovado_preposto'
+  | 'concluido';
 
 export interface User {
   id: string;

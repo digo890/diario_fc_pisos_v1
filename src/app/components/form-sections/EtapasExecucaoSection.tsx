@@ -12,15 +12,8 @@ interface EtapasExecucaoSectionProps {
   disabled: boolean;
 }
 
-export function EtapasExecucaoSection({
-  data,
-  onChange,
-  disabled,
-}: EtapasExecucaoSectionProps) {
-  const updateField = <K extends keyof EtapasExecucao>(
-    field: K,
-    value: EtapasExecucao[K]
-  ) => {
+export function EtapasExecucaoSection({ data, onChange, disabled }: EtapasExecucaoSectionProps) {
+  const updateField = <K extends keyof EtapasExecucao>(field: K, value: EtapasExecucao[K]) => {
     onChange({
       ...data,
       etapasExecucao: {

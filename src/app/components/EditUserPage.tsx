@@ -20,11 +20,11 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
     email: user.email || '',
     telefone: user.telefone || '',
     senha: '',
-    confirmarSenha: ''
+    confirmarSenha: '',
   });
 
   const [errors, setErrors] = useState({
-    senhas: false
+    senhas: false,
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -33,7 +33,7 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
 
   const tipoOptions = [
     { id: 'Administrador', label: 'Administrador', sublabel: 'Acesso total ao sistema' },
-    { id: 'Encarregado', label: 'Encarregado', sublabel: 'Preenche formulários de obras' }
+    { id: 'Encarregado', label: 'Encarregado', sublabel: 'Preenche formulários de obras' },
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -56,7 +56,7 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
         nome: formData.nome,
         tipo: formData.tipo,
         email: formData.email,
-        telefone: formData.telefone
+        telefone: formData.telefone,
       };
 
       // Só incluir senha se foi fornecida
@@ -96,7 +96,7 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
     }
   };
 
-  const selectedTipo = tipoOptions.find(opt => opt.id === formData.tipo);
+  const selectedTipo = tipoOptions.find((opt) => opt.id === formData.tipo);
 
   const formatPhone = (value: string) => {
     // Remove tudo que não é número
@@ -132,9 +132,7 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
           >
             <ArrowLeft className="w-6 h-6" />
           </button>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-            Editar Usuário
-          </h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Editar Usuário</h1>
         </div>
       </header>
 
@@ -175,10 +173,11 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, tipo: 'Administrador' })}
-                className={`flex-1 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200 ${formData.tipo === 'Administrador'
+                className={`flex-1 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200 ${
+                  formData.tipo === 'Administrador'
                     ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                  }`}
+                }`}
               >
                 <div className="flex items-center justify-center gap-2">
                   <Shield className="w-4 h-4" />
@@ -188,10 +187,11 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, tipo: 'Encarregado' })}
-                className={`flex-1 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200 ${formData.tipo === 'Encarregado'
+                className={`flex-1 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200 ${
+                  formData.tipo === 'Encarregado'
                     ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                  }`}
+                }`}
               >
                 <div className="flex items-center justify-center gap-2">
                   <UserRound className="w-4 h-4" />
@@ -251,7 +251,7 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
               type="button"
               className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#C6CCC2] dark:text-gray-600"
               onClick={() => setShowPassword(!showPassword)}
-              aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+              aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
@@ -276,11 +276,17 @@ const EditUserPage: React.FC<Props> = ({ user, onBack, onSuccess }) => {
               type="button"
               className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#C6CCC2] dark:text-gray-600"
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              aria-label={showConfirmPassword ? "Ocultar confirmação de senha" : "Mostrar confirmação de senha"}
+              aria-label={
+                showConfirmPassword
+                  ? 'Ocultar confirmação de senha'
+                  : 'Mostrar confirmação de senha'
+              }
             >
               {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
-            {errors.senhas && <p className="text-red-500 text-xs mt-1 ml-1">As senhas não coincidem</p>}
+            {errors.senhas && (
+              <p className="text-red-500 text-xs mt-1 ml-1">As senhas não coincidem</p>
+            )}
           </div>
 
           {/* Submit Button */}

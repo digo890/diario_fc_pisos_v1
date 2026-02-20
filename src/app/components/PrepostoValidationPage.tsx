@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, FileText, Building2, Calendar, MapPin, UserRound, AlertCircle } from 'lucide-react';
+import {
+  CheckCircle,
+  XCircle,
+  FileText,
+  Building2,
+  Calendar,
+  MapPin,
+  UserRound,
+  AlertCircle,
+} from 'lucide-react';
 import { motion } from 'motion/react';
 import { conferenciaApi } from '../utils/api';
 import { safeError } from '../utils/logSanitizer';
@@ -41,7 +50,7 @@ const ETAPAS = [
   { label: 'Reparo de Revestimento em Muretas', unit: 'ml' },
   { label: 'Reparo de Revestimento em Rodapé', unit: 'ml' },
   { label: 'Quantos botijões de gás foram utilizados?', unit: '' },
-  { label: 'Quantas bisnagas de selante foram utilizadas?', unit: '' }
+  { label: 'Quantas bisnagas de selante foram utilizadas?', unit: '' },
 ];
 
 // Itens 35-56: Registros Importantes (Estado do Substrato)
@@ -67,7 +76,7 @@ const REGISTROS_ITEMS = [
   'As áreas concluídas foram protegidas e isoladas?',
   'O substrato foi fotografado?',
   'Ocorreu alguma desconformidade durante ou após as aplicações?',
-  'Você relatou ao preposto as desconformidades?'
+  'Você relatou ao preposto as desconformidades?',
 ];
 
 interface Props {
@@ -173,7 +182,9 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
       setValidated(true);
       setShowSignature(false);
       showToast(
-        validationType === 'aprovar' ? 'Formulário aprovado com sucesso! ✓' : 'Formulário reprovado',
+        validationType === 'aprovar'
+          ? 'Formulário aprovado com sucesso! ✓'
+          : 'Formulário reprovado',
         'success'
       );
     } catch (err) {
@@ -200,12 +211,8 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
       <div className="min-h-screen bg-[#EDEFE4] dark:bg-gray-950 flex items-center justify-center p-4">
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 max-w-md w-full text-center">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            Erro
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400">
-            {error}
-          </p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Erro</h2>
+          <p className="text-gray-600 dark:text-gray-400">{error}</p>
         </div>
       </div>
     );
@@ -221,7 +228,9 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
           animate={{ opacity: 1, scale: 1 }}
           className="bg-white dark:bg-gray-900 rounded-2xl p-8 max-w-md w-full text-center"
         >
-          <div className={`w-16 h-16 ${foiAprovado ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'} rounded-full flex items-center justify-center mx-auto mb-4`}>
+          <div
+            className={`w-16 h-16 ${foiAprovado ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'} rounded-full flex items-center justify-center mx-auto mb-4`}
+          >
             {foiAprovado ? (
               <CheckCircle className="w-10 h-10 text-green-600 dark:text-green-400" />
             ) : (
@@ -234,8 +243,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
           <p className="text-gray-600 dark:text-gray-400 mb-6">
             {foiAprovado
               ? 'Sua validação foi registrada com sucesso. A FC Pisos receberá a confirmação.'
-              : 'Sua reprovação foi registrada. O encarregado será notificado para realizar as correções necessárias.'
-            }
+              : 'Sua reprovação foi registrada. O encarregado será notificado para realizar as correções necessárias.'}
           </p>
           <div className="text-sm text-gray-500 dark:text-gray-500">
             Validado em: {new Date().toLocaleString('pt-BR')}
@@ -250,10 +258,10 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
   const getClimaLabel = (clima?: string) => {
     if (!clima) return 'Não informado';
     const labels: Record<string, string> = {
-      'sol': 'Sol',
-      'nublado': 'Nublado',
-      'chuva': 'Chuva',
-      'lua': 'Lua'
+      sol: 'Sol',
+      nublado: 'Nublado',
+      chuva: 'Chuva',
+      lua: 'Lua',
     };
     return labels[clima] || clima;
   };
@@ -285,9 +293,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
       <div className="max-w-4xl mx-auto p-4 pb-32">
         {/* Informações da Obra */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 mb-4">
-          <h2 className="font-bold text-gray-900 dark:text-white mb-4">
-            Informações da Obra
-          </h2>
+          <h2 className="font-bold text-gray-900 dark:text-white mb-4">Informações da Obra</h2>
           <div className="space-y-3">
             <div className="flex items-start gap-3">
               <UserRound className="w-5 h-5 text-gray-400 mt-0.5" />
@@ -326,18 +332,16 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
             <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-blue-900 dark:text-blue-300">
               <strong className="block mb-1">Instruções para Conferência</strong>
-              Revise cuidadosamente todas as informações do formulário abaixo. Caso tudo esteja correto,
-              clique em "Aprovar". Se houver alguma divergência ou problema, clique em "Reprovar"
-              e informe o motivo.
+              Revise cuidadosamente todas as informações do formulário abaixo. Caso tudo esteja
+              correto, clique em "Aprovar". Se houver alguma divergência ou problema, clique em
+              "Reprovar" e informe o motivo.
             </div>
           </div>
         </div>
 
         {/* Preview do Formulário */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 mb-4">
-          <h2 className="font-bold text-gray-900 dark:text-white mb-4">
-            Dados do Formulário
-          </h2>
+          <h2 className="font-bold text-gray-900 dark:text-white mb-4">Dados do Formulário</h2>
 
           {/* Condições Ambientais */}
           {formulario.clima && (
@@ -358,295 +362,347 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
           )}
 
           {/* Serviços Executados */}
-          {formulario.servicos && Object.keys(formulario.servicos).some(key => formulario.servicos[key]) && (
-            <section>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-3 text-sm">
-                Serviços Executados
-              </h3>
+          {formulario.servicos &&
+            Object.keys(formulario.servicos).some((key) => formulario.servicos[key]) && (
+              <section>
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-3 text-sm">
+                  Serviços Executados
+                </h3>
 
-              {Object.entries(formulario.servicos).map(([key, servico]: [string, any]) => {
-                if (!servico) return null;
+                {Object.entries(formulario.servicos).map(([key, servico]: [string, any]) => {
+                  if (!servico) return null;
 
-                return (
-                  <div key={key} className="space-y-4 mb-6">
-                    {/* Informações Básicas */}
-                    {(servico.horarioInicioManha || servico.horarioFimManha || servico.horarioInicioTarde || servico.horarioFimTarde || servico.local) && (
-                      <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 space-y-2 text-sm">
-                        {/* Horários condensados em uma linha */}
-                        {(servico.horarioInicioManha || servico.horarioInicioTarde) && (
-                          <div className="flex gap-2">
-                            <span className="text-gray-600 dark:text-gray-400">Horários:</span>
-                            <span className="text-gray-900 dark:text-white">
-                              {servico.horarioInicioManha && servico.horarioFimManha && (
-                                <>Manhã <strong>{servico.horarioInicioManha}</strong> às <strong>{servico.horarioFimManha}</strong></>
-                              )}
-                              {servico.horarioInicioManha && servico.horarioFimManha &&
-                                servico.horarioInicioTarde && servico.horarioFimTarde && (
-                                  <> - </>
+                  return (
+                    <div key={key} className="space-y-4 mb-6">
+                      {/* Informações Básicas */}
+                      {(servico.horarioInicioManha ||
+                        servico.horarioFimManha ||
+                        servico.horarioInicioTarde ||
+                        servico.horarioFimTarde ||
+                        servico.local) && (
+                        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 space-y-2 text-sm">
+                          {/* Horários condensados em uma linha */}
+                          {(servico.horarioInicioManha || servico.horarioInicioTarde) && (
+                            <div className="flex gap-2">
+                              <span className="text-gray-600 dark:text-gray-400">Horários:</span>
+                              <span className="text-gray-900 dark:text-white">
+                                {servico.horarioInicioManha && servico.horarioFimManha && (
+                                  <>
+                                    Manhã <strong>{servico.horarioInicioManha}</strong> às{' '}
+                                    <strong>{servico.horarioFimManha}</strong>
+                                  </>
                                 )}
-                              {servico.horarioInicioTarde && servico.horarioFimTarde && (
-                                <>Tarde <strong>{servico.horarioInicioTarde}</strong> às <strong>{servico.horarioFimTarde}</strong></>
-                              )}
-                            </span>
-                          </div>
-                        )}
-                        {servico.local && (
-                          <div className="flex gap-2">
-                            <span className="text-gray-600 dark:text-gray-400">Local:</span>
-                            <span className="text-gray-900 dark:text-white">{servico.local}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                                {servico.horarioInicioManha &&
+                                  servico.horarioFimManha &&
+                                  servico.horarioInicioTarde &&
+                                  servico.horarioFimTarde && <> - </>}
+                                {servico.horarioInicioTarde && servico.horarioFimTarde && (
+                                  <>
+                                    Tarde <strong>{servico.horarioInicioTarde}</strong> às{' '}
+                                    <strong>{servico.horarioFimTarde}</strong>
+                                  </>
+                                )}
+                              </span>
+                            </div>
+                          )}
+                          {servico.local && (
+                            <div className="flex gap-2">
+                              <span className="text-gray-600 dark:text-gray-400">Local:</span>
+                              <span className="text-gray-900 dark:text-white">{servico.local}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
-                    {/* Etapas - Itens 1 a 34 - MOSTRAR TODOS */}
-                    <div>
-                      <h4 className="font-medium text-gray-900 dark:text-white mb-2 text-sm">
-                        Etapas de Execução (Itens 1-34) - Total: {ETAPAS.length} campos
-                      </h4>
-                      <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
-                        <div className="space-y-2 text-sm">
-                          {ETAPAS.map((etapa, index) => {
-                            const numeroItem = index + 1;
-                            let valor = servico.etapas?.[etapa.label] || '-';
+                      {/* Etapas - Itens 1 a 34 - MOSTRAR TODOS */}
+                      <div>
+                        <h4 className="font-medium text-gray-900 dark:text-white mb-2 text-sm">
+                          Etapas de Execução (Itens 1-34) - Total: {ETAPAS.length} campos
+                        </h4>
+                        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+                          <div className="space-y-2 text-sm">
+                            {ETAPAS.map((etapa, index) => {
+                              const numeroItem = index + 1;
+                              let valor = servico.etapas?.[etapa.label] || '-';
 
-                            // Tratar campos dualField (formato "valor1|valor2")
-                            if (etapa.isDualField && valor !== '-') {
-                              const [val1, val2] = valor.split('|');
-                              if (val1 || val2) {
-                                const unit1 = etapa.units?.[0] || '';
-                                const unit2 = etapa.units?.[1] || '';
-                                valor = `${val1 || '-'} ${unit1} | ${val2 || '-'} ${unit2}`;
+                              // Tratar campos dualField (formato "valor1|valor2")
+                              if (etapa.isDualField && valor !== '-') {
+                                const [val1, val2] = valor.split('|');
+                                if (val1 || val2) {
+                                  const unit1 = etapa.units?.[0] || '';
+                                  const unit2 = etapa.units?.[1] || '';
+                                  valor = `${val1 || '-'} ${unit1} | ${val2 || '-'} ${unit2}`;
+                                }
                               }
-                            }
 
-                            // Tratar itens com múltipla seleção (formato "tipo1:valor1|tipo2:valor2")
-                            if (etapa.isMultiSelect && valor !== '-') {
-                              const items = valor.split('|').filter(item => item);
-                              if (items.length > 0) {
-                                const tiposValores = items.map(item => {
-                                  const [tipo, valorNum] = item.split(':');
+                              // Tratar itens com múltipla seleção (formato "tipo1:valor1|tipo2:valor2")
+                              if (etapa.isMultiSelect && valor !== '-') {
+                                const items = valor.split('|').filter((item) => item);
+                                if (items.length > 0) {
+                                  const tiposValores = items.map((item) => {
+                                    const [tipo, valorNum] = item.split(':');
 
-                                  // Detectar e processar dual fields dentro de multiselect
-                                  if (etapa.label === 'Aplicação de Uretano' && valorNum) {
-                                    if (tipo === 'Uretano para rodapé' || tipo === 'Uretano para muretas' ||
-                                      tipo === 'Uretano para Paredes' || tipo === 'Uretano para Paredes, base e pilares') {
-                                      const [val1, val2] = valorNum.split('~');
-                                      if (val1 && val2) {
-                                        return { tipo: tipo || '-', valor: `${val1} ml / ${val2} cm` };
+                                    // Detectar e processar dual fields dentro de multiselect
+                                    if (etapa.label === 'Aplicação de Uretano' && valorNum) {
+                                      if (
+                                        tipo === 'Uretano para rodapé' ||
+                                        tipo === 'Uretano para muretas' ||
+                                        tipo === 'Uretano para Paredes' ||
+                                        tipo === 'Uretano para Paredes, base e pilares'
+                                      ) {
+                                        const [val1, val2] = valorNum.split('~');
+                                        if (val1 && val2) {
+                                          return {
+                                            tipo: tipo || '-',
+                                            valor: `${val1} ml / ${val2} cm`,
+                                          };
+                                        }
+                                        return { tipo: tipo || '-', valor: `${valorNum} ml` };
+                                      } else {
+                                        return { tipo: tipo || '-', valor: `${valorNum} m²` };
                                       }
-                                      return { tipo: tipo || '-', valor: `${valorNum} ml` };
-                                    } else {
+                                    } else if (etapa.label === 'Serviços de pintura') {
                                       return { tipo: tipo || '-', valor: `${valorNum} m²` };
+                                    } else if (etapa.label === 'Serviços de pintura de layout') {
+                                      return { tipo: tipo || '-', valor: `${valorNum} ml` };
                                     }
-                                  } else if (etapa.label === 'Serviços de pintura') {
-                                    return { tipo: tipo || '-', valor: `${valorNum} m²` };
-                                  } else if (etapa.label === 'Serviços de pintura de layout') {
-                                    return { tipo: tipo || '-', valor: `${valorNum} ml` };
-                                  }
 
-                                  return { tipo: tipo || '-', valor: valorNum || '-' };
-                                });
-                                valor = tiposValores
-                                  .filter(tv => tv.tipo !== '-' && tv.valor !== '-')
-                                  .map(tv => `${tv.tipo}: ${tv.valor}`)
-                                  .join(', ') || '-';
-                              } else {
-                                valor = '-';
+                                    return { tipo: tipo || '-', valor: valorNum || '-' };
+                                  });
+                                  valor =
+                                    tiposValores
+                                      .filter((tv) => tv.tipo !== '-' && tv.valor !== '-')
+                                      .map((tv) => `${tv.tipo}: ${tv.valor}`)
+                                      .join(', ') || '-';
+                                } else {
+                                  valor = '-';
+                                }
                               }
+
+                              // Determinar se o campo foi preenchido
+                              const isPreenchido = valor !== '-';
+
+                              return (
+                                <div
+                                  key={index}
+                                  className={`flex gap-4 p-3 rounded-lg transition-colors ${
+                                    isPreenchido
+                                      ? 'bg-white dark:bg-gray-900 border-l-4 border-[#FD5521]'
+                                      : 'bg-gray-100/50 dark:bg-gray-800/30 border-l-4 border-gray-300 dark:border-gray-700'
+                                  }`}
+                                >
+                                  <span
+                                    className={`min-w-[40px] font-bold ${
+                                      isPreenchido
+                                        ? 'text-[#FD5521]'
+                                        : 'text-gray-400 dark:text-gray-600'
+                                    }`}
+                                  >
+                                    {numeroItem}.
+                                  </span>
+                                  <div className="flex-1">
+                                    <div
+                                      className={`font-medium ${
+                                        isPreenchido
+                                          ? 'text-gray-900 dark:text-white'
+                                          : 'text-gray-600 dark:text-gray-400'
+                                      }`}
+                                    >
+                                      {etapa.label}
+                                    </div>
+                                    <div
+                                      className={`mt-1 ${
+                                        isPreenchido
+                                          ? 'text-gray-700 dark:text-gray-300 font-semibold'
+                                          : 'text-gray-400 dark:text-gray-600 italic'
+                                      }`}
+                                    >
+                                      {isPreenchido ? (
+                                        <>
+                                          {valor}
+                                          {!etapa.isMultiSelect &&
+                                            !etapa.isDualField &&
+                                            etapa.unit &&
+                                            ` ${etapa.unit}`}
+                                        </>
+                                      ) : (
+                                        'Não preenchido'
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Fotos do Serviço */}
+                      {servico.fotos && servico.fotos.length > 0 && (
+                        <div>
+                          <h4 className="font-medium text-gray-900 dark:text-white mb-2 text-sm">
+                            Fotos ({servico.fotos.length}):
+                          </h4>
+                          <div className="grid grid-cols-2 gap-2">
+                            {servico.fotos.map((foto: string, idx: number) => (
+                              <img
+                                key={idx}
+                                src={foto}
+                                alt={`Foto ${idx + 1}`}
+                                loading="lazy"
+                                decoding="async"
+                                className="w-full aspect-square object-contain rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800"
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Registros Importantes - Itens 35 a 56 - MOSTRAR TODOS */}
+                      <div>
+                        <h4 className="font-medium text-gray-900 dark:text-white mb-3 text-sm">
+                          Estado do Substrato (Itens 35-56):
+                        </h4>
+                        <div className="space-y-2">
+                          {REGISTROS_ITEMS.map((label, index) => {
+                            const registroKey = `registro-${index}`;
+                            const item = servico.registros?.[registroKey];
+                            const numeroItem = 35 + index;
+
+                            // Itens especiais
+                            const isEstadoSubstrato = index === 2; // Item 37 (Estado do Substrato)
+
+                            // Itens numéricos/texto (42 e 43)
+                            const isNumericField42 =
+                              label === 'Qual a espessura do piso de concreto?';
+                            const isNumericField43 =
+                              label === 'Qual a profundidade dos cortes das juntas serradas?';
+
+                            // Itens que envolvem o preposto (onde SIM é positivo)
+                            const isItemPreposto = index === 17 || index === 21; // Itens 52 e 56
+
+                            const isEven = index % 2 === 0;
+
+                            // Para itens de dropdown ou numéricos (37, 42, 43)
+                            if (isEstadoSubstrato || isNumericField42 || isNumericField43) {
+                              let textoResposta = '-';
+
+                              if (isEstadoSubstrato) {
+                                textoResposta = item?.texto || '-';
+                              } else if (isNumericField42) {
+                                textoResposta = (item as any)?.espessura
+                                  ? `${(item as any).espessura} cm`
+                                  : '-';
+                              } else if (isNumericField43) {
+                                textoResposta = item?.texto ? `${item.texto} cm` : '-';
+                              }
+
+                              const comentarioResposta = item?.comentario || '';
+
+                              return (
+                                <div
+                                  key={registroKey}
+                                  className={`rounded-lg p-4 text-sm ${isEven ? 'bg-gray-50 dark:bg-gray-800/50' : 'bg-gray-100/50 dark:bg-gray-800/30'}`}
+                                >
+                                  <div className="font-medium text-gray-900 dark:text-white mb-2">
+                                    {numeroItem}. {label}
+                                  </div>
+                                  <div
+                                    className={`${textoResposta !== '-' ? 'text-gray-700 dark:text-gray-300 font-semibold text-[15px]' : 'text-gray-400 dark:text-gray-600 italic'}`}
+                                  >
+                                    {textoResposta}
+                                  </div>
+                                  {(comentarioResposta || item?.foto) && (
+                                    <div className="flex gap-3 mt-2">
+                                      {item?.foto && (
+                                        <img
+                                          src={item.foto}
+                                          alt="Registro"
+                                          className="w-1/3 flex-shrink-0 aspect-square object-contain rounded border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800"
+                                        />
+                                      )}
+                                      {comentarioResposta && (
+                                        <div className="text-gray-600 dark:text-gray-400 text-[15px] flex-1">
+                                          <strong>Observações:</strong> {comentarioResposta}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
                             }
 
-                            // Determinar se o campo foi preenchido
-                            const isPreenchido = valor !== '-';
+                            // Para itens Sim/Não - ativo = true significa "SIM", ausente ou false significa "NÃO"
+                            const resposta = item?.ativo ? 'SIM' : 'NÃO';
+                            const isPositivo =
+                              resposta === 'NÃO' || (resposta === 'SIM' && isItemPreposto);
 
                             return (
                               <div
-                                key={index}
-                                className={`flex gap-4 p-3 rounded-lg transition-colors ${isPreenchido
-                                    ? 'bg-white dark:bg-gray-900 border-l-4 border-[#FD5521]'
-                                    : 'bg-gray-100/50 dark:bg-gray-800/30 border-l-4 border-gray-300 dark:border-gray-700'
-                                  }`}
+                                key={registroKey}
+                                className={`rounded-lg p-4 text-sm ${isEven ? 'bg-gray-50 dark:bg-gray-800/50' : 'bg-gray-100/50 dark:bg-gray-800/30'}`}
                               >
-                                <span className={`min-w-[40px] font-bold ${isPreenchido
-                                    ? 'text-[#FD5521]'
-                                    : 'text-gray-400 dark:text-gray-600'
-                                  }`}>
-                                  {numeroItem}.
-                                </span>
-                                <div className="flex-1">
-                                  <div className={`font-medium ${isPreenchido
-                                      ? 'text-gray-900 dark:text-white'
-                                      : 'text-gray-600 dark:text-gray-400'
-                                    }`}>
-                                    {etapa.label}
-                                  </div>
-                                  <div className={`mt-1 ${isPreenchido
-                                      ? 'text-gray-700 dark:text-gray-300 font-semibold'
-                                      : 'text-gray-400 dark:text-gray-600 italic'
-                                    }`}>
-                                    {isPreenchido ? (
-                                      <>
-                                        {valor}
-                                        {!etapa.isMultiSelect && !etapa.isDualField && etapa.unit && ` ${etapa.unit}`}
-                                      </>
-                                    ) : (
-                                      'Não preenchido'
-                                    )}
-                                  </div>
+                                <div className="flex items-start justify-between gap-3 mb-2">
+                                  <span className="font-medium text-gray-900 dark:text-white">
+                                    {numeroItem}. {label}
+                                  </span>
+                                  <span
+                                    className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                                      isPositivo
+                                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                        : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                                    }`}
+                                  >
+                                    {resposta}
+                                  </span>
                                 </div>
+
+                                {/* Se tiver foto, layout lado a lado */}
+                                {item?.foto ? (
+                                  <div className="flex gap-3 mt-2">
+                                    <img
+                                      src={item.foto}
+                                      alt="Registro"
+                                      className="w-1/3 flex-shrink-0 aspect-square object-contain rounded border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800"
+                                    />
+                                    <div className="flex-1 space-y-2">
+                                      {item?.texto && (
+                                        <div className="text-gray-600 dark:text-gray-400 text-[15px]">
+                                          <strong>Detalhes:</strong> {item.texto}
+                                        </div>
+                                      )}
+                                      {item?.comentario && (
+                                        <div className="text-gray-600 dark:text-gray-400 text-[15px]">
+                                          <strong>Comentário:</strong> {item.comentario}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  /* Se NÃO tiver foto, textos aparecem normalmente */
+                                  <>
+                                    {item?.texto && (
+                                      <div className="text-gray-600 dark:text-gray-400 text-[15px] mt-2">
+                                        <strong>Detalhes:</strong> {item.texto}
+                                      </div>
+                                    )}
+                                    {item?.comentario && (
+                                      <div className="text-gray-600 dark:text-gray-400 text-[15px] mt-2">
+                                        <strong>Comentário:</strong> {item.comentario}
+                                      </div>
+                                    )}
+                                  </>
+                                )}
                               </div>
                             );
                           })}
                         </div>
                       </div>
                     </div>
-
-                    {/* Fotos do Serviço */}
-                    {servico.fotos && servico.fotos.length > 0 && (
-                      <div>
-                        <h4 className="font-medium text-gray-900 dark:text-white mb-2 text-sm">Fotos ({servico.fotos.length}):</h4>
-                        <div className="grid grid-cols-2 gap-2">
-                          {servico.fotos.map((foto: string, idx: number) => (
-                            <img
-                              key={idx}
-                              src={foto}
-                              alt={`Foto ${idx + 1}`}
-                              loading="lazy"
-                              decoding="async"
-                              className="w-full aspect-square object-contain rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800"
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Registros Importantes - Itens 35 a 56 - MOSTRAR TODOS */}
-                    <div>
-                      <h4 className="font-medium text-gray-900 dark:text-white mb-3 text-sm">Estado do Substrato (Itens 35-56):</h4>
-                      <div className="space-y-2">
-                        {REGISTROS_ITEMS.map((label, index) => {
-                          const registroKey = `registro-${index}`;
-                          const item = servico.registros?.[registroKey];
-                          const numeroItem = 35 + index;
-
-                          // Itens especiais
-                          const isEstadoSubstrato = index === 2; // Item 37 (Estado do Substrato)
-
-                          // Itens numéricos/texto (42 e 43)
-                          const isNumericField42 = label === 'Qual a espessura do piso de concreto?';
-                          const isNumericField43 = label === 'Qual a profundidade dos cortes das juntas serradas?';
-
-                          // Itens que envolvem o preposto (onde SIM é positivo)
-                          const isItemPreposto = index === 17 || index === 21; // Itens 52 e 56
-
-                          const isEven = index % 2 === 0;
-
-                          // Para itens de dropdown ou numéricos (37, 42, 43)
-                          if (isEstadoSubstrato || isNumericField42 || isNumericField43) {
-                            let textoResposta = '-';
-
-                            if (isEstadoSubstrato) {
-                              textoResposta = item?.texto || '-';
-                            } else if (isNumericField42) {
-                              textoResposta = (item as any)?.espessura ? `${(item as any).espessura} cm` : '-';
-                            } else if (isNumericField43) {
-                              textoResposta = item?.texto ? `${item.texto} cm` : '-';
-                            }
-
-                            const comentarioResposta = item?.comentario || '';
-
-                            return (
-                              <div key={registroKey} className={`rounded-lg p-4 text-sm ${isEven ? 'bg-gray-50 dark:bg-gray-800/50' : 'bg-gray-100/50 dark:bg-gray-800/30'}`}>
-                                <div className="font-medium text-gray-900 dark:text-white mb-2">
-                                  {numeroItem}. {label}
-                                </div>
-                                <div className={`${textoResposta !== '-' ? 'text-gray-700 dark:text-gray-300 font-semibold text-[15px]' : 'text-gray-400 dark:text-gray-600 italic'}`}>
-                                  {textoResposta}
-                                </div>
-                                {(comentarioResposta || item?.foto) && (
-                                  <div className="flex gap-3 mt-2">
-                                    {item?.foto && (
-                                      <img
-                                        src={item.foto}
-                                        alt="Registro"
-                                        className="w-1/3 flex-shrink-0 aspect-square object-contain rounded border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800"
-                                      />
-                                    )}
-                                    {comentarioResposta && (
-                                      <div className="text-gray-600 dark:text-gray-400 text-[15px] flex-1">
-                                        <strong>Observações:</strong> {comentarioResposta}
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          }
-
-                          // Para itens Sim/Não - ativo = true significa "SIM", ausente ou false significa "NÃO"
-                          const resposta = item?.ativo ? 'SIM' : 'NÃO';
-                          const isPositivo = resposta === 'NÃO' || (resposta === 'SIM' && isItemPreposto);
-
-                          return (
-                            <div key={registroKey} className={`rounded-lg p-4 text-sm ${isEven ? 'bg-gray-50 dark:bg-gray-800/50' : 'bg-gray-100/50 dark:bg-gray-800/30'}`}>
-                              <div className="flex items-start justify-between gap-3 mb-2">
-                                <span className="font-medium text-gray-900 dark:text-white">
-                                  {numeroItem}. {label}
-                                </span>
-                                <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${isPositivo
-                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                                    : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                                  }`}>
-                                  {resposta}
-                                </span>
-                              </div>
-
-                              {/* Se tiver foto, layout lado a lado */}
-                              {item?.foto ? (
-                                <div className="flex gap-3 mt-2">
-                                  <img
-                                    src={item.foto}
-                                    alt="Registro"
-                                    className="w-1/3 flex-shrink-0 aspect-square object-contain rounded border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800"
-                                  />
-                                  <div className="flex-1 space-y-2">
-                                    {item?.texto && (
-                                      <div className="text-gray-600 dark:text-gray-400 text-[15px]">
-                                        <strong>Detalhes:</strong> {item.texto}
-                                      </div>
-                                    )}
-                                    {item?.comentario && (
-                                      <div className="text-gray-600 dark:text-gray-400 text-[15px]">
-                                        <strong>Comentário:</strong> {item.comentario}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              ) : (
-                                /* Se NÃO tiver foto, textos aparecem normalmente */
-                                <>
-                                  {item?.texto && (
-                                    <div className="text-gray-600 dark:text-gray-400 text-[15px] mt-2">
-                                      <strong>Detalhes:</strong> {item.texto}
-                                    </div>
-                                  )}
-                                  {item?.comentario && (
-                                    <div className="text-gray-600 dark:text-gray-400 text-[15px] mt-2">
-                                      <strong>Comentário:</strong> {item.comentario}
-                                    </div>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </section>
-          )}
+                  );
+                })}
+              </section>
+            )}
 
           {/* Observações Gerais */}
           {formulario.observacoes && (
@@ -758,13 +814,16 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
                 </button>
                 <button
                   onClick={handleConfirmValidation}
-                  className={`flex-1 px-6 py-3 rounded-xl text-white font-medium transition-colors ${validationType === 'aprovar'
+                  className={`flex-1 px-6 py-3 rounded-xl text-white font-medium transition-colors ${
+                    validationType === 'aprovar'
                       ? 'bg-green-600 hover:bg-green-700'
                       : 'bg-red-500 hover:bg-red-600'
-                    }`}
+                  }`}
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? 'Processando...' : `Confirmar ${validationType === 'aprovar' ? 'Aprovação' : 'Reprovação'}`}
+                  {isSubmitting
+                    ? 'Processando...'
+                    : `Confirmar ${validationType === 'aprovar' ? 'Aprovação' : 'Reprovação'}`}
                 </button>
               </div>
             </div>

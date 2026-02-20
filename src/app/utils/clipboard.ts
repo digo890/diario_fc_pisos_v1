@@ -7,23 +7,23 @@ export const copyToClipboard = async (text: string): Promise<boolean> => {
   try {
     const textarea = document.createElement('textarea');
     textarea.value = text;
-    
+
     // Estilizar para ser invisível mas ainda funcional
     textarea.style.position = 'fixed';
     textarea.style.left = '-9999px';
     textarea.style.top = '-9999px';
     textarea.style.opacity = '0';
     textarea.setAttribute('readonly', '');
-    
+
     document.body.appendChild(textarea);
-    
+
     // Focar no textarea
     textarea.focus();
-    
+
     // Selecionar todo o texto
     textarea.select();
     textarea.setSelectionRange(0, textarea.value.length);
-    
+
     // Executar o comando de cópia
     let successful = false;
     try {
@@ -31,10 +31,10 @@ export const copyToClipboard = async (text: string): Promise<boolean> => {
     } catch (err) {
       successful = false;
     }
-    
+
     // Remover o textarea
     document.body.removeChild(textarea);
-    
+
     // Se o fallback funcionou, retornar sucesso
     if (successful) {
       return true;

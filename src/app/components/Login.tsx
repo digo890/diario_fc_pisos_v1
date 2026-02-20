@@ -47,7 +47,10 @@ const Login: React.FC = () => {
         <form onSubmit={handleLogin} className="space-y-6">
           {/* Email */}
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-gray-900 dark:text-white mb-2"
+            >
               Email
             </label>
             <div className="relative group">
@@ -70,7 +73,10 @@ const Login: React.FC = () => {
 
           {/* Senha */}
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-gray-900 dark:text-white mb-2"
+            >
               Senha
             </label>
             <div className="relative group">

@@ -1,6 +1,6 @@
-import React from "react";
-import { Sun, Cloud, CloudRain, Moon } from "lucide-react";
-import type { FormData, ClimaType } from "../../types";
+import React from 'react';
+import { Sun, Cloud, CloudRain, Moon } from 'lucide-react';
+import type { FormData, ClimaType } from '../../types';
 
 interface Props {
   data: FormData;
@@ -8,26 +8,18 @@ interface Props {
   isReadOnly: boolean;
 }
 
-const CondicoesAmbientaisSection: React.FC<Props> = ({
-  data,
-  onChange,
-  isReadOnly,
-}) => {
-  const handleClimaChange = (
-    periodo: "manha" | "tarde" | "noite",
-    tipo: ClimaType,
-  ) => {
+const CondicoesAmbientaisSection: React.FC<Props> = ({ data, onChange, isReadOnly }) => {
+  const handleClimaChange = (periodo: 'manha' | 'tarde' | 'noite', tipo: ClimaType) => {
     onChange({
       clima: {
         ...data.clima,
-        [periodo]:
-          data.clima[periodo] === tipo ? undefined : tipo,
+        [periodo]: data.clima[periodo] === tipo ? undefined : tipo,
       },
     });
   };
 
   const ClimaButton: React.FC<{
-    periodo: "manha" | "tarde" | "noite";
+    periodo: 'manha' | 'tarde' | 'noite';
     tipo: ClimaType;
     icon: React.ReactNode;
     label: string;
@@ -37,24 +29,14 @@ const CondicoesAmbientaisSection: React.FC<Props> = ({
     return (
       <button
         type="button"
-        onClick={() =>
-          !isReadOnly && handleClimaChange(periodo, tipo)
-        }
+        onClick={() => !isReadOnly && handleClimaChange(periodo, tipo)}
         disabled={isReadOnly}
         className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all ${
-          isSelected
-            ? "bg-[#FD5521]/10"
-            : "bg-[#F9FAF2] dark:bg-gray-700"
-        } ${isReadOnly ? "cursor-default" : "cursor-pointer"}`}
+          isSelected ? 'bg-[#FD5521]/10' : 'bg-[#F9FAF2] dark:bg-gray-700'
+        } ${isReadOnly ? 'cursor-default' : 'cursor-pointer'}`}
         title={label}
       >
-        <div
-          className={
-            isSelected
-              ? "text-[#FD5521]"
-              : "text-gray-700 dark:text-gray-400"
-          }
-        >
+        <div className={isSelected ? 'text-[#FD5521]' : 'text-gray-700 dark:text-gray-400'}>
           {icon}
         </div>
       </button>

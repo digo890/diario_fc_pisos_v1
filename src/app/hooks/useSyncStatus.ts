@@ -17,7 +17,7 @@ export function useSyncStatus() {
     pendingCount: 0,
     failedCount: 0,
     isOnline: navigator.onLine,
-    hasPendingOperations: false
+    hasPendingOperations: false,
   });
 
   const updateStatus = async () => {
@@ -28,7 +28,7 @@ export function useSyncStatus() {
       pendingCount,
       failedCount,
       isOnline: navigator.onLine,
-      hasPendingOperations: pendingCount > 0 || failedCount > 0
+      hasPendingOperations: pendingCount > 0 || failedCount > 0,
     });
   };
 
@@ -71,6 +71,6 @@ export function useSyncStatus() {
   return {
     ...status,
     retryFailed,
-    processPending
+    processPending,
   };
 }

@@ -44,12 +44,12 @@ export async function sendPrepostoConferenciaEmail(params: SendPrepostoEmailPara
       if (!accessToken) {
         throw new Error('Usuário não autenticado');
       }
-      
+
       const response = await fetch(`${API_URL}/emails/send-preposto-conferencia`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${publicAnonKey}`,
+          Authorization: `Bearer ${publicAnonKey}`,
           'X-User-Token': accessToken,
         },
         body: JSON.stringify(params),
@@ -82,12 +82,12 @@ export async function sendAdminNotificacaoEmail(params: SendAdminNotificacaoPara
       if (!accessToken) {
         throw new Error('Usuário não autenticado');
       }
-      
+
       const response = await fetch(`${API_URL}/emails/send-admin-notificacao`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${publicAnonKey}`,
+          Authorization: `Bearer ${publicAnonKey}`,
           'X-User-Token': accessToken,
         },
         body: JSON.stringify(params),
@@ -120,12 +120,12 @@ export async function sendEncarregadoNovaObraEmail(params: SendEncarregadoNovaOb
       if (!accessToken) {
         throw new Error('Usuário não autenticado');
       }
-      
+
       const response = await fetch(`${API_URL}/emails/send-encarregado-nova-obra`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${publicAnonKey}`,
+          Authorization: `Bearer ${publicAnonKey}`,
           'X-User-Token': accessToken,
         },
         body: JSON.stringify(params),

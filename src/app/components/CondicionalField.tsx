@@ -13,7 +13,12 @@ interface CondicionalFieldProps {
   disabled?: boolean;
 }
 
-export function CondicionalField({ label, value, onChange, disabled = false }: CondicionalFieldProps) {
+export function CondicionalField({
+  label,
+  value,
+  onChange,
+  disabled = false,
+}: CondicionalFieldProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleRespostaChange = (resposta: boolean) => {
@@ -61,8 +66,9 @@ export function CondicionalField({ label, value, onChange, disabled = false }: C
       <div className="bg-[#edefe3] dark:bg-gray-800 rounded-full p-1 relative">
         {/* Background verde que desliza */}
         <div
-          className={`absolute top-1 bottom-1 left-1 right-1 w-[calc(50%-4px)] bg-[#DBEA8D] dark:bg-[#DBEA8D] rounded-full transition-transform duration-300 ease-in-out ${value.resposta === true ? 'translate-x-full' : 'translate-x-0'
-            }`}
+          className={`absolute top-1 bottom-1 left-1 right-1 w-[calc(50%-4px)] bg-[#DBEA8D] dark:bg-[#DBEA8D] rounded-full transition-transform duration-300 ease-in-out ${
+            value.resposta === true ? 'translate-x-full' : 'translate-x-0'
+          }`}
         />
 
         {/* Botões de texto */}
@@ -71,10 +77,11 @@ export function CondicionalField({ label, value, onChange, disabled = false }: C
             type="button"
             onClick={() => value.resposta !== false && handleRespostaChange(false)}
             disabled={disabled}
-            className={`w-1/2 px-5 py-2.5 rounded-full text-xs font-bold transition-opacity duration-300 disabled:cursor-not-allowed z-10 ${value.resposta === false
-              ? 'text-black opacity-100'
-              : 'text-black dark:text-gray-400 opacity-40'
-              }`}
+            className={`w-1/2 px-5 py-2.5 rounded-full text-xs font-bold transition-opacity duration-300 disabled:cursor-not-allowed z-10 ${
+              value.resposta === false
+                ? 'text-black opacity-100'
+                : 'text-black dark:text-gray-400 opacity-40'
+            }`}
           >
             Não
           </button>
@@ -82,10 +89,11 @@ export function CondicionalField({ label, value, onChange, disabled = false }: C
             type="button"
             onClick={() => value.resposta !== true && handleRespostaChange(true)}
             disabled={disabled}
-            className={`w-1/2 px-5 py-2.5 rounded-full text-xs font-bold transition-opacity duration-300 disabled:cursor-not-allowed z-10 ${value.resposta === true
-              ? 'text-black opacity-100'
-              : 'text-black dark:text-gray-400 opacity-40'
-              }`}
+            className={`w-1/2 px-5 py-2.5 rounded-full text-xs font-bold transition-opacity duration-300 disabled:cursor-not-allowed z-10 ${
+              value.resposta === true
+                ? 'text-black opacity-100'
+                : 'text-black dark:text-gray-400 opacity-40'
+            }`}
           >
             Sim
           </button>

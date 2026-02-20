@@ -1,11 +1,41 @@
 import React, { useState, useEffect, lazy, Suspense, useMemo, useCallback } from 'react';
-import { Plus, Edit2, Trash2, Moon, Sun, LogOut, Building2, Users, BarChart3, Filter, LayoutGrid, LayoutList, FolderOpen } from 'lucide-react';
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  Moon,
+  Sun,
+  LogOut,
+  Building2,
+  Users,
+  BarChart3,
+  Filter,
+  LayoutGrid,
+  LayoutList,
+  FolderOpen,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { getObras, getUsers, saveObra, deleteObra, saveUser, deleteUser, getAllForms, getFormByObraId, deleteForm, saveForm, saveBatchForms } from '../utils/database';
+import {
+  getObras,
+  getUsers,
+  saveObra,
+  deleteObra,
+  saveUser,
+  deleteUser,
+  getAllForms,
+  getFormByObraId,
+  deleteForm,
+  saveForm,
+  saveBatchForms,
+} from '../utils/database';
 import { obraApi, userApi, formularioApi } from '../utils/api';
-import { getStatusDisplay, getStatusDisplayWithFormulario, getObraStatusReal } from '../utils/diarioHelpers';
+import {
+  getStatusDisplay,
+  getStatusDisplayWithFormulario,
+  getObraStatusReal,
+} from '../utils/diarioHelpers';
 import { mergeObras, mergeUsers, normalizeFormularioFromBackend } from '../utils/dataSync';
 import { safeLog, safeError, safeWarn } from '../utils/logSanitizer';
 import type { Obra, User, UserRole, FormData } from '../types';
@@ -25,7 +55,11 @@ const EditUserPage = lazy(() => import('./EditUserPage'));
 const ViewRespostasModal = lazy(() => import('./ViewRespostasModal'));
 const ResultadosDashboard = lazy(() => import('./ResultadosDashboard'));
 const FilterModal = lazy(() => import('./FilterModal'));
-const ProductionMonitorDashboard = lazy(() => import('./ProductionMonitorDashboard').then(module => ({ default: module.ProductionMonitorDashboard }))); // 🚨 MONITOR
+const ProductionMonitorDashboard = lazy(() =>
+  import('./ProductionMonitorDashboard').then((module) => ({
+    default: module.ProductionMonitorDashboard,
+  }))
+); // 🚨 MONITOR
 
 type TabType = 'resultados' | 'obras' | 'usuarios';
 type ObraFilter = 'todas' | 'novo' | 'em_andamento' | 'conferencia' | 'concluidas';
@@ -61,7 +95,8 @@ const AdminDashboard: React.FC = () => {
   const { showToast, ToastComponent } = useToast();
 
   // 🔒 CORREÇÃO #7: Hook de logout seguro v1.1.0
-  const { handleLogout, forceLogout, cancelLogout, showLogoutConfirm, pendingCount } = useSafeLogout();
+  const { handleLogout, forceLogout, cancelLogout, showLogoutConfirm, pendingCount } =
+    useSafeLogout();
 
   const [activeTab, setActiveTab] = useState<TabType>('resultados');
   const [obras, setObras] = useState<Obra[]>([]);
@@ -125,13 +160,13 @@ const AdminDashboard: React.FC = () => {
 
   const handleDeleteUser = async (id: string) => {
     // ✅ CORREÇÃO #5: Validar se usuário é encarregado de alguma obra
-    const obrasDoUsuario = obras.filter(o => o.encarregadoId === id);
+    const obrasDoUsuario = obras.filter((o) => o.encarregadoId === id);
 
     if (obrasDoUsuario.length > 0) {
       const nomeUsuario = deletingUser?.nome || 'Este usuário';
       showToast(
         `❌ Não é possível excluir ${nomeUsuario}. Ele é responsável por ${obrasDoUsuario.length} obra(s). ` +
-        `Reatribua as obras antes de excluir.`,
+          `Reatribua as obras antes de excluir.`,
         'error'
       );
       setDeletingUser(null);
@@ -150,9 +185,12 @@ const AdminDashboard: React.FC = () => {
         showToast('Usuário excluído com sucesso!', 'success');
       } else {
         // Extrair mensagem de erro adequada
-        const errorMessage = typeof response.error === 'string'
-          ? response.error
-          : (response.error as any)?.message || JSON.stringify(response.error) || 'Erro desconhecido';
+        const errorMessage =
+          typeof response.error === 'string'
+            ? response.error
+            : (response.error as any)?.message ||
+              JSON.stringify(response.error) ||
+              'Erro desconhecido';
         showToast(`Erro ao excluir usuário: ${errorMessage}`, 'error');
       }
     } catch (error: any) {
@@ -171,31 +209,36 @@ const AdminDashboard: React.FC = () => {
   // 🎯 CORREÇÃO: Aplicar regra de domínio no filtro (usar status real)
   const filteredObras = useMemo(() => {
     return obras
-      .filter(obra => {
+      .filter((obra) => {
         if (obraFilter === 'todas') return true;
 
         // 🎯 REGRA DE DOMÍNIO: Calcular status real baseado no formulário
-        const formulario = formularios.find(f => f.obra_id === obra.id);
+        const formulario = formularios.find((f) => f.obra_id === obra.id);
         const statusReal = getObraStatusReal(obra, formulario);
 
         if (obraFilter === 'novo') return statusReal === 'novo';
-        if (obraFilter === 'em_andamento') return statusReal === 'em_preenchimento' || statusReal === 'reprovado_preposto';
+        if (obraFilter === 'em_andamento')
+          return statusReal === 'em_preenchimento' || statusReal === 'reprovado_preposto';
         if (obraFilter === 'conferencia') return statusReal === 'enviado_preposto';
         if (obraFilter === 'concluidas') return statusReal === 'concluido';
         return true;
       })
-      .filter(obra => obra.cliente.toLowerCase().includes(searchObra.toLowerCase()) || obra.obra.toLowerCase().includes(searchObra.toLowerCase()))
+      .filter(
+        (obra) =>
+          obra.cliente.toLowerCase().includes(searchObra.toLowerCase()) ||
+          obra.obra.toLowerCase().includes(searchObra.toLowerCase())
+      )
       .sort((a, b) => b.createdAt - a.createdAt);
   }, [obras, formularios, obraFilter, searchObra]);
 
   // 🚀 OTIMIZAÇÃO #1: Memoizar filteredUsers (recalcula apenas quando dependências mudarem)
   const filteredUsers = useMemo(() => {
     return users
-      .filter(user => {
+      .filter((user) => {
         if (userFilter === 'todos') return true;
         return user.tipo === userFilter;
       })
-      .filter(user => user.nome.toLowerCase().includes(searchUser.toLowerCase()))
+      .filter((user) => user.nome.toLowerCase().includes(searchUser.toLowerCase()))
       .sort((a, b) => a.nome.localeCompare(b.nome));
   }, [users, userFilter, searchUser]);
 
@@ -205,13 +248,16 @@ const AdminDashboard: React.FC = () => {
 
   // 🚀 OTIMIZAÇÃO #7: Memoizar Map de usuários para lookup O(1)
   const usersMap = useMemo(() => {
-    return new Map(users.map(u => [u.id, u]));
+    return new Map(users.map((u) => [u.id, u]));
   }, [users]);
 
   // 🚀 OTIMIZAÇÃO #1: Memoizar getUserName (evita re-render de componentes filhos)
-  const getUserName = useCallback((id: string) => {
-    return usersMap.get(id)?.nome || 'N/A'; // ✅ CORREÇÃO #7: O(1) lookup ao invés de O(n)
-  }, [usersMap]);
+  const getUserName = useCallback(
+    (id: string) => {
+      return usersMap.get(id)?.nome || 'N/A'; // ✅ CORREÇÃO #7: O(1) lookup ao invés de O(n)
+    },
+    [usersMap]
+  );
 
   const loadData = async () => {
     if (isLoadingData) return; // 🆕 CORREÇÃO URGENTE #2: Prevenir loadData simultâneo
@@ -227,13 +273,14 @@ const AdminDashboard: React.FC = () => {
         const [localObras, localUsers, localFormularios] = await Promise.all([
           getObras(),
           getUsers(),
-          getAllForms()
+          getAllForms(),
         ]);
 
         // Aplicar dados locais imediatamente para liberar UI
-        const obrasValidas = localObras.filter((obra: Obra) =>
-          // 🚀 OTIMIZAÇÃO: Filtro único para validar obras
-          obra.id && obra.cliente && obra.obra && obra.cidade && obra.encarregadoId
+        const obrasValidas = localObras.filter(
+          (obra: Obra) =>
+            // 🚀 OTIMIZAÇÃO: Filtro único para validar obras
+            obra.id && obra.cliente && obra.obra && obra.cidade && obra.encarregadoId
         );
 
         setObras(obrasValidas);
@@ -243,7 +290,9 @@ const AdminDashboard: React.FC = () => {
         // 🎯 SKELETON: Desativa skeleton assim que dados locais chegam
         setCreatingSkeleton(false);
         setIsLoadingDashboard(false); // Libera UI
-        safeLog(`📂 Dados locais carregados: ${obrasValidas.length} obras, ${localUsers.length} usuários`);
+        safeLog(
+          `📂 Dados locais carregados: ${obrasValidas.length} obras, ${localUsers.length} usuários`
+        );
 
         return { localObras: obrasValidas, localUsers, localFormularios };
       })();
@@ -262,14 +311,14 @@ const AdminDashboard: React.FC = () => {
           const [usersResponse, obrasResponse, formulariosResponse] = await Promise.all([
             userApi.list(),
             obraApi.list(),
-            formularioApi.list()
+            formularioApi.list(),
           ]);
 
           // Processar Usuários (Upsert Merge)
           if (usersResponse.success && usersResponse.data) {
             const remoteUsers = usersResponse.data;
-            setUsers(currentUsers => {
-              const userMap = new Map(currentUsers.map(u => [u.id, u]));
+            setUsers((currentUsers) => {
+              const userMap = new Map(currentUsers.map((u) => [u.id, u]));
               remoteUsers.forEach((u: User) => userMap.set(u.id, u)); // Atualiza ou insere
               return Array.from(userMap.values());
             });
@@ -278,8 +327,8 @@ const AdminDashboard: React.FC = () => {
           // Processar Obras (Upsert Merge)
           if (obrasResponse.success && obrasResponse.data) {
             const remoteObras = obrasResponse.data;
-            setObras(currentObras => {
-              const obraMap = new Map(currentObras.map(o => [o.id, o]));
+            setObras((currentObras) => {
+              const obraMap = new Map(currentObras.map((o) => [o.id, o]));
               remoteObras.forEach((o: Obra) => obraMap.set(o.id, o)); // Atualiza ou insere
               return Array.from(obraMap.values());
             });
@@ -288,25 +337,26 @@ const AdminDashboard: React.FC = () => {
           // Processar Formulários (Upsert Merge)
           if (formulariosResponse.success && formulariosResponse.data) {
             const remoteFormulariosRaw = formulariosResponse.data;
-            const remoteFormularios = remoteFormulariosRaw.map((f: any) => normalizeFormularioFromBackend(f));
+            const remoteFormularios = remoteFormulariosRaw.map((f: any) =>
+              normalizeFormularioFromBackend(f)
+            );
 
             // 🚀 OTIMIZAÇÃO: Salvar no banco local em bulk (single transaction)
-            void saveBatchForms(remoteFormularios).catch(err =>
+            void saveBatchForms(remoteFormularios).catch((err) =>
               safeWarn('⚠️ Erro ao salvar formulários em cache:', err)
             );
 
-            setFormularios(currentForms => {
-              const formMap = new Map(currentForms.map(f => [f.obra_id, f]));
+            setFormularios((currentForms) => {
+              const formMap = new Map(currentForms.map((f) => [f.obra_id, f]));
               remoteFormularios.forEach((f: FormData) => formMap.set(f.obra_id, f));
               return Array.from(formMap.values());
             });
           }
-
         } catch (apiError) {
           safeWarn('⚠️ Erro parcial ao buscar backend:', apiError);
           // Não bloqueia UI pois dados locais já estão lá
         }
-      })().catch(err => {
+      })().catch((err) => {
         // 🛡️ ROBUSTEX: Capturar erros não tratados da promise remota
         safeWarn('🚨 Falha crítica no carregamento remoto:', err);
       });
@@ -314,7 +364,6 @@ const AdminDashboard: React.FC = () => {
       // Aguardar carga LOCAL para garantir que a UI mostre algo
       // Remoto continua em background se demorar mais
       await loadLocalPromise;
-
     } catch (error) {
       safeError('❌ Erro crítico ao carregar dashboard:', error);
       // Se falhar tudo (nem local carregar), parar loading
@@ -361,9 +410,7 @@ const AdminDashboard: React.FC = () => {
                 <FcLogo />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                  Administrativo
-                </h1>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white">Administrativo</h1>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -398,31 +445,36 @@ const AdminDashboard: React.FC = () => {
           <div className="flex gap-8">
             <button
               onClick={() => setActiveTab('resultados')}
-              className={`py-4 px-2 border-b-2 font-medium transition-colors flex items-center gap-2 ${activeTab === 'resultados'
-                ? 'border-[#FD5521] text-[#FD5521]'
-                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                }`}
+              className={`py-4 px-2 border-b-2 font-medium transition-colors flex items-center gap-2 ${
+                activeTab === 'resultados'
+                  ? 'border-[#FD5521] text-[#FD5521]'
+                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
             >
               <BarChart3 className="w-5 h-5" />
               <span className="hidden md:inline">Resultados</span>
             </button>
             <button
               onClick={() => setActiveTab('obras')}
-              className={`py-4 px-2 border-b-2 font-medium transition-colors flex items-center gap-2 ${activeTab === 'obras'
-                ? 'border-[#FD5521] text-[#FD5521]'
-                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                }`}
+              className={`py-4 px-2 border-b-2 font-medium transition-colors flex items-center gap-2 ${
+                activeTab === 'obras'
+                  ? 'border-[#FD5521] text-[#FD5521]'
+                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
             >
               <Building2 className="w-5 h-5" />
               <span className="md:hidden">({isLoadingDashboard ? '—' : obras.length})</span>
-              <span className="hidden md:inline">Obras ({isLoadingDashboard ? '—' : obras.length})</span>
+              <span className="hidden md:inline">
+                Obras ({isLoadingDashboard ? '—' : obras.length})
+              </span>
             </button>
             <button
               onClick={() => setActiveTab('usuarios')}
-              className={`py-4 px-2 border-b-2 font-medium transition-colors flex items-center gap-2 ${activeTab === 'usuarios'
-                ? 'border-[#FD5521] text-[#FD5521]'
-                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                }`}
+              className={`py-4 px-2 border-b-2 font-medium transition-colors flex items-center gap-2 ${
+                activeTab === 'usuarios'
+                  ? 'border-[#FD5521] text-[#FD5521]'
+                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
             >
               <Users className="w-5 h-5" />
               <span className="md:hidden">({users.length})</span>
@@ -441,7 +493,7 @@ const AdminDashboard: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3, ease: "easeInOut" }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
             >
               <Suspense fallback={<LoadingSpinner />}>
                 <ResultadosDashboard obras={obras} />
@@ -453,7 +505,7 @@ const AdminDashboard: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3, ease: "easeInOut" }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
             >
               {/* Header com botões de Filtro e Adicionar */}
               <div className="flex items-center justify-between mb-6">
@@ -465,7 +517,11 @@ const AdminDashboard: React.FC = () => {
                     className="hidden md:flex w-12 h-12 rounded-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors items-center justify-center shadow-md"
                     title={viewMode === 'grid' ? 'Visualizar como lista' : 'Visualizar como cards'}
                   >
-                    {viewMode === 'grid' ? <LayoutList className="w-5 h-5" /> : <LayoutGrid className="w-5 h-5" />}
+                    {viewMode === 'grid' ? (
+                      <LayoutList className="w-5 h-5" />
+                    ) : (
+                      <LayoutGrid className="w-5 h-5" />
+                    )}
                   </button>
                   <button
                     onClick={() => setShowFilterDrawer(true)}
@@ -496,33 +552,34 @@ const AdminDashboard: React.FC = () => {
                 )}
 
                 {/* 🎯 SKELETON: Cards de carregamento */}
-                {isLoadingDashboard && Array.from({ length: 4 }).map((_, index) => (
-                  <div
-                    key={`skeleton-${index}`}
-                    className="bg-white dark:bg-gray-900 rounded-xl p-3 animate-pulse"
-                  >
-                    <div className="rounded-xl px-5 py-4 mb-2.5 bg-gray-200 dark:bg-gray-800">
-                      {/* Título skeleton */}
-                      <div className="h-6 bg-gray-300 dark:bg-gray-700 rounded mb-3 w-3/4"></div>
+                {isLoadingDashboard &&
+                  Array.from({ length: 4 }).map((_, index) => (
+                    <div
+                      key={`skeleton-${index}`}
+                      className="bg-white dark:bg-gray-900 rounded-xl p-3 animate-pulse"
+                    >
+                      <div className="rounded-xl px-5 py-4 mb-2.5 bg-gray-200 dark:bg-gray-800">
+                        {/* Título skeleton */}
+                        <div className="h-6 bg-gray-300 dark:bg-gray-700 rounded mb-3 w-3/4"></div>
 
-                      {/* ID e Data skeleton */}
-                      <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded mb-4 w-1/3"></div>
+                        {/* ID e Data skeleton */}
+                        <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded mb-4 w-1/3"></div>
 
-                      {/* Info blocks skeleton */}
-                      <div className="space-y-2.5">
-                        <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-2/3"></div>
-                        <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-3/4"></div>
-                        <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-1/2"></div>
+                        {/* Info blocks skeleton */}
+                        <div className="space-y-2.5">
+                          <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-2/3"></div>
+                          <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-3/4"></div>
+                          <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-1/2"></div>
+                        </div>
+                      </div>
+
+                      {/* Botões skeleton */}
+                      <div className="flex gap-2 justify-end mt-2">
+                        <div className="w-9 h-9 bg-gray-200 dark:bg-gray-800 rounded-lg"></div>
+                        <div className="w-9 h-9 bg-gray-200 dark:bg-gray-800 rounded-lg"></div>
                       </div>
                     </div>
-
-                    {/* Botões skeleton */}
-                    <div className="flex gap-2 justify-end mt-2">
-                      <div className="w-9 h-9 bg-gray-200 dark:bg-gray-800 rounded-lg"></div>
-                      <div className="w-9 h-9 bg-gray-200 dark:bg-gray-800 rounded-lg"></div>
-                    </div>
-                  </div>
-                ))}
+                  ))}
 
                 {/* 🎯 SKELETON: Card de obra em criação */}
                 {creatingSkeleton && (
@@ -561,135 +618,185 @@ const AdminDashboard: React.FC = () => {
                 )}
 
                 {/* 🎯 Lista real de obras - só mostra após carregar */}
-                {!isLoadingDashboard && obrasPagination.paginatedItems.map(obra => {
-                  // 🎯 REGRA DE DOMÍNIO: Aplicar status real baseado no formulário
-                  const formulario = formularios.find(f => f.obra_id === obra.id);
-                  const status = getStatusDisplayWithFormulario(obra, formulario);
-                  const statusReal = getObraStatusReal(obra, formulario);
+                {!isLoadingDashboard &&
+                  obrasPagination.paginatedItems.map((obra) => {
+                    // 🎯 REGRA DE DOMÍNIO: Aplicar status real baseado no formulário
+                    const formulario = formularios.find((f) => f.obra_id === obra.id);
+                    const status = getStatusDisplayWithFormulario(obra, formulario);
+                    const statusReal = getObraStatusReal(obra, formulario);
 
-                  return (
-                    <div
-                      key={obra.id}
-                      onClick={() => handleObraClick(obra)}
-                      className="bg-white dark:bg-gray-900 rounded-xl p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all relative"
-                    >
-                      {/* Container com gradiente */}
-                      <div className={`rounded-xl px-5 py-4 mb-2.5 ${statusReal === 'novo'
-                        ? 'bg-gradient-to-r from-[#fff5df] to-[#f7e3cc] dark:from-gray-800 dark:to-gray-800'
-                        : statusReal === 'enviado_preposto'
-                          ? 'bg-gradient-to-r from-[#dbf3f3] to-[#ccdbf7] dark:from-gray-800 dark:to-gray-800'
-                          : statusReal === 'concluido'
-                            ? 'bg-gradient-to-r from-[#afffb5] to-[#c1f3ff] dark:from-gray-800 dark:to-gray-800'
-                            : 'bg-gradient-to-r from-[#e7f3db] to-[#ccf7f3] dark:from-gray-800 dark:to-gray-800'
-                        }`}>
-                        {/* Título da Obra */}
-                        <h3 className="font-semibold text-xl leading-6 text-gray-900 dark:text-white mb-3">
-                          {obra.cliente} - {obra.obra}
-                        </h3>
+                    return (
+                      <div
+                        key={obra.id}
+                        onClick={() => handleObraClick(obra)}
+                        className="bg-white dark:bg-gray-900 rounded-xl p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all relative"
+                      >
+                        {/* Container com gradiente */}
+                        <div
+                          className={`rounded-xl px-5 py-4 mb-2.5 ${
+                            statusReal === 'novo'
+                              ? 'bg-gradient-to-r from-[#fff5df] to-[#f7e3cc] dark:from-gray-800 dark:to-gray-800'
+                              : statusReal === 'enviado_preposto'
+                                ? 'bg-gradient-to-r from-[#dbf3f3] to-[#ccdbf7] dark:from-gray-800 dark:to-gray-800'
+                                : statusReal === 'concluido'
+                                  ? 'bg-gradient-to-r from-[#afffb5] to-[#c1f3ff] dark:from-gray-800 dark:to-gray-800'
+                                  : 'bg-gradient-to-r from-[#e7f3db] to-[#ccf7f3] dark:from-gray-800 dark:to-gray-800'
+                          }`}
+                        >
+                          {/* Título da Obra */}
+                          <h3 className="font-semibold text-xl leading-6 text-gray-900 dark:text-white mb-3">
+                            {obra.cliente} - {obra.obra}
+                          </h3>
 
-                        {/* ID e Data */}
-                        <p className="font-['Cousine',monospace] text-sm text-gray-900/[0.56] dark:text-gray-400/[0.56] mb-4 tracking-[1px]">
-                          #{String(obra.id).slice(-5)} - {obra.createdAt ? new Date(Number(obra.createdAt)).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : 'N/A'}
-                        </p>
-
-                        {/* Informações */}
-                        <div className="space-y-2 text-sm leading-normal text-gray-900 dark:text-white">
-                          <p>
-                            <span className="font-normal">Cidade: </span>
-                            <span className="font-semibold">{obra.cidade}</span>
+                          {/* ID e Data */}
+                          <p className="font-['Cousine',monospace] text-sm text-gray-900/[0.56] dark:text-gray-400/[0.56] mb-4 tracking-[1px]">
+                            #{String(obra.id).slice(-5)} -{' '}
+                            {obra.createdAt
+                              ? new Date(Number(obra.createdAt)).toLocaleDateString('pt-BR', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: '2-digit',
+                                })
+                              : 'N/A'}
                           </p>
-                          <p>
-                            <span className="font-normal">Encarregado: </span>
-                            <span className="font-semibold">{getUserName(obra.encarregadoId)}</span>
-                          </p>
-                          <p>
-                            <span className="font-normal">Preposto: </span>
-                            <span className="font-semibold">{obra.prepostoNome || obra.prepostoEmail || 'N/A'}</span>
-                          </p>
-                        </div>
-                      </div>
 
-                      {/* Rodapé: Status e Ações (fora do gradiente) */}
-                      <div className="flex items-center justify-between px-2.5">
-                        {/* Badge de Status */}
-                        <div className="flex items-center gap-2.5">
-                          <div className="relative w-2.5 h-2.5">
-                            <svg className="absolute inset-0" viewBox="0 0 18 18" fill="none">
-                              <circle cx="9" cy="9" r="5" className={
-                                status.color.includes('blue') ? 'fill-blue-600' :
-                                  status.color.includes('green') ? 'fill-green-600' :
-                                    status.color.includes('yellow') ? 'fill-yellow-600' :
-                                      status.color.includes('purple') ? 'fill-purple-600' :
-                                        status.color.includes('orange') ? 'fill-orange-600' :
-                                          'fill-gray-400'
-                              } />
-                              <circle cx="9" cy="9" r="7" className={
-                                status.color.includes('blue') ? 'stroke-blue-600' :
-                                  status.color.includes('green') ? 'stroke-green-600' :
-                                    status.color.includes('yellow') ? 'stroke-yellow-600' :
-                                      status.color.includes('purple') ? 'stroke-purple-600' :
-                                        status.color.includes('orange') ? 'stroke-orange-600' :
-                                          'stroke-gray-400'
-                              } strokeOpacity="0.24" strokeWidth="4" />
-                            </svg>
+                          {/* Informações */}
+                          <div className="space-y-2 text-sm leading-normal text-gray-900 dark:text-white">
+                            <p>
+                              <span className="font-normal">Cidade: </span>
+                              <span className="font-semibold">{obra.cidade}</span>
+                            </p>
+                            <p>
+                              <span className="font-normal">Encarregado: </span>
+                              <span className="font-semibold">
+                                {getUserName(obra.encarregadoId)}
+                              </span>
+                            </p>
+                            <p>
+                              <span className="font-normal">Preposto: </span>
+                              <span className="font-semibold">
+                                {obra.prepostoNome || obra.prepostoEmail || 'N/A'}
+                              </span>
+                            </p>
                           </div>
-                          <span className={`font-medium text-base leading-normal ${status.color.includes('blue') ? 'text-blue-600' :
-                            status.color.includes('green') ? 'text-green-600' :
-                              status.color.includes('yellow') ? 'text-yellow-600' :
-                                status.color.includes('purple') ? 'text-purple-600' :
-                                  status.color.includes('orange') ? 'text-orange-600' :
-                                    'text-gray-600'
-                            }`}>
-                            {status.label}
-                          </span>
                         </div>
 
-                        {/* Botões de ação */}
-                        <div className="flex gap-[6px]">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              // Bloquear edição se obra estiver concluída ou aguardando conferência (usar status REAL)
-                              if (statusReal === 'concluido' || statusReal === 'enviado_preposto') {
-                                showToast(
-                                  `Obras ${statusReal === 'concluido' ? 'concluídas' : 'aguardando conferência'} não podem ser editadas`,
-                                  'error'
-                                );
-                                return;
-                              }
-                              setEditingObra(obra);
-                            }}
-                            className={`p-2 rounded-[10px] transition-colors ${statusReal === 'concluido' || statusReal === 'enviado_preposto'
-                              ? 'opacity-40 cursor-not-allowed text-gray-400 dark:text-gray-600'
-                              : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
+                        {/* Rodapé: Status e Ações (fora do gradiente) */}
+                        <div className="flex items-center justify-between px-2.5">
+                          {/* Badge de Status */}
+                          <div className="flex items-center gap-2.5">
+                            <div className="relative w-2.5 h-2.5">
+                              <svg className="absolute inset-0" viewBox="0 0 18 18" fill="none">
+                                <circle
+                                  cx="9"
+                                  cy="9"
+                                  r="5"
+                                  className={
+                                    status.color.includes('blue')
+                                      ? 'fill-blue-600'
+                                      : status.color.includes('green')
+                                        ? 'fill-green-600'
+                                        : status.color.includes('yellow')
+                                          ? 'fill-yellow-600'
+                                          : status.color.includes('purple')
+                                            ? 'fill-purple-600'
+                                            : status.color.includes('orange')
+                                              ? 'fill-orange-600'
+                                              : 'fill-gray-400'
+                                  }
+                                />
+                                <circle
+                                  cx="9"
+                                  cy="9"
+                                  r="7"
+                                  className={
+                                    status.color.includes('blue')
+                                      ? 'stroke-blue-600'
+                                      : status.color.includes('green')
+                                        ? 'stroke-green-600'
+                                        : status.color.includes('yellow')
+                                          ? 'stroke-yellow-600'
+                                          : status.color.includes('purple')
+                                            ? 'stroke-purple-600'
+                                            : status.color.includes('orange')
+                                              ? 'stroke-orange-600'
+                                              : 'stroke-gray-400'
+                                  }
+                                  strokeOpacity="0.24"
+                                  strokeWidth="4"
+                                />
+                              </svg>
+                            </div>
+                            <span
+                              className={`font-medium text-base leading-normal ${
+                                status.color.includes('blue')
+                                  ? 'text-blue-600'
+                                  : status.color.includes('green')
+                                    ? 'text-green-600'
+                                    : status.color.includes('yellow')
+                                      ? 'text-yellow-600'
+                                      : status.color.includes('purple')
+                                        ? 'text-purple-600'
+                                        : status.color.includes('orange')
+                                          ? 'text-orange-600'
+                                          : 'text-gray-600'
                               }`}
-                            title={
-                              statusReal === 'concluido' || statusReal === 'enviado_preposto'
-                                ? `Obras ${statusReal === 'concluido' ? 'concluídas' : 'aguardando conferência'} não podem ser editadas`
-                                : 'Editar'
-                            }
-                          >
-                            <Edit2 className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeletingObra(obra);
-                            }}
-                            className="p-2 rounded-[10px] hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
-                            title="Excluir"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </button>
+                            >
+                              {status.label}
+                            </span>
+                          </div>
+
+                          {/* Botões de ação */}
+                          <div className="flex gap-[6px]">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // Bloquear edição se obra estiver concluída ou aguardando conferência (usar status REAL)
+                                if (
+                                  statusReal === 'concluido' ||
+                                  statusReal === 'enviado_preposto'
+                                ) {
+                                  showToast(
+                                    `Obras ${statusReal === 'concluido' ? 'concluídas' : 'aguardando conferência'} não podem ser editadas`,
+                                    'error'
+                                  );
+                                  return;
+                                }
+                                setEditingObra(obra);
+                              }}
+                              className={`p-2 rounded-[10px] transition-colors ${
+                                statusReal === 'concluido' || statusReal === 'enviado_preposto'
+                                  ? 'opacity-40 cursor-not-allowed text-gray-400 dark:text-gray-600'
+                                  : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
+                              }`}
+                              title={
+                                statusReal === 'concluido' || statusReal === 'enviado_preposto'
+                                  ? `Obras ${statusReal === 'concluido' ? 'concluídas' : 'aguardando conferência'} não podem ser editadas`
+                                  : 'Editar'
+                              }
+                            >
+                              <Edit2 className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeletingObra(obra);
+                              }}
+                              className="p-2 rounded-[10px] hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
+                              title="Excluir"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
 
                 {/* 🎯 Empty state - só mostra após carregar */}
-                {!isLoadingDashboard && filteredObras.length === 0 && (
-                  obras.length === 0 ? (
+                {!isLoadingDashboard &&
+                  filteredObras.length === 0 &&
+                  (obras.length === 0 ? (
                     <button
                       onClick={() => setShowCreateObra(true)}
                       className="w-full text-center py-12 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl transition-colors group"
@@ -699,8 +806,12 @@ const AdminDashboard: React.FC = () => {
                           <Plus className="w-8 h-8 text-[#FD5521]" />
                         </div>
                         <div>
-                          <p className="text-gray-900 dark:text-white font-medium mb-1">Nenhuma obra cadastrada</p>
-                          <p className="text-sm text-[#FD5521] group-hover:underline">Clique aqui para cadastrar a primeira obra</p>
+                          <p className="text-gray-900 dark:text-white font-medium mb-1">
+                            Nenhuma obra cadastrada
+                          </p>
+                          <p className="text-sm text-[#FD5521] group-hover:underline">
+                            Clique aqui para cadastrar a primeira obra
+                          </p>
                         </div>
                       </div>
                     </button>
@@ -708,28 +819,33 @@ const AdminDashboard: React.FC = () => {
                     <div className="w-full bg-[#f1f3ea] dark:bg-gray-900/50 rounded-[10px] pt-[48px] pb-[48px]">
                       <div className="flex flex-col items-center gap-3">
                         <div className="w-16 h-16 rounded-full bg-[#e6e8dc] dark:bg-gray-800 flex items-center justify-center">
-                          <FolderOpen className="w-8 h-8 text-[#C6CCC2] dark:text-gray-600" strokeWidth={2} />
+                          <FolderOpen
+                            className="w-8 h-8 text-[#C6CCC2] dark:text-gray-600"
+                            strokeWidth={2}
+                          />
                         </div>
                         <div className="flex flex-col gap-1 items-center">
                           <p className="text-[#101828] dark:text-white font-normal text-base leading-6">
-                            Nenhuma obra {
-                              obraFilter === 'novo' ? 'nova' :
-                                obraFilter === 'em_andamento' ? 'em andamento' :
-                                  obraFilter === 'conferencia' ? 'em conferência' :
-                                    obraFilter === 'concluidas' ? 'concluída' : ''
-                            }
+                            Nenhuma obra{' '}
+                            {obraFilter === 'novo'
+                              ? 'nova'
+                              : obraFilter === 'em_andamento'
+                                ? 'em andamento'
+                                : obraFilter === 'conferencia'
+                                  ? 'em conferência'
+                                  : obraFilter === 'concluidas'
+                                    ? 'concluída'
+                                    : ''}
                           </p>
                           <p className="text-[#6a7282] dark:text-gray-400 text-sm leading-5">
                             {obraFilter === 'todas'
                               ? 'Nenhuma obra encontrada'
-                              : 'Altere o filtro para ver outras obras'
-                            }
+                              : 'Altere o filtro para ver outras obras'}
                           </p>
                         </div>
                       </div>
                     </div>
-                  )
-                )}
+                  ))}
               </div>
 
               {/* 🚀 PAGINAÇÃO - Cards View */}
@@ -746,7 +862,9 @@ const AdminDashboard: React.FC = () => {
               )}
 
               {/* Visualização em Lista - Desktop apenas */}
-              <div className={`bg-white dark:bg-gray-900 rounded-lg overflow-hidden ${viewMode === 'list' ? 'hidden md:block' : 'hidden'}`}>
+              <div
+                className={`bg-white dark:bg-gray-900 rounded-lg overflow-hidden ${viewMode === 'list' ? 'hidden md:block' : 'hidden'}`}
+              >
                 {/* 🎯 SKELETON: Row de obra em criação */}
                 {creatingSkeleton && (
                   <motion.div
@@ -781,7 +899,7 @@ const AdminDashboard: React.FC = () => {
                   <>
                     {obrasPagination.paginatedItems.map((obra, index) => {
                       // 🎯 REGRA DE DOMÍNIO: Aplicar status real baseado no formulário
-                      const formulario = formularios.find(f => f.obra_id === obra.id);
+                      const formulario = formularios.find((f) => f.obra_id === obra.id);
                       const status = getStatusDisplayWithFormulario(obra, formulario);
 
                       return (
@@ -800,27 +918,58 @@ const AdminDashboard: React.FC = () => {
                                   {/* Badge de Status */}
                                   <div className="flex items-center gap-1.5 flex-shrink-0">
                                     <div className="relative w-2 h-2">
-                                      <svg className="absolute inset-0" viewBox="0 0 18 18" fill="none">
-                                        <circle cx="9" cy="9" r="5" className={status.color.includes('blue') ? 'fill-blue-600' : status.color.includes('green') ? 'fill-green-600' : status.color.includes('yellow') ? 'fill-yellow-600' : 'fill-gray-400'} />
+                                      <svg
+                                        className="absolute inset-0"
+                                        viewBox="0 0 18 18"
+                                        fill="none"
+                                      >
+                                        <circle
+                                          cx="9"
+                                          cy="9"
+                                          r="5"
+                                          className={
+                                            status.color.includes('blue')
+                                              ? 'fill-blue-600'
+                                              : status.color.includes('green')
+                                                ? 'fill-green-600'
+                                                : status.color.includes('yellow')
+                                                  ? 'fill-yellow-600'
+                                                  : 'fill-gray-400'
+                                          }
+                                        />
                                       </svg>
                                     </div>
-                                    <span className={`font-medium text-sm ${status.color.includes('blue') ? 'text-blue-600' :
-                                      status.color.includes('green') ? 'text-green-600' :
-                                        status.color.includes('yellow') ? 'text-yellow-600' :
-                                          'text-gray-600'
-                                      }`}>
+                                    <span
+                                      className={`font-medium text-sm ${
+                                        status.color.includes('blue')
+                                          ? 'text-blue-600'
+                                          : status.color.includes('green')
+                                            ? 'text-green-600'
+                                            : status.color.includes('yellow')
+                                              ? 'text-yellow-600'
+                                              : 'text-gray-600'
+                                      }`}
+                                    >
                                       {status.label}
                                     </span>
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400">
                                   <span>
-                                    <span className="font-medium text-gray-900 dark:text-gray-300">{obra.cidade}</span>
+                                    <span className="font-medium text-gray-900 dark:text-gray-300">
+                                      {obra.cidade}
+                                    </span>
                                   </span>
                                   <span>•</span>
                                   <span>{getUserName(obra.encarregadoId)}</span>
                                   <span>•</span>
-                                  <span>{new Date(obra.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>
+                                  <span>
+                                    {new Date(obra.createdAt).toLocaleDateString('pt-BR', {
+                                      day: '2-digit',
+                                      month: '2-digit',
+                                      year: '2-digit',
+                                    })}
+                                  </span>
                                   <span>•</span>
                                   <span className="font-['Cousine',monospace] text-xs">
                                     #{String(obra.id).slice(-5)}
@@ -834,7 +983,10 @@ const AdminDashboard: React.FC = () => {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     // Bloquear edição se obra estiver concluída ou aguardando conferência
-                                    if (obra.status === 'concluido' || obra.status === 'enviado_preposto') {
+                                    if (
+                                      obra.status === 'concluido' ||
+                                      obra.status === 'enviado_preposto'
+                                    ) {
                                       showToast(
                                         `Obras ${obra.status === 'concluido' ? 'concluídas' : 'aguardando conferência'} não podem ser editadas`,
                                         'error'
@@ -843,12 +995,15 @@ const AdminDashboard: React.FC = () => {
                                     }
                                     setEditingObra(obra);
                                   }}
-                                  className={`p-2 rounded-lg transition-colors ${obra.status === 'concluido' || obra.status === 'enviado_preposto'
-                                    ? 'opacity-40 cursor-not-allowed text-gray-400 dark:text-gray-600'
-                                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
-                                    }`}
+                                  className={`p-2 rounded-lg transition-colors ${
+                                    obra.status === 'concluido' ||
+                                    obra.status === 'enviado_preposto'
+                                      ? 'opacity-40 cursor-not-allowed text-gray-400 dark:text-gray-600'
+                                      : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
+                                  }`}
                                   title={
-                                    obra.status === 'concluido' || obra.status === 'enviado_preposto'
+                                    obra.status === 'concluido' ||
+                                    obra.status === 'enviado_preposto'
                                       ? `Obras ${obra.status === 'concluido' ? 'concluídas' : 'aguardando conferência'} não podem ser editadas`
                                       : 'Editar'
                                   }
@@ -886,47 +1041,55 @@ const AdminDashboard: React.FC = () => {
                       />
                     </div>
                   </>
-                ) : (
-                  obras.length === 0 ? (
-                    <button
-                      onClick={() => setShowCreateObra(true)}
-                      className="w-full text-center py-12 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
-                    >
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="w-16 h-16 rounded-full bg-[#FD5521]/10 flex items-center justify-center group-hover:bg-[#FD5521]/20 transition-colors">
-                          <Plus className="w-8 h-8 text-[#FD5521]" />
-                        </div>
-                        <div>
-                          <p className="text-gray-900 dark:text-white font-medium mb-1">Nenhuma obra cadastrada</p>
-                          <p className="text-sm text-[#FD5521] group-hover:underline">Clique aqui para cadastrar a primeira obra</p>
-                        </div>
+                ) : obras.length === 0 ? (
+                  <button
+                    onClick={() => setShowCreateObra(true)}
+                    className="w-full text-center py-12 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
+                  >
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-16 h-16 rounded-full bg-[#FD5521]/10 flex items-center justify-center group-hover:bg-[#FD5521]/20 transition-colors">
+                        <Plus className="w-8 h-8 text-[#FD5521]" />
                       </div>
-                    </button>
-                  ) : (
-                    <div className="w-full bg-[#f1f3ea] dark:bg-gray-900/50 rounded-[10px] pt-[48px] pb-[48px]">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="w-16 h-16 rounded-full bg-[#e6e8dc] dark:bg-gray-800 flex items-center justify-center">
-                          <FolderOpen className="w-8 h-8 text-[#C6CCC2] dark:text-gray-600" strokeWidth={2} />
-                        </div>
-                        <div className="flex flex-col gap-1 items-center">
-                          <p className="text-[#101828] dark:text-white font-normal text-base leading-6">
-                            Nenhuma obra {
-                              obraFilter === 'novo' ? 'nova' :
-                                obraFilter === 'em_andamento' ? 'em andamento' :
-                                  obraFilter === 'conferencia' ? 'em conferência' :
-                                    obraFilter === 'concluidas' ? 'concluída' : ''
-                            }
-                          </p>
-                          <p className="text-[#6a7282] dark:text-gray-400 text-sm leading-5">
-                            {obraFilter === 'todas'
-                              ? 'Nenhuma obra encontrada'
-                              : 'Altere o filtro para ver outras obras'
-                            }
-                          </p>
-                        </div>
+                      <div>
+                        <p className="text-gray-900 dark:text-white font-medium mb-1">
+                          Nenhuma obra cadastrada
+                        </p>
+                        <p className="text-sm text-[#FD5521] group-hover:underline">
+                          Clique aqui para cadastrar a primeira obra
+                        </p>
                       </div>
                     </div>
-                  )
+                  </button>
+                ) : (
+                  <div className="w-full bg-[#f1f3ea] dark:bg-gray-900/50 rounded-[10px] pt-[48px] pb-[48px]">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-16 h-16 rounded-full bg-[#e6e8dc] dark:bg-gray-800 flex items-center justify-center">
+                        <FolderOpen
+                          className="w-8 h-8 text-[#C6CCC2] dark:text-gray-600"
+                          strokeWidth={2}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1 items-center">
+                        <p className="text-[#101828] dark:text-white font-normal text-base leading-6">
+                          Nenhuma obra{' '}
+                          {obraFilter === 'novo'
+                            ? 'nova'
+                            : obraFilter === 'em_andamento'
+                              ? 'em andamento'
+                              : obraFilter === 'conferencia'
+                                ? 'em conferência'
+                                : obraFilter === 'concluidas'
+                                  ? 'concluída'
+                                  : ''}
+                        </p>
+                        <p className="text-[#6a7282] dark:text-gray-400 text-sm leading-5">
+                          {obraFilter === 'todas'
+                            ? 'Nenhuma obra encontrada'
+                            : 'Altere o filtro para ver outras obras'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             </motion.div>
@@ -936,7 +1099,7 @@ const AdminDashboard: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3, ease: "easeInOut" }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
             >
               {/* Header com botões de Filtro e Adicionar */}
               <div className="flex items-center justify-between mb-6">
@@ -968,7 +1131,9 @@ const AdminDashboard: React.FC = () => {
                       <div key={user.id}>
                         <div className="px-5 py-4 flex items-center justify-between gap-4">
                           <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className={`w-10 h-10 rounded-full ${getAvatarColor(user.id)} text-white flex items-center justify-center font-medium flex-shrink-0`}>
+                            <div
+                              className={`w-10 h-10 rounded-full ${getAvatarColor(user.id)} text-white flex items-center justify-center font-medium flex-shrink-0`}
+                            >
                               {user.nome.charAt(0).toUpperCase()}
                             </div>
                             <div className="flex-1 min-w-0">

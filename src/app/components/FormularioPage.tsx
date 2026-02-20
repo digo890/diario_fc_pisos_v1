@@ -35,7 +35,9 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
-  const [activeServico, setActiveServico] = useState<'servico1' | 'servico2' | 'servico3'>('servico1');
+  const [activeServico, setActiveServico] = useState<'servico1' | 'servico2' | 'servico3'>(
+    'servico1'
+  );
   const [showShareModal, setShowShareModal] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
 
@@ -47,7 +49,6 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
     const year = String(date.getFullYear()).slice(-2);
     return `${day}/${month}/${year}`;
   };
-
 
   // ============================================================================
   // AUTO-SAVE: Modelo Simplificado (NÃO MODIFICAR SEM REVISÃO)
@@ -65,7 +66,7 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
     if (!dataToSave) return;
 
     // Usar functional update para evitar stale state
-    setSaving(prev => {
+    setSaving((prev) => {
       if (prev) return prev; // Já está salvando
       return true;
     });
@@ -73,7 +74,7 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
     try {
       const updatedForm = {
         ...dataToSave,
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
       };
 
       await saveForm(updatedForm);
@@ -84,12 +85,7 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
   }, []);
 
   // Criar função debounced (mantém referência estável)
-  const debouncedSaveLocal = useRef(
-    debounce((data: FormData) => saveLocal(data), 600)
-  ).current;
-
-
-
+  const debouncedSaveLocal = useRef(debounce((data: FormData) => saveLocal(data), 600)).current;
 
   useEffect(() => {
     // ✅ CORREÇÃO #5: Adicionar cleanup para evitar memory leak
@@ -121,7 +117,7 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
           status: 'novo',
           createdAt: Date.now(),
           updatedAt: Date.now(),
-          createdBy: currentUser?.id || ''
+          createdBy: currentUser?.id || '',
         };
         await saveForm(form);
       }
@@ -148,8 +144,6 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
     debouncedSaveLocal(formData);
   }, [formData, saving, loading, isReadOnly, isPreposto, debouncedSaveLocal]);
 
-
-
   const handleSubmit = async () => {
     if (!formData) return;
 
@@ -166,7 +160,7 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
     // ✅ CORREÇÃO: Rate limiting - Evitar envios múltiplos acidentais
     const rateLimitCheck = checkRateLimit({
       key: `enviar-preposto-${obra.id}`,
-      limitMs: 60000 // 1 minuto
+      limitMs: 60000, // 1 minuto
     });
 
     if (!rateLimitCheck.allowed) {
@@ -191,14 +185,14 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
           status: 'concluido' as const,
           prepostoReviewedAt: Date.now(),
           prepostoReviewedBy: currentUser?.id,
-          updatedAt: Date.now()
+          updatedAt: Date.now(),
         };
 
         await saveForm(updatedForm);
         await saveObra({
           ...obra,
           status: 'concluido',
-          progress: 100
+          progress: 100,
         });
 
         showToast('Formulário enviado para o administrador com sucesso!', 'success');
@@ -213,7 +207,7 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
           ...formData,
           status: 'enviado_preposto' as const,
           enviadoPrepostoAt: Date.now(),
-          updatedAt: Date.now()
+          updatedAt: Date.now(),
         };
 
         // Salvar no IndexedDB local
@@ -221,7 +215,7 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
 
         const updatedObra = {
           ...obra,
-          status: 'enviado_preposto' as const
+          status: 'enviado_preposto' as const,
         };
 
         await saveObra(updatedObra);
@@ -244,7 +238,7 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
                 formularioId = existingFormulario.id;
                 await formularioApi.update(formularioId, {
                   ...updatedForm,
-                  obra_id: obra.id
+                  obra_id: obra.id,
                 });
                 safeLog('✅ Formulário atualizado no backend');
               } else {
@@ -254,7 +248,7 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
                 const payload = {
                   id: formularioId,
                   obra_id: obra.id,
-                  ...updatedForm
+                  ...updatedForm,
                 };
 
                 await formularioApi.create(payload);
@@ -274,7 +268,7 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
             // Backend rejeita tentativas de mudar outros campos (RLS)
             await obraApi.update(obra.id, {
               status: 'enviado_preposto',
-              progress: obra.progress || 0
+              progress: obra.progress || 0,
             });
             safeLog('✅ Status sincronizado com backend: enviado_preposto');
 
@@ -299,7 +293,10 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
               } else {
                 safeError('⚠️ Erro ao enviar email ao preposto:', emailResult.error);
                 // ⚠️ Email falhou mas sync funcionou - avisar usuário
-                showToast('⚠️ Formulário enviado, mas houve erro ao enviar email. Por favor, envie o link manualmente.', 'warning');
+                showToast(
+                  '⚠️ Formulário enviado, mas houve erro ao enviar email. Por favor, envie o link manualmente.',
+                  'warning'
+                );
               }
             }
 
@@ -309,7 +306,10 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
             if (emailEnviado && obra.prepostoEmail) {
               showToast('Formulário enviado e email enviado ao preposto ✓', 'success');
             } else {
-              showToast('Formulário enviado! Compartilhe o link de validação com o preposto.', 'success');
+              showToast(
+                'Formulário enviado! Compartilhe o link de validação com o preposto.',
+                'success'
+              );
             }
 
             // Aguardar um pouco para o usuário ver o toast antes de voltar
@@ -318,7 +318,10 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
             }, 1500);
           } else {
             // ❌ Sem conexão - alertar usuário e reverter
-            showToast('Sem conexão com a internet. Por favor, conecte-se e tente novamente.', 'error');
+            showToast(
+              'Sem conexão com a internet. Por favor, conecte-se e tente novamente.',
+              'error'
+            );
 
             // Reverter mudanças locais
             await saveForm(formData);
@@ -334,7 +337,10 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
           await saveForm(formData);
           await saveObra(obra);
 
-          showToast('Erro ao sincronizar com servidor. Tente novamente em alguns instantes.', 'error');
+          showToast(
+            'Erro ao sincronizar com servidor. Tente novamente em alguns instantes.',
+            'error'
+          );
           setSubmitting(false);
           return; // ❌ NÃO enviar email nem continuar
         }
@@ -359,13 +365,15 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
       newFormData.servicos = updates.servicos;
 
       // Deep copy de cada serviço individualmente
-      Object.keys(updates.servicos).forEach(key => {
+      Object.keys(updates.servicos).forEach((key) => {
         const servicoKey = key as 'servico1' | 'servico2' | 'servico3';
         if (updates.servicos![servicoKey]) {
           newFormData.servicos[servicoKey] = {
             ...updates.servicos[servicoKey]!,
             etapas: { ...updates.servicos[servicoKey]!.etapas },
-            fotos: updates.servicos[servicoKey]!.fotos ? [...updates.servicos[servicoKey]!.fotos!] : undefined
+            fotos: updates.servicos[servicoKey]!.fotos
+              ? [...updates.servicos[servicoKey]!.fotos!]
+              : undefined,
           };
         }
       });
@@ -382,7 +390,7 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
     }
 
     // Aplicar outras atualizações
-    Object.keys(updates).forEach(key => {
+    Object.keys(updates).forEach((key) => {
       if (key !== 'servicos' && key !== 'registros' && key !== 'clima') {
         (newFormData as any)[key] = (updates as any)[key];
       }
@@ -392,12 +400,15 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
   };
 
   // Salvar antes de trocar aba de serviço
-  const handleTabChange = useCallback(async (newTab: 'servico1' | 'servico2' | 'servico3') => {
-    if (formData) {
-      await saveLocal(formData);
-    }
-    setActiveServico(newTab);
-  }, [formData, saveLocal]);
+  const handleTabChange = useCallback(
+    async (newTab: 'servico1' | 'servico2' | 'servico3') => {
+      if (formData) {
+        await saveLocal(formData);
+      }
+      setActiveServico(newTab);
+    },
+    [formData, saveLocal]
+  );
 
   // Salvar antes de voltar
   const handleBack = useCallback(async () => {
@@ -406,8 +417,6 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
     }
     onBack();
   }, [formData, saveLocal, onBack]);
-
-
 
   if (loading) {
     return (
@@ -437,17 +446,31 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
       {submitting && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm">
           <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4 max-w-sm mx-4">
-            <svg className="animate-spin h-12 w-12 text-[#FD5521]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <svg
+              className="animate-spin h-12 w-12 text-[#FD5521]"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
             </svg>
             <div className="text-center">
               <p className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
                 Enviando formulário...
               </p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Por favor, aguarde
-              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Por favor, aguarde</p>
             </div>
           </div>
         </div>
@@ -470,7 +493,9 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
               <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2 flex-wrap">
                 <span>{obra.cidade}</span>
                 <span>•</span>
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusDisplay.color}`}>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusDisplay.color}`}
+                >
                   {statusDisplay.label}
                 </span>
                 {formData.createdAt && (
@@ -493,13 +518,11 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
               </button>
             )}
           </div>
-
         </div>
       </header>
 
       {/* Formulário */}
       <div className="max-w-3xl mx-auto px-4 py-6 pb-24">
-
         <div className="space-y-8">
           <CondicoesAmbientaisSection
             data={formData}
@@ -553,9 +576,25 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
             >
               {saving ? (
                 <>
-                  <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <svg
+                    className="animate-spin h-5 w-5"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
                   </svg>
                   Enviando...
                 </>
@@ -614,18 +653,27 @@ const FormularioPage: React.FC<Props> = ({ obra, isReadOnly, isPreposto, onBack 
                 />
                 <button
                   onClick={async () => {
-                    const success = await copyToClipboard(`${window.location.origin}/conferencia/${obra.validationToken}`);
+                    const success = await copyToClipboard(
+                      `${window.location.origin}/conferencia/${obra.validationToken}`
+                    );
                     if (success) {
                       setLinkCopied(true);
                       setTimeout(() => setLinkCopied(false), 2000);
                       showToast('Link copiado! ✓', 'success');
                     } else {
-                      showToast('Não foi possível copiar. Por favor, selecione e copie o texto manualmente.', 'warning');
+                      showToast(
+                        'Não foi possível copiar. Por favor, selecione e copie o texto manualmente.',
+                        'warning'
+                      );
                     }
                   }}
                   className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
                 >
-                  {linkCopied ? <Check className="w-5 h-5 text-green-500" /> : <Copy className="w-5 h-5" />}
+                  {linkCopied ? (
+                    <Check className="w-5 h-5 text-green-500" />
+                  ) : (
+                    <Copy className="w-5 h-5" />
+                  )}
                 </button>
               </div>
             </div>

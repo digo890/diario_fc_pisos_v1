@@ -31,7 +31,7 @@ const DiagnosticoPage: React.FC = () => {
             Esta página é restrita a administradores. Seu acesso não está autorizado.
           </p>
           <button
-            onClick={() => window.location.href = '/'}
+            onClick={() => (window.location.href = '/')}
             className="px-6 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg hover:opacity-90 transition-all font-medium"
           >
             Voltar ao Início
@@ -50,9 +50,9 @@ const DiagnosticoPage: React.FC = () => {
         `https://cjwuooaappcnsqxgdpta.supabase.co/functions/v1/make-server-1ff231a2/debug/token/${token}`,
         {
           headers: {
-            'Authorization': `Bearer ${publicAnonKey}`, // 🛡️ Usar chave pública para passar pelo CORS
-            'X-User-Token': accessToken || '' // 🛡️ SUCESSO: Usar token real do usuário logado
-          }
+            Authorization: `Bearer ${publicAnonKey}`, // 🛡️ Usar chave pública para passar pelo CORS
+            'X-User-Token': accessToken || '', // 🛡️ SUCESSO: Usar token real do usuário logado
+          },
         }
       );
       const data = await response.json();
@@ -113,7 +113,9 @@ const DiagnosticoPage: React.FC = () => {
             {/* Interpretação do resultado */}
             {resultado.obra_encontrada !== undefined && (
               <div className="mt-6 space-y-3">
-                <div className={`p-3 rounded-lg ${resultado.obra_encontrada ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'}`}>
+                <div
+                  className={`p-3 rounded-lg ${resultado.obra_encontrada ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'}`}
+                >
                   <strong>
                     {resultado.obra_encontrada ? '✅ Obra encontrada' : '❌ Obra NÃO encontrada'}
                   </strong>
@@ -124,9 +126,13 @@ const DiagnosticoPage: React.FC = () => {
                   )}
                 </div>
 
-                <div className={`p-3 rounded-lg ${resultado.formulario_encontrado ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'}`}>
+                <div
+                  className={`p-3 rounded-lg ${resultado.formulario_encontrado ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'}`}
+                >
                   <strong>
-                    {resultado.formulario_encontrado ? '✅ Formulário encontrado' : '❌ Formulário NÃO encontrado'}
+                    {resultado.formulario_encontrado
+                      ? '✅ Formulário encontrado'
+                      : '❌ Formulário NÃO encontrado'}
                   </strong>
                 </div>
 
@@ -149,7 +155,8 @@ const DiagnosticoPage: React.FC = () => {
                     <p className="text-yellow-700 dark:text-yellow-300 mt-2 text-sm">
                       A obra existe, mas o formulário não foi criado no backend.
                       <br />
-                      Isso acontece quando o encarregado clica em "Enviar para preposto" sem ter salvo o formulário antes ou se houve erro de rede persistente.
+                      Isso acontece quando o encarregado clica em "Enviar para preposto" sem ter
+                      salvo o formulário antes ou se houve erro de rede persistente.
                     </p>
                   </div>
                 )}

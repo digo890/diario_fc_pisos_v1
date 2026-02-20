@@ -16,7 +16,7 @@ export const registerServiceWorker = async (): Promise<void> => {
     const registration = await navigator.serviceWorker.register('/sw.js', {
       scope: '/',
       // Usar updateViaCache para forçar verificação de updates
-      updateViaCache: 'none'
+      updateViaCache: 'none',
     });
 
     safeLog('✅ Service Worker registrado com sucesso');
@@ -24,19 +24,19 @@ export const registerServiceWorker = async (): Promise<void> => {
     // ============================================
     // 🔄 DETECTAR ATUALIZAÇÕES DO SERVICE WORKER
     // ============================================
-    
+
     // Quando há uma nova versão instalando
     registration.addEventListener('updatefound', () => {
       const newWorker = registration.installing;
-      
+
       if (newWorker) {
         safeLog('🔄 Nova versão do Service Worker detectada, instalando...');
-        
+
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
             // Nova versão instalada, mas ainda não ativa
             safeLog('✅ Nova versão instalada, aguardando ativação');
-            
+
             // Notificar usuário sobre atualização disponível
             showUpdateNotification(newWorker);
           }
@@ -49,30 +49,32 @@ export const registerServiceWorker = async (): Promise<void> => {
     // ============================================
     // Verificar atualizações periodicamente (apenas em produção)
     if (import.meta.env.PROD) {
-      setInterval(() => {
-        registration.update().catch((error) => {
-          safeError('Erro ao verificar atualização do SW:', error);
-        });
-      }, 5 * 60 * 1000); // A cada 5 minutos
+      setInterval(
+        () => {
+          registration.update().catch((error) => {
+            safeError('Erro ao verificar atualização do SW:', error);
+          });
+        },
+        5 * 60 * 1000
+      ); // A cada 5 minutos
     }
 
     // ============================================
     // 🔔 CONTROLAR MUDANÇAS DE ESTADO
     // ============================================
     let refreshing = false;
-    
+
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (refreshing) return;
-      
+
       safeLog('🔄 Service Worker atualizado, recarregando página...');
       refreshing = true;
-      
+
       // Recarregar página automaticamente após 500ms
       setTimeout(() => {
         window.location.reload();
       }, 500);
     });
-
   } catch (error) {
     safeError('❌ Erro ao registrar Service Worker:', error);
   }
@@ -84,7 +86,7 @@ export const registerServiceWorker = async (): Promise<void> => {
 function showUpdateNotification(worker: ServiceWorker): void {
   // Verificar se o usuário quer ser notificado
   const shouldNotify = localStorage.getItem('sw-update-notifications') !== 'disabled';
-  
+
   if (!shouldNotify) {
     // Ativar automaticamente sem notificação
     worker.postMessage({ type: 'SKIP_WAITING' });
@@ -184,13 +186,13 @@ export const clearServiceWorkerCache = async (): Promise<void> => {
 
   try {
     // Adicionar timeout de 3 segundos
-    const registration = await Promise.race([
+    const registration = (await Promise.race([
       navigator.serviceWorker.ready,
-      new Promise<never>((_, reject) => 
+      new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Timeout ao acessar Service Worker')), 3000)
-      )
-    ]) as ServiceWorkerRegistration;
-    
+      ),
+    ])) as ServiceWorkerRegistration;
+
     if (registration && registration.active) {
       registration.active.postMessage({ type: 'CLEAR_CACHE' });
       safeLog('✅ Cache do Service Worker limpo');
@@ -209,11 +211,11 @@ export const clearServiceWorkerCache = async (): Promise<void> => {
 export const unregisterServiceWorker = async (): Promise<void> => {
   if ('serviceWorker' in navigator) {
     const registrations = await navigator.serviceWorker.getRegistrations();
-    
+
     for (const registration of registrations) {
       await registration.unregister();
     }
-    
+
     safeLog('✅ Service Worker desregistrado');
   }
 };

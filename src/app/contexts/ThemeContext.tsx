@@ -37,11 +37,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     await saveConfig('theme', newTheme);
   };
 
-  return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={{ theme, toggleTheme }}>{children}</ThemeContext.Provider>;
 };
 
 export const useTheme = () => {

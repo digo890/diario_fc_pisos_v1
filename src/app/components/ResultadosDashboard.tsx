@@ -1,6 +1,20 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { FileText, CheckCircle2, Clock, AlertCircle, TrendingUp, Calendar } from 'lucide-react';
-import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import {
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 import { getAllForms } from '../utils/database';
 import { getObraStatusReal } from '../utils/diarioHelpers'; // 🎯 Usar apenas getObraStatusReal
 import { SkeletonDashboard } from './SkeletonCard';
@@ -47,7 +61,7 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
 
   const loadDashboardData = async () => {
     setLoading(true);
-    
+
     // 🚀 PERFORMANCE: Batch loading - busca todos os formulários de uma vez
     const validForms = await getAllForms();
     setFormsData(validForms);
@@ -55,7 +69,7 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
     // 🎯 REGRA DE DOMÍNIO: Calcular estatísticas usando status REAL das obras
     // Criar mapa de formulários por obra_id para lookup rápido
     const formsByObraId = new Map<string, FormData>();
-    validForms.forEach(form => {
+    validForms.forEach((form) => {
       formsByObraId.set(form.obra_id, form);
     });
 
@@ -67,15 +81,15 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
     let obrasAndamento = 0;
     let obrasConcluidas = 0;
 
-    obras.forEach(obra => {
+    obras.forEach((obra) => {
       const formulario = formsByObraId.get(obra.id);
       const statusReal = getObraStatusReal(obra, formulario);
-      
+
       // ✅ CORREÇÃO: contar se tem formulário
       if (formulario) {
         formulariosPreenchidos++;
       }
-      
+
       // Contar por status real
       if (statusReal === 'concluido') {
         formulariosValidados++;
@@ -108,7 +122,7 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
       { name: 'Novas', value: dashboardData.obrasNovas, color: COLORS.gray },
       { name: 'Em Andamento', value: dashboardData.obrasAndamento, color: COLORS.warning },
       { name: 'Concluídas', value: dashboardData.obrasConcluidas, color: COLORS.success },
-    ].filter(item => item.value > 0);
+    ].filter((item) => item.value > 0);
   }, [dashboardData.obrasNovas, dashboardData.obrasAndamento, dashboardData.obrasConcluidas]);
 
   const formulariosChartData = useMemo(() => {
@@ -117,17 +131,21 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
       { name: 'Em Revisão', value: dashboardData.formulariosEmRevisao, color: COLORS.warning },
       { name: 'Validados', value: dashboardData.formulariosValidados, color: COLORS.success },
     ];
-  }, [dashboardData.formulariosPreenchidos, dashboardData.formulariosEmRevisao, dashboardData.formulariosValidados]);
+  }, [
+    dashboardData.formulariosPreenchidos,
+    dashboardData.formulariosEmRevisao,
+    dashboardData.formulariosValidados,
+  ]);
 
   const taxaConclusao = useMemo(() => {
-    return dashboardData.totalObras > 0 
-      ? Math.round((dashboardData.formulariosValidados / dashboardData.totalObras) * 100) 
+    return dashboardData.totalObras > 0
+      ? Math.round((dashboardData.formulariosValidados / dashboardData.totalObras) * 100)
       : 0;
   }, [dashboardData.totalObras, dashboardData.formulariosValidados]);
 
   const obrasRecentes = useMemo(() => {
-    const last30Days = Date.now() - (30 * 24 * 60 * 60 * 1000);
-    return obras.filter(o => o.createdAt >= last30Days).length;
+    const last30Days = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    return obras.filter((o) => o.createdAt >= last30Days).length;
   }, [obras]);
 
   if (loading) {
@@ -148,9 +166,7 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
               {dashboardData.totalObras}
             </div>
           </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            Total de Obras
-          </div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">Total de Obras</div>
         </div>
 
         {/* Formulários Preenchidos */}
@@ -163,9 +179,7 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
               {dashboardData.formulariosPreenchidos}
             </div>
           </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            Formulários Preenchidos
-          </div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">Formulários Preenchidos</div>
         </div>
 
         {/* Formulários em Revisão */}
@@ -178,9 +192,7 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
               {dashboardData.formulariosEmRevisao}
             </div>
           </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            Em Revisão
-          </div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">Em Revisão</div>
         </div>
 
         {/* Formulários Validados */}
@@ -193,9 +205,7 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
               {dashboardData.formulariosValidados}
             </div>
           </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            Validados
-          </div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">Validados</div>
         </div>
       </div>
 
@@ -217,14 +227,14 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-white dark:border-gray-900 p-6">
           <div className="flex items-center gap-3 mb-4">
             <Calendar className="w-6 h-6 text-[#FD5521]" />
-            <div className="text-lg font-semibold text-gray-900 dark:text-white">Últimos 30 dias</div>
+            <div className="text-lg font-semibold text-gray-900 dark:text-white">
+              Últimos 30 dias
+            </div>
           </div>
           <div className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
             {obrasRecentes}
           </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            novas obras cadastradas
-          </div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">novas obras cadastradas</div>
         </div>
       </div>
 
@@ -232,9 +242,7 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Gráfico de Status das Obras */}
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-white dark:border-gray-900 p-6">
-          <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
-            Status das Obras
-          </h3>
+          <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Status das Obras</h3>
           {statusChartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -270,21 +278,14 @@ const ResultadosDashboard: React.FC<Props> = ({ obras }) => {
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={formulariosChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
-              <XAxis 
-                dataKey="name" 
-                stroke="#9ca3af"
-                tick={{ fill: '#9ca3af' }}
-              />
-              <YAxis 
-                stroke="#9ca3af"
-                tick={{ fill: '#9ca3af' }}
-              />
-              <Tooltip 
+              <XAxis dataKey="name" stroke="#9ca3af" tick={{ fill: '#9ca3af' }} />
+              <YAxis stroke="#9ca3af" tick={{ fill: '#9ca3af' }} />
+              <Tooltip
                 contentStyle={{
                   backgroundColor: '#1f2937',
                   border: 'none',
                   borderRadius: '8px',
-                  color: '#fff'
+                  color: '#fff',
                 }}
                 formatter={(value: number) => [value, '']}
                 labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: '4px' }}

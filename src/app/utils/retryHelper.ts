@@ -29,7 +29,7 @@ export async function retryWithBackoff<T>(
       }
 
       // Aguardar antes de tentar novamente
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
 

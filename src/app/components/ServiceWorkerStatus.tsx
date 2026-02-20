@@ -61,7 +61,7 @@ const ServiceWorkerStatus: React.FC = () => {
     <>
       {/* Rodapé discreto - apenas em desenvolvimento */}
       {import.meta.env.DEV && (
-        <div 
+        <div
           className="fixed bottom-0 left-0 right-0 bg-[#EDEFE4] dark:bg-gray-950 text-[#C6CCC2] dark:text-gray-400 px-4 py-2 text-xs font-mono items-center gap-4 z-40 dark:border-t dark:border-gray-800"
           style={{ display: 'none' }}
         >

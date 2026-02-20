@@ -32,7 +32,7 @@ const REGISTROS_ITEMS = [
   'As áreas concluídas foram protegidas e isoladas?',
   'O substrato foi fotografado?',
   'Ocorreu alguma desconformidade durante ou após as aplicações?',
-  'Você relatou ao preposto as desconformidades?'
+  'Você relatou ao preposto as desconformidades?',
 ];
 
 const ESTADO_SUBSTRATO_OPTIONS = ['Fraco', 'Irregular / Ondulado', 'Bom Estado'];
@@ -54,7 +54,7 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
       horarioFimTarde: '',
       local: '',
       etapas: {},
-      registros: {}
+      registros: {},
     };
 
     onChange({
@@ -66,11 +66,11 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
             ...currentServico.registros,
             [key]: {
               ...currentServico.registros?.[key],
-              ...updates
-            }
-          }
-        }
-      }
+              ...updates,
+            },
+          },
+        },
+      },
     });
   };
 
@@ -85,7 +85,7 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
         horarioFimTarde: '',
         local: '',
         etapas: {},
-        registros: {}
+        registros: {},
       };
 
       const newRegistros = { ...currentServico.registros };
@@ -96,9 +96,9 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
           ...data.servicos,
           [activeServico]: {
             ...currentServico,
-            registros: newRegistros
-          }
-        }
+            registros: newRegistros,
+          },
+        },
       });
     } else {
       // Ativar
@@ -161,19 +161,25 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
                     onSelect(option);
                     onClose();
                   }}
-                  className={`w-full px-6 py-4 flex items-center justify-between transition-colors rounded-xl mx-2 mb-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FD5521]/40 ${value === option ? 'bg-[#FD5521]/10' : 'bg-white dark:bg-gray-800'
-                    }`}
+                  className={`w-full px-6 py-4 flex items-center justify-between transition-colors rounded-xl mx-2 mb-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FD5521]/40 ${
+                    value === option ? 'bg-[#FD5521]/10' : 'bg-white dark:bg-gray-800'
+                  }`}
                 >
-                  <div className={`font-medium ${value === option
-                    ? 'text-[#FD5521]'
-                    : 'text-gray-900 dark:text-white'
-                    }`}>
+                  <div
+                    className={`font-medium ${
+                      value === option ? 'text-[#FD5521]' : 'text-gray-900 dark:text-white'
+                    }`}
+                  >
                     {option}
                   </div>
                   {value === option && (
                     <div className="w-5 h-5 rounded-full bg-[#FD5521] flex items-center justify-center ml-3">
                       <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        <path
+                          fillRule="evenodd"
+                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
                       </svg>
                     </div>
                   )}
@@ -212,7 +218,8 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
                 {isEstadoSubstrato ? (
                   <div>
                     <label className="block font-medium text-gray-900 dark:text-white mb-3">
-                      <span className="text-[#C6CCC2] dark:text-gray-500">{35 + index}.</span> {label}
+                      <span className="text-[#C6CCC2] dark:text-gray-500">{35 + index}.</span>{' '}
+                      {label}
                     </label>
                     <button
                       type="button"
@@ -223,7 +230,13 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
                                focus:ring-2 focus:ring-[#FD5521]/40 focus:border-transparent
                                disabled:cursor-not-allowed"
                     >
-                      <span className={item?.texto ? 'text-gray-900 dark:text-white' : 'text-[#C6CCC2] dark:text-gray-500'}>
+                      <span
+                        className={
+                          item?.texto
+                            ? 'text-gray-900 dark:text-white'
+                            : 'text-[#C6CCC2] dark:text-gray-500'
+                        }
+                      >
                         {item?.texto || (isReadOnly ? '' : 'Selecione')}
                       </span>
                       <ChevronDown className="w-5 h-5 text-gray-400" />
@@ -236,7 +249,9 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
                           value={item.comentario || ''}
                           onChange={(e) => updateRegistro(key, { comentario: e.target.value })}
                           disabled={isReadOnly}
-                          placeholder={isReadOnly ? '' : 'Descreva detalhes sobre o estado do substrato...'}
+                          placeholder={
+                            isReadOnly ? '' : 'Descreva detalhes sobre o estado do substrato...'
+                          }
                           rows={3}
                           className="w-full px-4 py-3 rounded-xl 
                                  bg-white dark:bg-gray-800 text-gray-900 dark:text-white
@@ -286,7 +301,8 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
                   // Item 45: Campo numérico simples (sem observação)
                   <div>
                     <label className="block font-medium text-gray-900 dark:text-white mb-3">
-                      <span className="text-[#C6CCC2] dark:text-gray-500">{35 + index}.</span> {label}
+                      <span className="text-[#C6CCC2] dark:text-gray-500">{35 + index}.</span>{' '}
+                      {label}
                     </label>
                     <div className="relative">
                       <input
@@ -317,7 +333,8 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
                   // Item 46: Campo numérico com observação
                   <div>
                     <label className="block font-medium text-gray-900 dark:text-white mb-3">
-                      <span className="text-[#C6CCC2] dark:text-gray-500">{35 + index}.</span> {label}
+                      <span className="text-[#C6CCC2] dark:text-gray-500">{35 + index}.</span>{' '}
+                      {label}
                     </label>
                     <div className="relative">
                       <input
@@ -364,17 +381,22 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
                     <div className="flex flex-col sm:flex-row sm:items-start gap-3">
                       <div className="flex-1">
                         <label className="font-medium text-gray-900 dark:text-white">
-                          <span className="text-[#C6CCC2] dark:text-gray-500">{35 + index}.</span> {label}
+                          <span className="text-[#C6CCC2] dark:text-gray-500">{35 + index}.</span>{' '}
+                          {label}
                         </label>
                       </div>
 
                       {/* Switch Não/Sim - Design tipo toggle */}
-                      <div className={`bg-[#edefe3] rounded-full p-1 relative w-full sm:w-auto ${isEven ? 'dark:bg-gray-800' : 'dark:bg-gray-900'
-                        }`}>
+                      <div
+                        className={`bg-[#edefe3] rounded-full p-1 relative w-full sm:w-auto ${
+                          isEven ? 'dark:bg-gray-800' : 'dark:bg-gray-900'
+                        }`}
+                      >
                         {/* Background verde que desliza */}
                         <div
-                          className={`absolute top-1 bottom-1 left-1 right-1 w-[calc(50%-4px)] bg-[#DBEA8D] dark:bg-[#DBEA8D] rounded-full transition-transform duration-300 ease-in-out ${isAtivo ? 'translate-x-full' : 'translate-x-0'
-                            }`}
+                          className={`absolute top-1 bottom-1 left-1 right-1 w-[calc(50%-4px)] bg-[#DBEA8D] dark:bg-[#DBEA8D] rounded-full transition-transform duration-300 ease-in-out ${
+                            isAtivo ? 'translate-x-full' : 'translate-x-0'
+                          }`}
                         />
 
                         {/* Botões de texto */}
@@ -383,10 +405,11 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
                             type="button"
                             onClick={() => !isReadOnly && isAtivo && toggleRegistro(key)}
                             disabled={isReadOnly}
-                            className={`w-1/2 px-5 py-2.5 rounded-full text-xs font-bold transition-opacity duration-300 disabled:cursor-not-allowed z-10 ${!isAtivo
-                              ? 'text-black opacity-100'
-                              : 'text-black dark:text-gray-400 opacity-40'
-                              }`}
+                            className={`w-1/2 px-5 py-2.5 rounded-full text-xs font-bold transition-opacity duration-300 disabled:cursor-not-allowed z-10 ${
+                              !isAtivo
+                                ? 'text-black opacity-100'
+                                : 'text-black dark:text-gray-400 opacity-40'
+                            }`}
                           >
                             Não
                           </button>
@@ -394,10 +417,11 @@ const RegistrosSection: React.FC<Props> = ({ data, onChange, isReadOnly, activeS
                             type="button"
                             onClick={() => !isReadOnly && !isAtivo && toggleRegistro(key)}
                             disabled={isReadOnly}
-                            className={`w-1/2 px-5 py-2.5 rounded-full text-xs font-bold transition-opacity duration-300 disabled:cursor-not-allowed z-10 ${isAtivo
-                              ? 'text-black opacity-100'
-                              : 'text-black dark:text-gray-400 opacity-40'
-                              }`}
+                            className={`w-1/2 px-5 py-2.5 rounded-full text-xs font-bold transition-opacity duration-300 disabled:cursor-not-allowed z-10 ${
+                              isAtivo
+                                ? 'text-black opacity-100'
+                                : 'text-black dark:text-gray-400 opacity-40'
+                            }`}
                           >
                             Sim
                           </button>

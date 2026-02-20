@@ -1,4 +1,4 @@
-import svgPaths from "./svg-4k9hfrxv3v";
+import svgPaths from './svg-4k9hfrxv3v';
 
 export default function FcLogo() {
   return (

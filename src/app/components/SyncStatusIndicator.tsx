@@ -13,12 +13,13 @@ interface SyncStatusIndicatorProps {
 }
 
 export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps) {
-  const { pendingCount, failedCount, isOnline, hasPendingOperations, retryFailed, processPending } = useSyncStatus();
+  const { pendingCount, failedCount, isOnline, hasPendingOperations, retryFailed, processPending } =
+    useSyncStatus();
   const [showDetails, setShowDetails] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [isVisible, setIsVisible] = useState(true); // Controla visibilidade do botão
   const [isHovered, setIsHovered] = useState(false); // Detecta hover
-  
+
   // Refs para rastrear mudanças
   const previousStatus = useRef({ pendingCount, failedCount, isOnline });
   const hideTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -26,17 +27,17 @@ export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps
   // Função para mostrar o botão temporariamente
   const showTemporarily = () => {
     setIsVisible(true);
-    
+
     // Limpar timeout anterior se existir
     if (hideTimeout.current) {
       clearTimeout(hideTimeout.current);
     }
-    
+
     // Não esconder se houver problemas/pendências ou se estiver com hover
     if (hasPendingOperations || !isOnline || isHovered) {
       return;
     }
-    
+
     // Esconder após 4 segundos
     hideTimeout.current = setTimeout(() => {
       if (!isHovered && !showDetails) {
@@ -47,7 +48,7 @@ export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps
 
   // Detectar mudanças de status
   useEffect(() => {
-    const statusChanged = 
+    const statusChanged =
       previousStatus.current.pendingCount !== pendingCount ||
       previousStatus.current.failedCount !== failedCount ||
       previousStatus.current.isOnline !== isOnline;
@@ -112,7 +113,7 @@ export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps
         color: 'text-gray-500',
         bgColor: 'bg-gray-100 dark:bg-gray-800',
         label: 'Offline',
-        description: 'Sem conexão com a internet'
+        description: 'Sem conexão com a internet',
       };
     }
 
@@ -122,7 +123,7 @@ export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps
         color: 'text-red-500',
         bgColor: 'bg-red-100 dark:bg-red-900/20',
         label: 'Erro',
-        description: `${failedCount} operação(ões) falharam`
+        description: `${failedCount} operação(ões) falharam`,
       };
     }
 
@@ -132,7 +133,7 @@ export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps
         color: 'text-yellow-600',
         bgColor: 'bg-yellow-100 dark:bg-yellow-900/20',
         label: 'Sincronizando',
-        description: `${pendingCount} operação(ões) pendente(s)`
+        description: `${pendingCount} operação(ões) pendente(s)`,
       };
     }
 
@@ -141,7 +142,7 @@ export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps
       color: 'text-green-500',
       bgColor: 'bg-green-100 dark:bg-green-900/20',
       label: 'Sincronizado',
-      description: 'Tudo sincronizado'
+      description: 'Tudo sincronizado',
     };
   };
 
@@ -165,7 +166,7 @@ export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps
             title={statusDisplay.description}
           >
             <Icon className={`w-4 h-4 ${pendingCount > 0 && isOnline ? 'animate-spin' : ''}`} />
-            
+
             {/* Badge de contagem */}
             {hasPendingOperations && (
               <motion.span
@@ -176,10 +177,8 @@ export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps
                 {pendingCount + failedCount}
               </motion.span>
             )}
-            
-            <span className="hidden md:inline text-sm font-medium">
-              {statusDisplay.label}
-            </span>
+
+            <span className="hidden md:inline text-sm font-medium">{statusDisplay.label}</span>
           </motion.button>
         )}
       </AnimatePresence>
@@ -189,11 +188,8 @@ export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps
         {showDetails && (
           <>
             {/* Overlay para fechar */}
-            <div
-              className="fixed inset-0 z-40"
-              onClick={() => setShowDetails(false)}
-            />
-            
+            <div className="fixed inset-0 z-40" onClick={() => setShowDetails(false)} />
+
             {/* Card de detalhes */}
             <motion.div
               initial={{ opacity: 0, y: -10, scale: 0.95 }}
@@ -229,8 +225,8 @@ export function SyncStatusIndicator({ className = '' }: SyncStatusIndicatorProps
                       {isOnline ? 'Online' : 'Offline'}
                     </p>
                     <p className="text-xs text-gray-600 dark:text-gray-400">
-                      {isOnline 
-                        ? 'Conectado ao servidor' 
+                      {isOnline
+                        ? 'Conectado ao servidor'
                         : 'Sem conexão - mudanças serão sincronizadas quando voltar online'}
                     </p>
                   </div>

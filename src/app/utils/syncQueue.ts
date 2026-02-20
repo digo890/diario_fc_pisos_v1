@@ -1,6 +1,6 @@
 /**
  * 🔄 Sync Queue - Sistema de Fila Persistente para Sincronização Offline
- * 
+ *
  * Gerencia operações pendentes quando offline e tenta reenviar automaticamente
  */
 
@@ -71,11 +71,7 @@ class SyncQueueManager {
   /**
    * Adiciona operação à fila
    */
-  async enqueue(
-    operation: SyncOperation,
-    entityId: string,
-    data: any
-  ): Promise<string> {
+  async enqueue(operation: SyncOperation, entityId: string, data: any): Promise<string> {
     const db = await initDB();
 
     const item: SyncQueueItem = {
@@ -85,7 +81,7 @@ class SyncQueueManager {
       data,
       timestamp: Date.now(),
       retries: 0,
-      status: 'pending'
+      status: 'pending',
     };
 
     return new Promise((resolve, reject) => {
@@ -326,13 +322,16 @@ class SyncQueueManager {
     } catch (error: any) {
       // 🔐 PROTEÇÃO SESSÃO EXPIRADA: Se for 401, PAUSA mas NÃO REMOVE
       const errorMsg = getErrorMessage(error);
-      const is401 = errorMsg.includes('401') || errorMsg.includes('Unauthorized') || errorMsg.includes('JWT');
+      const is401 =
+        errorMsg.includes('401') || errorMsg.includes('Unauthorized') || errorMsg.includes('JWT');
 
       if (is401) {
-        safeWarn(`🔐 Sessão expirada detectada - pausando item sem contar retry: ${item.operation}`);
+        safeWarn(
+          `🔐 Sessão expirada detectada - pausando item sem contar retry: ${item.operation}`
+        );
         await this.updateItem(item.id, {
           status: 'pending', // Volta para pending SEM incrementar retries
-          lastError: 'Sessão expirada. Faça login novamente para sincronizar.'
+          lastError: 'Sessão expirada. Faça login novamente para sincronizar.',
         });
         return; // IMPORTANTE: retorna sem incrementar contador
       }
@@ -347,7 +346,7 @@ class SyncQueueManager {
         await this.updateItem(item.id, {
           status: 'failed',
           retries: newRetries,
-          lastError: getErrorMessage(error)
+          lastError: getErrorMessage(error),
         });
         safeError(`💥 Operação falhou após ${MAX_RETRIES} tentativas: ${item.operation}`);
       } else {
@@ -355,7 +354,7 @@ class SyncQueueManager {
         await this.updateItem(item.id, {
           status: 'pending',
           retries: newRetries,
-          lastError: getErrorMessage(error)
+          lastError: getErrorMessage(error),
         });
         safeWarn(`🔄 Operação será retentada (${newRetries}/${MAX_RETRIES}): ${item.operation}`);
       }
@@ -393,11 +392,11 @@ class SyncQueueManager {
   async cleanupOldItems(): Promise<void> {
     const db = await initDB();
 
-    const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
     const allItems = await this.getAllItems();
 
     const itemsToRemove = allItems.filter(
-      item => item.status === 'success' && item.timestamp < sevenDaysAgo
+      (item) => item.status === 'success' && item.timestamp < sevenDaysAgo
     );
 
     for (const item of itemsToRemove) {
@@ -421,7 +420,7 @@ class SyncQueueManager {
    * Notifica listeners sobre mudanças
    */
   private notifyListeners(): void {
-    this.listeners.forEach(callback => callback());
+    this.listeners.forEach((callback) => callback());
   }
 
   /**
@@ -444,7 +443,7 @@ class SyncQueueManager {
             await this.updateItem(item.id, {
               status: 'pending',
               retries: 0, // Resetar contador
-              lastError: undefined
+              lastError: undefined,
             });
           }
 
@@ -501,14 +500,20 @@ if (typeof window !== 'undefined') {
   });
 
   // Processar fila periodicamente (a cada 2 minutos se online)
-  setInterval(() => {
-    if (navigator.onLine) {
-      syncQueue.processQueue();
-    }
-  }, 2 * 60 * 1000);
+  setInterval(
+    () => {
+      if (navigator.onLine) {
+        syncQueue.processQueue();
+      }
+    },
+    2 * 60 * 1000
+  );
 
   // Cleanup diário
-  setInterval(() => {
-    syncQueue.cleanupOldItems();
-  }, 24 * 60 * 60 * 1000);
+  setInterval(
+    () => {
+      syncQueue.cleanupOldItems();
+    },
+    24 * 60 * 60 * 1000
+  );
 }

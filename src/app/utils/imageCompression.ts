@@ -12,7 +12,7 @@ const DEFAULT_OPTIONS = {
   useWebWorker: true,
   fileType: 'image/jpeg',
   initialQuality: 0.85,
-  alwaysKeepResolution: false
+  alwaysKeepResolution: false,
 };
 
 /**
@@ -23,7 +23,7 @@ function fileToBase64(file: File): Promise<string> {
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = () => resolve(reader.result as string);
-    reader.onerror = error => reject(error);
+    reader.onerror = (error) => reject(error);
   });
 }
 
@@ -42,7 +42,9 @@ export async function compressImage(
     const compressedFile = await imageCompression(file, opts);
 
     const reduction = ((1 - compressedFile.size / file.size) * 100).toFixed(1);
-    safeLog(`✅ Compressão: ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB (${reduction}% redução)`);
+    safeLog(
+      `✅ Compressão: ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB (${reduction}% redução)`
+    );
 
     // Converter para Base64
     const base64 = await fileToBase64(compressedFile);
