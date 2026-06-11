@@ -46,6 +46,7 @@ import { useToast } from './Toast';
 import LoadingSpinner from './LoadingSpinner';
 import { Pagination, usePagination } from './Pagination';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
+import UserAvatar from './UserAvatar';
 import { useSafeLogout } from '../hooks/useSafeLogout'; // 🔒 CORREÇÃO #7
 
 // 🚀 LAZY LOADING: Componentes pesados carregados sob demanda
@@ -65,30 +66,6 @@ const ProductionMonitorDashboard = lazy(() =>
 type TabType = 'resultados' | 'obras' | 'usuarios';
 type ObraFilter = 'todas' | 'novo' | 'em_andamento' | 'conferencia' | 'concluidas';
 type UserFilter = 'todos' | 'Encarregado' | 'Administrador';
-
-// Paleta de cores para avatares
-const AVATAR_COLORS = [
-  'bg-[#FD5521]', // Laranja FC
-  'bg-blue-500',
-  'bg-green-500',
-  'bg-purple-500',
-  'bg-pink-500',
-  'bg-indigo-500',
-  'bg-teal-500',
-  'bg-amber-500',
-  'bg-cyan-500',
-  'bg-rose-500',
-];
-
-// Função para gerar cor baseada no ID do usuário
-const getAvatarColor = (userId: string): string => {
-  let hash = 0;
-  for (let i = 0; i < userId.length; i++) {
-    hash = userId.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const index = Math.abs(hash) % AVATAR_COLORS.length;
-  return AVATAR_COLORS[index];
-};
 
 const AdminDashboard: React.FC = () => {
   const { currentUser } = useAuth(); // 🔒 CORREÇÃO #7: logout removido daqui
@@ -1183,11 +1160,7 @@ const AdminDashboard: React.FC = () => {
                       <div key={user.id}>
                         <div className="px-5 py-4 flex items-center justify-between gap-4">
                           <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div
-                              className={`w-10 h-10 rounded-full ${getAvatarColor(user.id)} text-white flex items-center justify-center font-medium flex-shrink-0`}
-                            >
-                              {user.nome.charAt(0).toUpperCase()}
-                            </div>
+                            <UserAvatar userId={user.id} nome={user.nome} />
                             <div className="flex-1 min-w-0">
                               <div className="font-medium text-gray-900 dark:text-white truncate">
                                 {user.nome}
