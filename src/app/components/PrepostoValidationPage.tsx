@@ -12,7 +12,7 @@ import {
 import { motion } from 'motion/react';
 import { conferenciaApi } from '../utils/api';
 import { safeError } from '../utils/logSanitizer';
-import SignatureCanvas from 'react-signature-canvas';
+import SignaturePad, { type SignaturePadHandle } from './SignaturePad';
 import { useToast } from './Toast';
 import { ETAPAS } from '../schema/etapas';
 
@@ -54,7 +54,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
   const [error, setError] = useState<string>('');
   const [validated, setValidated] = useState(false);
   const [showSignature, setShowSignature] = useState(false);
-  const [signatureRef, setSignatureRef] = useState<SignatureCanvas | null>(null);
+  const [signatureRef, setSignatureRef] = useState<SignaturePadHandle | null>(null);
   const [validationType, setValidationType] = useState<'aprovar' | 'reprovar' | null>(null);
   const [motivoReprovacao, setMotivoReprovacao] = useState('');
   const [nomeCompleto, setNomeCompleto] = useState('');
@@ -749,7 +749,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
                   Assinatura *
                 </label>
                 <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl overflow-hidden">
-                  <SignatureCanvas
+                  <SignaturePad
                     ref={(ref) => setSignatureRef(ref)}
                     canvasProps={{
                       className: 'w-full h-48 bg-white dark:bg-gray-800',
