@@ -135,6 +135,21 @@ SQL com RLS de fato.
 
 ---
 
+## Progresso P1/P2 (rodadas seguintes)
+
+- ✅ **P1 #8** — TypeScript zerado: **56 → 0 erros**. Removidos componentes órfãos
+  e preenchidas as lacunas reais de tipos.
+- ✅ **P1 #9** — Testes da camada de sync: de 1 teste trivial para **22 testes**
+  (`dataSync` e atomicidade do `saveBatch` com `fake-indexeddb`).
+- ✅ **P1 #10** — `docs/SECURITY.md` alinhado à realidade; raiz limpa
+  (artefatos removidos, 13 docs de debug em `docs/archive/`).
+- ✅ **P2 (dead code)** — Removidos **41 componentes `shadcn/ui` não utilizados**
+  (dos 46, só 6 são usados) e **3 form-sections órfãs**.
+
+Pendente (P2, refatorações maiores): quebrar `AdminDashboard`/`ServicosSection`,
+substituir `react-signature-canvas` alpha, deduplicar o array `ETAPAS` e o
+`logSanitizer`.
+
 ## Status das correções
 
 | # | Item | Status |
