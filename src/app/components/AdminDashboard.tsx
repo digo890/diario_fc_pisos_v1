@@ -46,7 +46,7 @@ import { useToast } from './Toast';
 import LoadingSpinner from './LoadingSpinner';
 import { Pagination, usePagination } from './Pagination';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
-import UserAvatar from './UserAvatar';
+import UserListItem from './UserListItem';
 import { useSafeLogout } from '../hooks/useSafeLogout'; // 🔒 CORREÇÃO #7
 
 // 🚀 LAZY LOADING: Componentes pesados carregados sob demanda
@@ -1157,40 +1157,13 @@ const AdminDashboard: React.FC = () => {
                 <>
                   <div className="bg-white dark:bg-gray-900 rounded-lg overflow-hidden">
                     {usersPagination.paginatedItems.map((user, index) => (
-                      <div key={user.id}>
-                        <div className="px-5 py-4 flex items-center justify-between gap-4">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <UserAvatar userId={user.id} nome={user.nome} />
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium text-gray-900 dark:text-white truncate">
-                                {user.nome}
-                              </div>
-                              <div className="text-sm text-gray-600 dark:text-gray-400">
-                                {user.tipo}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => setEditingUser(user)}
-                              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
-                              title="Editar"
-                            >
-                              <Edit2 className="w-5 h-5" />
-                            </button>
-                            <button
-                              onClick={() => setDeletingUser(user)}
-                              className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
-                              title="Excluir"
-                            >
-                              <Trash2 className="w-5 h-5" />
-                            </button>
-                          </div>
-                        </div>
-                        {index < usersPagination.paginatedItems.length - 1 && (
-                          <div className="mx-5 border-b border-[#EDEFE4] dark:border-gray-800"></div>
-                        )}
-                      </div>
+                      <UserListItem
+                        key={user.id}
+                        user={user}
+                        showDivider={index < usersPagination.paginatedItems.length - 1}
+                        onEdit={setEditingUser}
+                        onDelete={setDeletingUser}
+                      />
                     ))}
                   </div>
 
