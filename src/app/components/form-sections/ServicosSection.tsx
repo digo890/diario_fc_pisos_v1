@@ -4,8 +4,18 @@ import type { FormData, ServicoData } from '../../types';
 import BottomSheet from '../BottomSheet';
 import { useToast } from '../Toast';
 
+interface EtapaDef {
+  label: string;
+  unit?: string;
+  isMultiSelect?: boolean;
+  options?: string;
+  isDualField?: boolean;
+  units?: string[];
+  isDropdown?: boolean;
+}
+
 // ✅ CORREÇÃO: Definir constantes de etapas e opções
-const ETAPAS = [
+const ETAPAS: EtapaDef[] = [
   { label: 'Temperatura Ambiente', unit: '°C' },
   { label: 'Umidade Relativa do Ar', unit: '%' },
   { label: 'Temperatura do Substrato', unit: '°C' },
@@ -506,7 +516,7 @@ const ServicosSection: React.FC<Props> = React.memo(
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => copiarServico1(servicoKey)}
+                onClick={() => copiarServico1(servicoKey as 'servico2' | 'servico3')}
                 disabled={isReadOnly}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg 
                        border-2 border-dashed border-gray-300 dark:border-gray-700

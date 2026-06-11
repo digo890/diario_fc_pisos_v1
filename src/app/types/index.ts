@@ -55,6 +55,7 @@ export interface ServicoData {
   horarioFimManha: string;
   horarioInicioTarde: string;
   horarioFimTarde: string;
+  horario?: string; // resumo de horário (legado/opcional, usado em relatórios)
   local: string;
   etapas: { [key: string]: any };
   fotos?: string[];
@@ -70,6 +71,7 @@ export interface CondicionalItem {
   foto?: string;
   resposta?: boolean;
   comentario?: string;
+  espessura?: number | null; // usado nos registros de substrato (input numérico)
 }
 
 export interface FormData {

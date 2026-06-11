@@ -1,7 +1,17 @@
 import type { Obra, User, FormData } from '../types';
 
+interface EtapaDef {
+  label: string;
+  unit?: string;
+  isMultiSelect?: boolean;
+  options?: string;
+  isDualField?: boolean;
+  units?: string[];
+  isDropdown?: boolean;
+}
+
 // Itens 1-34: Etapas de Execução dos Serviços (v1.1.0)
-const ETAPAS = [
+const ETAPAS: EtapaDef[] = [
   { label: 'Temperatura Ambiente', unit: '°C' },
   { label: 'Umidade Relativa do Ar', unit: '%' },
   { label: 'Temperatura do Substrato', unit: '°C' },
