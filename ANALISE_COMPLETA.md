@@ -139,10 +139,34 @@ SQL com RLS de fato.
 
 | # | Item | Status |
 |---|------|--------|
-| 1 | JWT — verificação de assinatura | ⬜ pendente |
-| 2 | Remover endpoint de debug | ⬜ pendente |
-| 3 | CORS do public-conferencia | ⬜ pendente |
-| 4 | Autorização em GET /users e /obras | ⬜ pendente |
-| 5 | Expiração/revogação de links | ⬜ pendente |
-| 6 | Falha parcial em batch IndexedDB | ⬜ pendente |
-| 7 | Timeout nas chamadas fetch | ⬜ pendente |
+| 1 | JWT — verificação de assinatura | ✅ feito |
+| 2 | Remover endpoint de debug | ✅ feito |
+| 3 | CORS do public-conferencia | ✅ feito |
+| 4 | Autorização em GET /users e /obras | ✅ feito |
+| 5 | Expiração/revogação de links | ⬜ pendente (requer decisão de produto + migração) |
+| 6 | Falha parcial em batch IndexedDB | ✅ feito |
+| 7 | Timeout nas chamadas fetch | ✅ feito |
+
+### Notas de implementação
+
+- **#1** — `make-server-1ff231a2/index.ts`: o fallback de autenticação agora
+  verifica criptograficamente a assinatura via `jose.jwtVerify` (HS256,
+  `SUPABASE_JWT_SECRET`), validando emissor e expiração. Se o segredo não estiver
+  configurado, a requisição é rejeitada (500) em vez de aceitar sem verificação.
+  Em projetos com chaves assimétricas (ES256), o fallback rejeita por segurança e o
+  caminho principal (`getUser()`) continua funcionando normalmente.
+  ⚠️ **Pré-requisito de deploy:** garantir que o secret `SUPABASE_JWT_SECRET` esteja
+  configurado na Edge Function.
+- **#3** — CORS do `public-conferencia` passou de `*` para allowlist
+  (`localhost`, domínio de produção, `*.vercel.app`, `CUSTOM_DOMAIN`).
+- **#4** — `GET /users`: não-admin recebe apenas o próprio registro.
+  `GET /obras`: encarregado recebe apenas obras com `encarregadoId === userId`.
+- **#5 (pendente)** — Adicionar expiração e revogação aos links do preposto exige
+  novo campo na obra (ex.: `tokenExpiraEm`, `tokenRevogadoEm`) + verificação no
+  `GET /conferencia/:id` + decisão de produto sobre o prazo (sugestão: 30 dias) e
+  UI de revogação no painel admin.
+- **#6** — `database.ts`: novo helper `saveBatch` aborta a transação e rejeita se
+  qualquer item falhar ou for inválido (antes itens inválidos eram ignorados em
+  silêncio).
+- **#7** — `api.ts`: `AbortController` com timeout de 30s em todas as requisições,
+  com mensagem de erro específica para timeout.

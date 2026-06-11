@@ -734,7 +734,17 @@ app.get(
   requireAuth,
   async (c) => {
     try {
+      const userId = c.get("userId");
+      const userRole = c.get("userRole");
       const users = await kv.getByPrefix("user:");
+
+      // 🔒 AUTORIZAÇÃO: somente administradores podem listar todos os usuários.
+      // Não-admins recebem apenas o próprio registro (evita enumeração de usuários).
+      if (userRole !== "Administrador") {
+        const onlySelf = users.filter((u: any) => u?.id === userId);
+        return c.json({ success: true, data: onlySelf });
+      }
+
       return c.json({ success: true, data: users });
     } catch (error) {
       safeError("Erro ao listar usuários:", error);
@@ -1087,9 +1097,19 @@ app.get(
   requireAuth,
   async (c) => {
     try {
+      const userId = c.get("userId");
+      const userRole = c.get("userRole");
       const obras = await kv.getByPrefix("obra:");
+
+      // 🔒 AUTORIZAÇÃO: administradores veem todas as obras; encarregados
+      // veem apenas as obras atribuídas a si (encarregadoId === userId).
+      const visibleObras =
+        userRole === "Administrador"
+          ? obras
+          : obras.filter((obra: any) => obra?.encarregadoId === userId);
+
       // ✅ CORREÇÃO: Converter camelCase → snake_case para consistência de API
-      const obrasFormatted = obras.map((obra: any) => toSnakeCase(obra));
+      const obrasFormatted = visibleObras.map((obra: any) => toSnakeCase(obra));
       return c.json({ success: true, data: obrasFormatted });
     } catch (error) {
       console.error("Erro ao listar obras:", error);

@@ -98,7 +98,13 @@ export const clearAuthToken = () => {
 
 interface RequestOptions extends RequestInit {
   requireAuth?: boolean;
+  /** Timeout em ms para a requisição (padrão: 30000). Use 0 para desabilitar. */
+  timeoutMs?: number;
 }
+
+// Timeout padrão das requisições. Sem isto, em redes ruins (2G no canteiro)
+// o fetch fica pendurado indefinidamente.
+const DEFAULT_TIMEOUT_MS = 30000;
 
 async function request<T>(
   endpoint: string,
@@ -106,7 +112,7 @@ async function request<T>(
   retryCount: number = 0
 ): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
-  const { requireAuth = true, ...fetchOptions } = options;
+  const { requireAuth = true, timeoutMs = DEFAULT_TIMEOUT_MS, ...fetchOptions } = options;
 
   // Construir headers dinamicamente
   const headers: Record<string, string> = {
@@ -127,10 +133,21 @@ async function request<T>(
     }
   }
 
+  // ⏱️ Timeout: aborta o fetch se a resposta demorar demais.
+  const timeoutController =
+    timeoutMs > 0 && typeof AbortController !== 'undefined'
+      ? new AbortController()
+      : null;
+  const timeoutId =
+    timeoutController !== null
+      ? setTimeout(() => timeoutController.abort(), timeoutMs)
+      : null;
+
   try {
     const response = await fetch(url, {
       ...fetchOptions,
       headers,
+      signal: timeoutController?.signal ?? fetchOptions.signal,
     });
 
     // Se 401 e ainda não tentou renovar, renovar token e tentar novamente
@@ -189,16 +206,29 @@ async function request<T>(
 
     return data;
   } catch (error: any) {
-    const err = error instanceof Error ? error : new Error(String(error));
+    // Diferenciar timeout (abort) de outros erros de rede para dar mensagem clara.
+    const isTimeout =
+      timeoutController?.signal.aborted === true &&
+      (error?.name === 'AbortError' || error?.name === 'TimeoutError');
+    const err = isTimeout
+      ? new Error(
+          `Tempo de resposta excedido (${timeoutMs / 1000}s). Verifique sua conexão e tente novamente.`
+        )
+      : error instanceof Error
+        ? error
+        : new Error(String(error));
 
     // 🚨 MONITOR: Reportar qualquer erro não tratado
     reportProductionError(err, {
       url,
       method: fetchOptions.method || 'GET',
       endpoint,
+      ...(isTimeout ? { context: 'request_timeout' } : {}),
     });
 
     throw err;
+  } finally {
+    if (timeoutId !== null) clearTimeout(timeoutId);
   }
 }
 
