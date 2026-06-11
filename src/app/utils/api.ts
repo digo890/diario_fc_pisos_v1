@@ -359,6 +359,11 @@ export const formularioApi = {
   async getById(id: string): Promise<ApiResponse> {
     return request(`/formularios/${id}`, { method: 'GET' });
   },
+
+  // 🔒 Revogar o link público de conferência do preposto
+  async revogarLink(id: string): Promise<ApiResponse> {
+    return request(`/formularios/${id}/revogar-link`, { method: 'POST' });
+  },
 };
 
 // ============================================

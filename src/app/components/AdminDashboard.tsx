@@ -13,6 +13,7 @@ import {
   LayoutGrid,
   LayoutList,
   FolderOpen,
+  Link2Off,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
@@ -118,6 +119,7 @@ const AdminDashboard: React.FC = () => {
   const [viewingObra, setViewingObra] = useState<Obra | null>(null);
   const [viewingFormData, setViewingFormData] = useState<FormData | null>(null);
   const [deletingObra, setDeletingObra] = useState<Obra | null>(null);
+  const [revogandoLinkObra, setRevogandoLinkObra] = useState<Obra | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
 
   // 🎯 SKELETON: Estado para obras em criação
@@ -155,6 +157,26 @@ const AdminDashboard: React.FC = () => {
     } catch (error: any) {
       safeError('❌ Erro ao excluir obra:', error);
       showToast(`Erro ao excluir obra: ${error.message}`, 'error');
+    }
+  };
+
+  const handleRevogarLink = async (obra: Obra) => {
+    const formulario = formularios.find((f) => f.obra_id === obra.id);
+    if (!formulario?.id) {
+      showToast('Não foi possível localizar o formulário desta obra.', 'error');
+      return;
+    }
+    try {
+      const response = await formularioApi.revogarLink(formulario.id);
+      if (response.success) {
+        await loadData();
+        showToast('Link de conferência revogado com sucesso.', 'success');
+      } else {
+        showToast(`Erro ao revogar link: ${response.error}`, 'error');
+      }
+    } catch (error: any) {
+      safeError('❌ Erro ao revogar link:', error);
+      showToast(`Erro ao revogar link: ${error.message}`, 'error');
     }
   };
 
@@ -1010,6 +1032,36 @@ const AdminDashboard: React.FC = () => {
                                 >
                                   <Edit2 className="w-4 h-4" />
                                 </button>
+                                {obra.status === 'enviado_preposto' &&
+                                  (() => {
+                                    const form = formularios.find(
+                                      (f) => f.obra_id === obra.id
+                                    );
+                                    const jaRevogado =
+                                      form?.linkPrepostoRevogado === true;
+                                    return (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (jaRevogado) return;
+                                          setRevogandoLinkObra(obra);
+                                        }}
+                                        disabled={jaRevogado}
+                                        className={`p-2 rounded-lg transition-colors ${
+                                          jaRevogado
+                                            ? 'opacity-40 cursor-not-allowed text-gray-400 dark:text-gray-600'
+                                            : 'hover:bg-amber-50 dark:hover:bg-amber-900/20 text-amber-600 dark:text-amber-400'
+                                        }`}
+                                        title={
+                                          jaRevogado
+                                            ? 'Link de conferência já revogado'
+                                            : 'Revogar link de conferência'
+                                        }
+                                      >
+                                        <Link2Off className="w-4 h-4" />
+                                      </button>
+                                    );
+                                  })()}
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -1276,6 +1328,23 @@ const AdminDashboard: React.FC = () => {
           variant="danger"
           onConfirm={() => handleDeleteObra(deletingObra.id)}
           onCancel={() => setDeletingObra(null)}
+        />
+      )}
+
+      {revogandoLinkObra && (
+        <ConfirmModal
+          isOpen={!!revogandoLinkObra}
+          title="Revogar link de conferência"
+          message={`Deseja revogar o link de conferência da obra "${revogandoLinkObra.cliente} - ${revogandoLinkObra.obra}"? O preposto não conseguirá mais acessar nem assinar por este link. Será necessário reenviar a conferência para gerar um novo link.`}
+          confirmLabel="Revogar"
+          cancelLabel="Cancelar"
+          variant="danger"
+          onConfirm={() => {
+            const obra = revogandoLinkObra;
+            setRevogandoLinkObra(null);
+            handleRevogarLink(obra);
+          }}
+          onCancel={() => setRevogandoLinkObra(null)}
         />
       )}
 

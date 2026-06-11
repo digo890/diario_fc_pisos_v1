@@ -1996,6 +1996,41 @@ app.post(
       const linkConferencia = `https://diario-fc-pisos-v1.vercel.app/conferencia/${formularioId}`;
       console.log("🔗 [DEBUG] Link gerado:", linkConferencia);
 
+      // 🔒 SEGURANÇA: carimbar validade do link no formulário. O link público do
+      // preposto passa a valer agora e expira após LINK_PREPOSTO_VALIDADE_DIAS.
+      // (validação efetiva acontece na edge function public-conferencia)
+      const validadeDias = Number(
+        Deno.env.get("LINK_PREPOSTO_VALIDADE_DIAS") || "30",
+      );
+      const validadeMs =
+        (Number.isFinite(validadeDias) && validadeDias > 0 ? validadeDias : 30) *
+        24 * 60 * 60 * 1000;
+      try {
+        const formularioAtual = await kv.get(`formulario:${formularioId}`);
+        if (formularioAtual) {
+          await kv.set(`formulario:${formularioId}`, {
+            ...formularioAtual,
+            linkPrepostoExpiraEm: Date.now() + validadeMs,
+            // Reenvio reativa um link previamente revogado
+            linkPrepostoRevogado: false,
+            linkPrepostoRevogadoEm: null,
+            updatedAt: Date.now(),
+          });
+          console.log(
+            `🔒 Validade do link definida: ${validadeDias} dia(s)`,
+          );
+        } else {
+          console.warn(
+            `⚠️ Formulário ${formularioId} não encontrado ao definir validade do link`,
+          );
+        }
+      } catch (stampErr) {
+        console.error(
+          "❌ Erro ao definir validade do link (seguindo com envio):",
+          getErrorMessage(stampErr),
+        );
+      }
+
       // Gerar HTML do email
       const htmlEmail =
         emailService.getPrepostoConferenciaEmail(
@@ -2032,6 +2067,92 @@ app.post(
       console.error("❌ Erro ao enviar email:", error);
       return c.json(
         { success: false, error: error.message },
+        500,
+      );
+    }
+  },
+);
+
+// 🔒 Revogar o link público de conferência do preposto
+// Apenas o encarregado atribuído à obra ou um administrador podem revogar.
+app.post(
+  "/make-server-1ff231a2/formularios/:id/revogar-link",
+  requireAuth,
+  async (c) => {
+    try {
+      const id = c.req.param("id");
+      if (!validation.isValidUUID(id)) {
+        return c.json(
+          { success: false, error: "ID de formulário inválido" },
+          400,
+        );
+      }
+
+      const formulario = await kv.get(`formulario:${id}`);
+      if (!formulario) {
+        return c.json(
+          { success: false, error: "Formulário não encontrado" },
+          404,
+        );
+      }
+
+      // Formulário já assinado não tem link ativo a revogar
+      if (formulario.prepostoConfirmado === true) {
+        return c.json(
+          {
+            success: false,
+            error: "Formulário já foi validado pelo preposto",
+          },
+          400,
+        );
+      }
+
+      const userId = c.get("userId");
+      const user = await kv.get(`user:${userId}`);
+      if (!user) {
+        return c.json(
+          { success: false, error: "Usuário não autorizado" },
+          403,
+        );
+      }
+
+      // Autorização: admin OU encarregado atribuído à obra do formulário
+      const obra = await kv.get(`obra:${formulario.obra_id}`);
+      const obraNormalizada = obra ? normalizeObraFields(obra) : null;
+      const isAdmin = user.tipo === "Administrador";
+      const isEncarregadoAtribuido =
+        user.tipo === "Encarregado" &&
+        obraNormalizada?.encarregadoId === userId;
+
+      if (!isAdmin && !isEncarregadoAtribuido) {
+        safeWarn(
+          `⚠️ Tentativa de revogar link sem permissão: userId=${userId}, formulario=${id}`,
+        );
+        return c.json(
+          {
+            success: false,
+            error: "Você não tem permissão para revogar este link",
+          },
+          403,
+        );
+      }
+
+      await kv.set(`formulario:${id}`, {
+        ...formulario,
+        linkPrepostoRevogado: true,
+        linkPrepostoRevogadoEm: Date.now(),
+        updatedAt: Date.now(),
+      });
+
+      console.log(`🔒 Link do formulário ${id} revogado por ${userId}`);
+      return c.json({
+        success: true,
+        message: "Link de conferência revogado com sucesso",
+      });
+    } catch (error: any) {
+      console.error("❌ Erro ao revogar link:", error);
+      return c.json(
+        { success: false, error: getErrorMessage(error) },
         500,
       );
     }

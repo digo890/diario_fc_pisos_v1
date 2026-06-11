@@ -69,7 +69,13 @@ function normalizeUserFromBackend(userBackend: any): User {
  */
 export function normalizeFormularioFromBackend(formBackend: any): FormData {
   return {
+    id: formBackend.id, // preservar id do backend (usado no link público de conferência)
     obra_id: formBackend.obra_id || formBackend.obraId,
+
+    // Controle do link público do preposto
+    linkPrepostoExpiraEm: formBackend.linkPrepostoExpiraEm,
+    linkPrepostoRevogado: formBackend.linkPrepostoRevogado,
+    linkPrepostoRevogadoEm: formBackend.linkPrepostoRevogadoEm,
 
     // Campos complexos (objetos) - manter como estão ou normalizar se necessário
     clima: formBackend.clima || {},

@@ -73,7 +73,13 @@ export interface CondicionalItem {
 }
 
 export interface FormData {
+  id?: string; // ID do formulário no backend (usado no link público de conferência)
   obra_id: string; // ✅ CORREÇÃO: Padronizado para snake_case (consistente com backend)
+
+  // Controle do link público do preposto
+  linkPrepostoExpiraEm?: number; // timestamp de expiração do link
+  linkPrepostoRevogado?: boolean;
+  linkPrepostoRevogadoEm?: number | null;
 
   // Condições Ambientais
   clima: ClimaData;

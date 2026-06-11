@@ -75,6 +75,26 @@ function isValidUUID(uuid: string): boolean {
 }
 
 /**
+ * 🔒 Verificar se o link público do preposto ainda é válido.
+ *
+ * Retorna um motivo de bloqueio (string) ou null se o link estiver válido.
+ * - Link revogado pelo admin/encarregado → bloqueado.
+ * - Link expirado (passou de linkPrepostoExpiraEm) → bloqueado.
+ * - Formulários antigos sem linkPrepostoExpiraEm continuam válidos
+ *   (retrocompatibilidade — links já enviados não são quebrados).
+ */
+function getMotivoBloqueioLink(formulario: any): string | null {
+  if (formulario?.linkPrepostoRevogado === true) {
+    return "Este link de conferência foi revogado. Solicite um novo ao responsável pela obra.";
+  }
+  const expiraEm = formulario?.linkPrepostoExpiraEm;
+  if (typeof expiraEm === "number" && Date.now() > expiraEm) {
+    return "Este link de conferência expirou. Solicite um novo ao responsável pela obra.";
+  }
+  return null;
+}
+
+/**
  * Buscar valor no KV Store
  */
 async function kvGet(key: string): Promise<any | null> {
@@ -249,6 +269,19 @@ Deno.serve(async (req: Request) => {
       }
 
       console.log("✅ Formulário encontrado:", formulario.id);
+
+      // 2.5️⃣ 🔒 Verificar validade do link (revogado/expirado)
+      const motivoBloqueioGet = getMotivoBloqueioLink(formulario);
+      if (motivoBloqueioGet) {
+        console.warn("🔒 Link bloqueado:", motivoBloqueioGet);
+        return new Response(
+          JSON.stringify({ success: false, error: motivoBloqueioGet }),
+          {
+            status: 410, // Gone
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
 
       // 3️⃣ Buscar dados da obra
       const obra = await kvGet(`obra:${formulario.obra_id}`);
@@ -442,6 +475,19 @@ Deno.serve(async (req: Request) => {
           }),
           {
             status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      // 3.5️⃣ 🔒 Verificar validade do link (revogado/expirado)
+      const motivoBloqueioAssinar = getMotivoBloqueioLink(formulario);
+      if (motivoBloqueioAssinar) {
+        console.warn("🔒 Assinatura bloqueada:", motivoBloqueioAssinar);
+        return new Response(
+          JSON.stringify({ success: false, error: motivoBloqueioAssinar }),
+          {
+            status: 410, // Gone
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           }
         );

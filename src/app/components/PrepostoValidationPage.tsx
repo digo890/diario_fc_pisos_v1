@@ -121,7 +121,8 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
         setObra(obra);
       } catch (error: any) {
         safeError('❌ Erro ao carregar:', error);
-        setError('Erro ao carregar formulário');
+        // Surfacing da mensagem específica (ex.: link expirado/revogado)
+        setError(error?.message || 'Erro ao carregar formulário');
       } finally {
         setLoading(false);
       }

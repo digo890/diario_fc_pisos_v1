@@ -143,7 +143,7 @@ SQL com RLS de fato.
 | 2 | Remover endpoint de debug | ✅ feito |
 | 3 | CORS do public-conferencia | ✅ feito |
 | 4 | Autorização em GET /users e /obras | ✅ feito |
-| 5 | Expiração/revogação de links | ⬜ pendente (requer decisão de produto + migração) |
+| 5 | Expiração/revogação de links | ✅ feito |
 | 6 | Falha parcial em batch IndexedDB | ✅ feito |
 | 7 | Timeout nas chamadas fetch | ✅ feito |
 
@@ -161,10 +161,21 @@ SQL com RLS de fato.
   (`localhost`, domínio de produção, `*.vercel.app`, `CUSTOM_DOMAIN`).
 - **#4** — `GET /users`: não-admin recebe apenas o próprio registro.
   `GET /obras`: encarregado recebe apenas obras com `encarregadoId === userId`.
-- **#5 (pendente)** — Adicionar expiração e revogação aos links do preposto exige
-  novo campo na obra (ex.: `tokenExpiraEm`, `tokenRevogadoEm`) + verificação no
-  `GET /conferencia/:id` + decisão de produto sobre o prazo (sugestão: 30 dias) e
-  UI de revogação no painel admin.
+- **#5** — Expiração e revogação dos links do preposto:
+  - **Expiração:** ao enviar a conferência (`emails/send-preposto-conferencia`), o
+    formulário é carimbado com `linkPrepostoExpiraEm = agora + 30 dias`
+    (configurável via env `LINK_PREPOSTO_VALIDADE_DIAS`). Reenviar a conferência
+    reativa um link revogado e renova o prazo.
+  - **Revogação:** novo endpoint protegido
+    `POST /formularios/:id/revogar-link` (admin ou encarregado dono da obra) marca
+    `linkPrepostoRevogado`. UI: botão "Revogar link" no painel admin para obras em
+    `enviado_preposto`, com modal de confirmação.
+  - **Aplicação:** o `public-conferencia` bloqueia (HTTP 410) GET e POST de links
+    expirados ou revogados, e a página do preposto passa a exibir a mensagem
+    específica. Formulários antigos sem `linkPrepostoExpiraEm` permanecem válidos
+    (retrocompatibilidade — links já enviados não quebram).
+  - Correção colateral: `normalizeFormularioFromBackend` agora preserva o `id` do
+    formulário (antes era descartado), necessário para revogar pelo painel.
 - **#6** — `database.ts`: novo helper `saveBatch` aborta a transação e rejeita se
   qualquer item falhar ou for inválido (antes itens inválidos eram ignorados em
   silêncio).
