@@ -2,6 +2,7 @@ import { Hono } from "npm:hono@4.0.2";
 import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { jwtVerify } from "npm:jose@5.9.6";
 import * as emailService from "./email.tsx";
 import * as kv from "./kv_store.tsx";
 import * as validation from "./validation.tsx";
@@ -249,30 +250,47 @@ const requireAuth = async (c: any, next: any) => {
           );
         }
 
+        // 🔒 SEGURANÇA CRÍTICA: Verificar a ASSINATURA do JWT antes de
+        // confiar em qualquer campo do payload. Sem isto, um token forjado
+        // (com iss/sub/email válidos) seria aceito. A verificação usa o
+        // segredo HS256 do projeto Supabase (SUPABASE_JWT_SECRET).
+        const jwtSecret = Deno.env.get("SUPABASE_JWT_SECRET");
+        if (!jwtSecret) {
+          safeError(
+            "❌ [AUTH] SUPABASE_JWT_SECRET não configurado — não é possível validar a assinatura do token",
+          );
+          return c.json(
+            { success: false, error: "Erro de configuração de autenticação" },
+            500,
+          );
+        }
+
         let payload: any;
         try {
-          // Base64 URL decode (JWT usa base64url, não base64 padrão)
-          const base64 = parts[1]
-            .replace(/-/g, "+")
-            .replace(/_/g, "/");
-          const padding =
-            base64.length % 4 === 0
-              ? ""
-              : "=".repeat(4 - (base64.length % 4));
-          payload = JSON.parse(atob(base64 + padding));
-          
-          // 🔍 DEBUG: Logar payload completo para diagnóstico
-          safeLog("🔍 [AUTH] Payload do token:", {
+          const expectedIssuer =
+            Deno.env.get("SUPABASE_URL") + "/auth/v1";
+          const verified = await jwtVerify(
+            accessToken,
+            new TextEncoder().encode(jwtSecret),
+            {
+              issuer: expectedIssuer,
+              // jose valida automaticamente a expiração (exp) e o issuer
+            },
+          );
+          payload = verified.payload;
+
+          // 🔍 DEBUG: Logar presença dos campos para diagnóstico
+          safeLog("🔍 [AUTH] Payload do token (assinatura verificada):", {
             sub: payload.sub ? "presente" : "AUSENTE",
             email: payload.email ? "presente" : "ausente",
             exp: payload.exp ? "presente" : "ausente",
             iss: payload.iss ? "presente" : "ausente",
             role: payload.role || "não definido"
           });
-        } catch (decodeError) {
+        } catch (verifyError) {
           safeError(
-            "❌ [AUTH] Erro ao decodificar JWT:",
-            decodeError,
+            "❌ [AUTH] Assinatura/validação do JWT falhou:",
+            getErrorMessage(verifyError),
           );
           return c.json(
             { success: false, error: "Token inválido" },

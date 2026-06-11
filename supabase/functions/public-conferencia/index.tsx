@@ -8,13 +8,45 @@
  * - GET  /conferencia/:formularioId         → Buscar formulário para conferência
  * - POST /conferencia/:formularioId/assinar → Assinar formulário (aprovar/reprovar)
  * - GET  /health                           → Health check
- * - GET  /debug/obra/:obraId                → Debug: Buscar formulários por obra_id
- * 
- * @version 1.0.2-debug
+ *
+ * @version 1.1.0
  * @security verify_jwt = false (configurado em config.toml)
  */
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
+
+// ============================================
+// CORS — restrito a domínios conhecidos
+// ============================================
+const ALLOWED_ORIGINS = [
+  "http://localhost:5173",
+  "http://localhost:4173",
+  "http://127.0.0.1:5173",
+  "https://cjwuooaappcnsqxgdpta.supabase.co",
+  "https://diario-fc-pisos-v1.vercel.app",
+];
+
+function isAllowedOrigin(origin: string | null): boolean {
+  if (!origin) return false;
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  const custom = Deno.env.get("CUSTOM_DOMAIN");
+  if (custom && origin === custom) return true;
+  // Permitir previews da Vercel
+  return origin.endsWith(".vercel.app");
+}
+
+function buildCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin");
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    Vary: "Origin",
+  };
+  if (isAllowedOrigin(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin as string;
+  }
+  return headers;
+}
 
 // ============================================
 // CONFIGURAÇÃO DO SUPABASE
@@ -98,12 +130,8 @@ Deno.serve(async (req: Request) => {
 
   console.log(`📥 ${req.method} ${path}`);
 
-  // CORS headers
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  };
+  // CORS headers (restrito a domínios conhecidos)
+  const corsHeaders = buildCorsHeaders(req);
 
   // Handle OPTIONS (preflight)
   if (req.method === "OPTIONS") {
@@ -120,7 +148,7 @@ Deno.serve(async (req: Request) => {
       JSON.stringify({
         status: "ok",
         service: "public-conferencia",
-        version: "1.0.2-debug",
+        version: "1.1.0",
         timestamp: new Date().toISOString(),
       }),
       {
@@ -128,59 +156,6 @@ Deno.serve(async (req: Request) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
-  }
-
-  // 🔍 DEBUG: Buscar formulários por obra_id
-  if (path.startsWith("/debug/obra/") && req.method === "GET") {
-    try {
-      const obraId = path.split("/debug/obra/")[1];
-      
-      console.log("🔍 [DEBUG] Buscando formulários da obra:", obraId);
-      
-      // Buscar todos os formulários
-      const { data: allFormularios, error } = await supabase
-        .from("kv_store_1ff231a2")
-        .select("key, value")
-        .like("key", "formulario:%");
-      
-      if (error) {
-        throw error;
-      }
-      
-      // Filtrar formulários da obra
-      const formulariosObra = allFormularios?.filter((f: any) => 
-        f.value?.obra_id === obraId
-      ) || [];
-      
-      console.log("📋 Formulários encontrados:", formulariosObra.length);
-      
-      return new Response(
-        JSON.stringify({
-          success: true,
-          obraId,
-          total: formulariosObra.length,
-          formularios: formulariosObra.map((f: any) => ({
-            id: f.value.id,
-            key: f.key,
-            created_at: f.value.created_at,
-            status: f.value.status,
-          })),
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    } catch (error: any) {
-      console.error("❌ Erro no debug:", error);
-      return new Response(
-        JSON.stringify({ success: false, error: error.message }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
   }
 
   // Rota raiz
