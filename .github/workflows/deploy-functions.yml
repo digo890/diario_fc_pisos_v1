@@ -1,0 +1,52 @@
+name: Deploy Supabase Edge Functions
+
+# Faz o deploy das Edge Functions a partir dos arquivos do repositório (fonte
+# revisada), de forma confiável e repetível.
+#
+# Pré-requisito (uma vez): adicionar o secret do repositório no GitHub
+#   Settings → Secrets and variables → Actions → New repository secret
+#   Nome:  SUPABASE_ACCESS_TOKEN
+#   Valor: um Personal Access Token do Supabase
+#          (Dashboard → Account → Access Tokens → Generate new token)
+#
+# Como rodar:
+#   - Manualmente: aba Actions → "Deploy Supabase Edge Functions" → Run workflow
+#   - Automático: a cada push em main que altere supabase/functions/**
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/**'
+      - '.github/workflows/deploy-functions.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: yhuryekwwmonyjjezipw
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Validar token configurado
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::error::Secret SUPABASE_ACCESS_TOKEN não configurado. Veja o cabeçalho deste arquivo."
+            exit 1
+          fi
+
+      # As duas funções fazem a própria autenticação (a pública é aberta;
+      # a make-server valida o token internamente) → --no-verify-jwt.
+      - name: Deploy make-server-1ff231a2
+        run: supabase functions deploy make-server-1ff231a2 --project-ref "$PROJECT_REF" --no-verify-jwt
+
+      - name: Deploy public-conferencia
+        run: supabase functions deploy public-conferencia --project-ref "$PROJECT_REF" --no-verify-jwt
