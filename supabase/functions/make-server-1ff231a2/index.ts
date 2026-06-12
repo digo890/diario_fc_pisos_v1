@@ -253,11 +253,14 @@ const requireAuth = async (c: any, next: any) => {
         // 🔒 SEGURANÇA CRÍTICA: Verificar a ASSINATURA do JWT antes de
         // confiar em qualquer campo do payload. Sem isto, um token forjado
         // (com iss/sub/email válidos) seria aceito. A verificação usa o
-        // segredo HS256 do projeto Supabase (SUPABASE_JWT_SECRET).
-        const jwtSecret = Deno.env.get("SUPABASE_JWT_SECRET");
+        // segredo HS256 do projeto Supabase, configurado como APP_JWT_SECRET
+        // (não é possível usar o prefixo SUPABASE_ em secrets de Edge Function).
+        // Obs.: o caminho principal (getUser) não depende deste segredo; este
+        // fallback só é exercido se getUser falhar. Sem o segredo, rejeita.
+        const jwtSecret = Deno.env.get("APP_JWT_SECRET");
         if (!jwtSecret) {
           safeError(
-            "❌ [AUTH] SUPABASE_JWT_SECRET não configurado — não é possível validar a assinatura do token",
+            "❌ [AUTH] APP_JWT_SECRET não configurado — não é possível validar a assinatura do token",
           );
           return c.json(
             { success: false, error: "Erro de configuração de autenticação" },
@@ -475,7 +478,7 @@ const getAllowedOrigins = () => {
     "http://localhost:5173",
     "http://localhost:4173",
     "http://127.0.0.1:5173",
-    "https://cjwuooaappcnsqxgdpta.supabase.co",
+    "https://yhuryekwwmonyjjezipw.supabase.co",
     "https://figma-make.vercel.app", // Figma Make preview
     "https://diario-fc-pisos-v1.vercel.app", // Produção
   ];
