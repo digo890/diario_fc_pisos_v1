@@ -2,6 +2,7 @@ import { Hono } from "npm:hono@4.0.2";
 import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { jwtVerify } from "npm:jose@5.9.6";
 import * as emailService from "./email.tsx";
 import * as kv from "./kv_store.tsx";
 import * as validation from "./validation.tsx";
@@ -249,30 +250,50 @@ const requireAuth = async (c: any, next: any) => {
           );
         }
 
+        // 🔒 SEGURANÇA CRÍTICA: Verificar a ASSINATURA do JWT antes de
+        // confiar em qualquer campo do payload. Sem isto, um token forjado
+        // (com iss/sub/email válidos) seria aceito. A verificação usa o
+        // segredo HS256 do projeto Supabase, configurado como APP_JWT_SECRET
+        // (não é possível usar o prefixo SUPABASE_ em secrets de Edge Function).
+        // Obs.: o caminho principal (getUser) não depende deste segredo; este
+        // fallback só é exercido se getUser falhar. Sem o segredo, rejeita.
+        const jwtSecret = Deno.env.get("APP_JWT_SECRET");
+        if (!jwtSecret) {
+          safeError(
+            "❌ [AUTH] APP_JWT_SECRET não configurado — não é possível validar a assinatura do token",
+          );
+          return c.json(
+            { success: false, error: "Erro de configuração de autenticação" },
+            500,
+          );
+        }
+
         let payload: any;
         try {
-          // Base64 URL decode (JWT usa base64url, não base64 padrão)
-          const base64 = parts[1]
-            .replace(/-/g, "+")
-            .replace(/_/g, "/");
-          const padding =
-            base64.length % 4 === 0
-              ? ""
-              : "=".repeat(4 - (base64.length % 4));
-          payload = JSON.parse(atob(base64 + padding));
-          
-          // 🔍 DEBUG: Logar payload completo para diagnóstico
-          safeLog("🔍 [AUTH] Payload do token:", {
+          const expectedIssuer =
+            Deno.env.get("SUPABASE_URL") + "/auth/v1";
+          const verified = await jwtVerify(
+            accessToken,
+            new TextEncoder().encode(jwtSecret),
+            {
+              issuer: expectedIssuer,
+              // jose valida automaticamente a expiração (exp) e o issuer
+            },
+          );
+          payload = verified.payload;
+
+          // 🔍 DEBUG: Logar presença dos campos para diagnóstico
+          safeLog("🔍 [AUTH] Payload do token (assinatura verificada):", {
             sub: payload.sub ? "presente" : "AUSENTE",
             email: payload.email ? "presente" : "ausente",
             exp: payload.exp ? "presente" : "ausente",
             iss: payload.iss ? "presente" : "ausente",
             role: payload.role || "não definido"
           });
-        } catch (decodeError) {
+        } catch (verifyError) {
           safeError(
-            "❌ [AUTH] Erro ao decodificar JWT:",
-            decodeError,
+            "❌ [AUTH] Assinatura/validação do JWT falhou:",
+            getErrorMessage(verifyError),
           );
           return c.json(
             { success: false, error: "Token inválido" },
@@ -457,7 +478,7 @@ const getAllowedOrigins = () => {
     "http://localhost:5173",
     "http://localhost:4173",
     "http://127.0.0.1:5173",
-    "https://cjwuooaappcnsqxgdpta.supabase.co",
+    "https://yhuryekwwmonyjjezipw.supabase.co",
     "https://figma-make.vercel.app", // Figma Make preview
     "https://diario-fc-pisos-v1.vercel.app", // Produção
   ];
@@ -716,7 +737,17 @@ app.get(
   requireAuth,
   async (c) => {
     try {
+      const userId = c.get("userId");
+      const userRole = c.get("userRole");
       const users = await kv.getByPrefix("user:");
+
+      // 🔒 AUTORIZAÇÃO: somente administradores podem listar todos os usuários.
+      // Não-admins recebem apenas o próprio registro (evita enumeração de usuários).
+      if (userRole !== "Administrador") {
+        const onlySelf = users.filter((u: any) => u?.id === userId);
+        return c.json({ success: true, data: onlySelf });
+      }
+
       return c.json({ success: true, data: users });
     } catch (error) {
       safeError("Erro ao listar usuários:", error);
@@ -1069,9 +1100,19 @@ app.get(
   requireAuth,
   async (c) => {
     try {
+      const userId = c.get("userId");
+      const userRole = c.get("userRole");
       const obras = await kv.getByPrefix("obra:");
+
+      // 🔒 AUTORIZAÇÃO: administradores veem todas as obras; encarregados
+      // veem apenas as obras atribuídas a si (encarregadoId === userId).
+      const visibleObras =
+        userRole === "Administrador"
+          ? obras
+          : obras.filter((obra: any) => obra?.encarregadoId === userId);
+
       // ✅ CORREÇÃO: Converter camelCase → snake_case para consistência de API
-      const obrasFormatted = obras.map((obra: any) => toSnakeCase(obra));
+      const obrasFormatted = visibleObras.map((obra: any) => toSnakeCase(obra));
       return c.json({ success: true, data: obrasFormatted });
     } catch (error) {
       console.error("Erro ao listar obras:", error);
@@ -1958,6 +1999,41 @@ app.post(
       const linkConferencia = `https://diario-fc-pisos-v1.vercel.app/conferencia/${formularioId}`;
       console.log("🔗 [DEBUG] Link gerado:", linkConferencia);
 
+      // 🔒 SEGURANÇA: carimbar validade do link no formulário. O link público do
+      // preposto passa a valer agora e expira após LINK_PREPOSTO_VALIDADE_DIAS.
+      // (validação efetiva acontece na edge function public-conferencia)
+      const validadeDias = Number(
+        Deno.env.get("LINK_PREPOSTO_VALIDADE_DIAS") || "30",
+      );
+      const validadeMs =
+        (Number.isFinite(validadeDias) && validadeDias > 0 ? validadeDias : 30) *
+        24 * 60 * 60 * 1000;
+      try {
+        const formularioAtual = await kv.get(`formulario:${formularioId}`);
+        if (formularioAtual) {
+          await kv.set(`formulario:${formularioId}`, {
+            ...formularioAtual,
+            linkPrepostoExpiraEm: Date.now() + validadeMs,
+            // Reenvio reativa um link previamente revogado
+            linkPrepostoRevogado: false,
+            linkPrepostoRevogadoEm: null,
+            updatedAt: Date.now(),
+          });
+          console.log(
+            `🔒 Validade do link definida: ${validadeDias} dia(s)`,
+          );
+        } else {
+          console.warn(
+            `⚠️ Formulário ${formularioId} não encontrado ao definir validade do link`,
+          );
+        }
+      } catch (stampErr) {
+        console.error(
+          "❌ Erro ao definir validade do link (seguindo com envio):",
+          getErrorMessage(stampErr),
+        );
+      }
+
       // Gerar HTML do email
       const htmlEmail =
         emailService.getPrepostoConferenciaEmail(
@@ -1994,6 +2070,92 @@ app.post(
       console.error("❌ Erro ao enviar email:", error);
       return c.json(
         { success: false, error: error.message },
+        500,
+      );
+    }
+  },
+);
+
+// 🔒 Revogar o link público de conferência do preposto
+// Apenas o encarregado atribuído à obra ou um administrador podem revogar.
+app.post(
+  "/make-server-1ff231a2/formularios/:id/revogar-link",
+  requireAuth,
+  async (c) => {
+    try {
+      const id = c.req.param("id");
+      if (!validation.isValidUUID(id)) {
+        return c.json(
+          { success: false, error: "ID de formulário inválido" },
+          400,
+        );
+      }
+
+      const formulario = await kv.get(`formulario:${id}`);
+      if (!formulario) {
+        return c.json(
+          { success: false, error: "Formulário não encontrado" },
+          404,
+        );
+      }
+
+      // Formulário já assinado não tem link ativo a revogar
+      if (formulario.prepostoConfirmado === true) {
+        return c.json(
+          {
+            success: false,
+            error: "Formulário já foi validado pelo preposto",
+          },
+          400,
+        );
+      }
+
+      const userId = c.get("userId");
+      const user = await kv.get(`user:${userId}`);
+      if (!user) {
+        return c.json(
+          { success: false, error: "Usuário não autorizado" },
+          403,
+        );
+      }
+
+      // Autorização: admin OU encarregado atribuído à obra do formulário
+      const obra = await kv.get(`obra:${formulario.obra_id}`);
+      const obraNormalizada = obra ? normalizeObraFields(obra) : null;
+      const isAdmin = user.tipo === "Administrador";
+      const isEncarregadoAtribuido =
+        user.tipo === "Encarregado" &&
+        obraNormalizada?.encarregadoId === userId;
+
+      if (!isAdmin && !isEncarregadoAtribuido) {
+        safeWarn(
+          `⚠️ Tentativa de revogar link sem permissão: userId=${userId}, formulario=${id}`,
+        );
+        return c.json(
+          {
+            success: false,
+            error: "Você não tem permissão para revogar este link",
+          },
+          403,
+        );
+      }
+
+      await kv.set(`formulario:${id}`, {
+        ...formulario,
+        linkPrepostoRevogado: true,
+        linkPrepostoRevogadoEm: Date.now(),
+        updatedAt: Date.now(),
+      });
+
+      console.log(`🔒 Link do formulário ${id} revogado por ${userId}`);
+      return c.json({
+        success: true,
+        message: "Link de conferência revogado com sucesso",
+      });
+    } catch (error: any) {
+      console.error("❌ Erro ao revogar link:", error);
+      return c.json(
+        { success: false, error: getErrorMessage(error) },
         500,
       );
     }

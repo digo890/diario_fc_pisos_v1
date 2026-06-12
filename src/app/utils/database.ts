@@ -117,31 +117,78 @@ export const saveUser = async (user: User): Promise<void> => {
   });
 };
 
-export const saveBatchUsers = async (users: User[]): Promise<void> => {
-  if (users.length === 0) return;
+/**
+ * 🚨 Gravação em lote robusta numa única transação.
+ *
+ * Garante que NENHUMA falha parcial passe despercebida:
+ * - itens inválidos (rejeitados por `validate`) abortam o lote;
+ * - se qualquer `put` falhar, a transação é abortada e a promise rejeita;
+ * - só resolve quando todos os itens foram efetivamente confirmados.
+ *
+ * Isto evita perda silenciosa de dados (ex.: 1 de N itens falhar e o lote
+ * ainda assim ser considerado sucesso).
+ */
+const saveBatch = async <T>(
+  storeName: string,
+  items: T[],
+  validate: (item: T) => string | null,
+): Promise<void> => {
+  if (items.length === 0) return;
   const database = await initDB();
+
+  // Validação prévia: qualquer item inválido falha o lote inteiro.
+  const invalid = items
+    .map((item, i) => ({ reason: validate(item), i }))
+    .filter((r) => r.reason !== null);
+  if (invalid.length > 0) {
+    const msg = `Gravação em lote em "${storeName}" abortada: ${invalid.length} item(ns) inválido(s) — ${invalid
+      .map((r) => `#${r.i}: ${r.reason}`)
+      .join('; ')}`;
+    safeWarn(`❌ ${msg}`);
+    throw new Error(msg);
+  }
+
   return new Promise((resolve, reject) => {
-    const transaction = database.transaction(['users'], 'readwrite');
-    const store = transaction.objectStore('users');
+    const transaction = database.transaction([storeName], 'readwrite');
+    const store = transaction.objectStore(storeName);
 
-    let error: DOMException | null = null;
+    let failed = false;
+    let firstError: DOMException | Error | null = null;
 
-    users.forEach((user) => {
+    const fail = (err: DOMException | Error | null) => {
+      if (!failed) {
+        failed = true;
+        firstError = err;
+        try {
+          transaction.abort();
+        } catch {
+          // transação pode já estar abortando
+        }
+      }
+    };
+
+    items.forEach((item) => {
       try {
-        const request = store.put(user);
-        // 🚨 CRITICAL FIX: Capturar erros assíncronos de escrita (ex: ConstraintError)
+        const request = store.put(item);
         request.onerror = () => {
-          safeWarn(`❌ Falha ao salvar usuário ${user.id}:`, request.error);
-          error = request.error;
+          safeWarn(`❌ Falha ao salvar item em "${storeName}":`, request.error);
+          fail(request.error);
         };
       } catch (e) {
-        error = e as DOMException;
+        fail(e as DOMException);
       }
     });
 
     transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(error || transaction.error);
+    transaction.onabort = () =>
+      reject(firstError || transaction.error || new Error('Transação abortada'));
+    transaction.onerror = () =>
+      reject(firstError || transaction.error || new Error('Erro na transação'));
   });
+};
+
+export const saveBatchUsers = async (users: User[]): Promise<void> => {
+  return saveBatch('users', users, (u) => (u?.id ? null : 'usuário sem id'));
 };
 
 export const deleteUser = async (id: string): Promise<void> => {
@@ -194,30 +241,7 @@ export const saveObra = async (obra: Obra): Promise<void> => {
 };
 
 export const saveBatchObras = async (obras: Obra[]): Promise<void> => {
-  if (obras.length === 0) return;
-  const database = await initDB();
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction(['obras'], 'readwrite');
-    const store = transaction.objectStore('obras');
-
-    let error: DOMException | null = null;
-
-    obras.forEach((obra) => {
-      try {
-        const request = store.put(obra);
-        // 🚨 CRITICAL FIX: Capturar erros assíncronos de escrita
-        request.onerror = () => {
-          safeWarn(`❌ Falha ao salvar obra ${obra.id}:`, request.error);
-          error = request.error;
-        };
-      } catch (e) {
-        error = e as DOMException;
-      }
-    });
-
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(error || transaction.error);
-  });
+  return saveBatch('obras', obras, (o) => (o?.id ? null : 'obra sem id'));
 };
 
 export const deleteObra = async (id: string): Promise<void> => {
@@ -292,35 +316,10 @@ export const saveForm = async (form: FormData): Promise<void> => {
 };
 
 // 🆕 OTIMIZAÇÃO: Salvar formulários em lote (single transaction)
+// Formulários sem obra_id agora FALHAM o lote em vez de serem ignorados
+// silenciosamente (evita perda de dados despercebida).
 export const saveBatchForms = async (forms: FormData[]): Promise<void> => {
-  if (forms.length === 0) return;
-  const database = await initDB();
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction(['forms'], 'readwrite');
-    const store = transaction.objectStore('forms');
-
-    let error: DOMException | null = null;
-
-    forms.forEach((form) => {
-      // Validação básica igual ao saveForm
-      if (!form.obra_id) {
-        safeWarn(`❌ Erro ao salvar formulário em lote: obra_id ausente`);
-        return;
-      }
-      try {
-        const request = store.put(form);
-        request.onerror = () => {
-          safeWarn(`❌ Falha ao salvar formulário ${form.obra_id}:`, request.error);
-          error = request.error;
-        };
-      } catch (e) {
-        error = e as DOMException;
-      }
-    });
-
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(error || transaction.error);
-  });
+  return saveBatch('forms', forms, (f) => (f?.obra_id ? null : 'formulário sem obra_id'));
 };
 
 // 🆕 CORREÇÃO URGENTE #1: Deletar formulário associado a uma obra

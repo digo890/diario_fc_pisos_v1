@@ -12,46 +12,9 @@ import {
 import { motion } from 'motion/react';
 import { conferenciaApi } from '../utils/api';
 import { safeError } from '../utils/logSanitizer';
-import SignatureCanvas from 'react-signature-canvas';
+import SignaturePad, { type SignaturePadHandle } from './SignaturePad';
 import { useToast } from './Toast';
-
-// Itens 1-34: Etapas de Execução dos Serviços (v1.1.0)
-const ETAPAS = [
-  { label: 'Temperatura Ambiente', unit: '°C' },
-  { label: 'Umidade Relativa do Ar', unit: '%' },
-  { label: 'Temperatura do Substrato', unit: '°C' },
-  { label: 'Umidade Superficial do Substrato', unit: '%' },
-  { label: 'Temperatura da Mistura', unit: '°C' },
-  { label: 'Tempo de Mistura', unit: 'Minutos' },
-  { label: 'Nº dos Lotes da Parte 1', unit: '' },
-  { label: 'Nº dos Lotes da Parte 2', unit: '' },
-  { label: 'Nº dos Lotes da Parte 3', unit: '' },
-  { label: 'Nº de Kits Gastos', unit: '' },
-  { label: 'Consumo Médio Obtido', unit: 'm²/Kit' },
-  { label: 'Preparo de Substrato (fresagem e ancoragem)', unit: 'm²/ml' },
-  { label: 'Aplicação de Uretano', unit: '', isMultiSelect: true },
-  { label: 'Serviços de pintura', unit: '', isMultiSelect: true },
-  { label: 'Serviços de pintura de layout', unit: '', isMultiSelect: true },
-  { label: 'Aplicação de Epóxi', unit: 'm²' },
-  { label: 'Corte / Selamento Juntas de Piso', unit: 'ml' },
-  { label: 'Corte / Selamento Juntas em Muretas', unit: 'ml' },
-  { label: 'Corte / Selamento Juntas em Rodapés', unit: 'ml' },
-  { label: 'Remoção de Substrato Fraco', isDualField: true, units: ['m²', 'cm'] },
-  { label: 'Desbaste de Substrato', isDualField: true, units: ['m²', 'cm'] },
-  { label: 'Grauteamento', isDualField: true, units: ['m²', 'cm'] },
-  { label: 'Remoção e Reparo de Sub-Base', isDualField: true, units: ['m²', 'cm'] },
-  { label: 'Reparo com Concreto Uretânico', isDualField: true, units: ['m²', 'cm'] },
-  { label: 'Tratamento de Trincas', unit: 'ml' },
-  { label: 'Execução de Lábios Poliméricos', unit: 'ml' },
-  { label: 'Secagem de Substrato', unit: 'm²' },
-  { label: 'Remoção de Revestimento Antigo', unit: 'm²' },
-  { label: 'Polimento Mecânico de Substrato', unit: 'm²' },
-  { label: 'Reparo de Revestimento em Piso', isDualField: true, units: ['m²', 'cm'] },
-  { label: 'Reparo de Revestimento em Muretas', unit: 'ml' },
-  { label: 'Reparo de Revestimento em Rodapé', unit: 'ml' },
-  { label: 'Quantos botijões de gás foram utilizados?', unit: '' },
-  { label: 'Quantas bisnagas de selante foram utilizadas?', unit: '' },
-];
+import { ETAPAS } from '../schema/etapas';
 
 // Itens 35-56: Registros Importantes (Estado do Substrato)
 const REGISTROS_ITEMS = [
@@ -91,7 +54,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
   const [error, setError] = useState<string>('');
   const [validated, setValidated] = useState(false);
   const [showSignature, setShowSignature] = useState(false);
-  const [signatureRef, setSignatureRef] = useState<SignatureCanvas | null>(null);
+  const [signatureRef, setSignatureRef] = useState<SignaturePadHandle | null>(null);
   const [validationType, setValidationType] = useState<'aprovar' | 'reprovar' | null>(null);
   const [motivoReprovacao, setMotivoReprovacao] = useState('');
   const [nomeCompleto, setNomeCompleto] = useState('');
@@ -121,7 +84,8 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
         setObra(obra);
       } catch (error: any) {
         safeError('❌ Erro ao carregar:', error);
-        setError('Erro ao carregar formulário');
+        // Surfacing da mensagem específica (ex.: link expirado/revogado)
+        setError(error?.message || 'Erro ao carregar formulário');
       } finally {
         setLoading(false);
       }
@@ -785,7 +749,7 @@ const PrepostoValidationPage: React.FC<Props> = ({ token: formularioId }) => {
                   Assinatura *
                 </label>
                 <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl overflow-hidden">
-                  <SignatureCanvas
+                  <SignaturePad
                     ref={(ref) => setSignatureRef(ref)}
                     canvasProps={{
                       className: 'w-full h-48 bg-white dark:bg-gray-800',

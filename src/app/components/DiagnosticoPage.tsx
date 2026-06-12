@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Search, ShieldAlert, Lock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { publicAnonKey } from '/utils/supabase/info';
+import { projectId, publicAnonKey } from '/utils/supabase/info';
 
 const DiagnosticoPage: React.FC = () => {
   const { currentUser, accessToken, isLoading } = useAuth();
@@ -47,7 +47,7 @@ const DiagnosticoPage: React.FC = () => {
     setLoading(true);
     try {
       const response = await fetch(
-        `https://cjwuooaappcnsqxgdpta.supabase.co/functions/v1/make-server-1ff231a2/debug/token/${token}`,
+        `https://${projectId}.supabase.co/functions/v1/make-server-1ff231a2/debug/token/${token}`,
         {
           headers: {
             Authorization: `Bearer ${publicAnonKey}`, // 🛡️ Usar chave pública para passar pelo CORS

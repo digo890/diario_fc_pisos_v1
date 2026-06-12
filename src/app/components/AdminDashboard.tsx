@@ -13,6 +13,7 @@ import {
   LayoutGrid,
   LayoutList,
   FolderOpen,
+  Link2Off,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
@@ -45,6 +46,7 @@ import { useToast } from './Toast';
 import LoadingSpinner from './LoadingSpinner';
 import { Pagination, usePagination } from './Pagination';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
+import UserListItem from './UserListItem';
 import { useSafeLogout } from '../hooks/useSafeLogout'; // 🔒 CORREÇÃO #7
 
 // 🚀 LAZY LOADING: Componentes pesados carregados sob demanda
@@ -64,30 +66,6 @@ const ProductionMonitorDashboard = lazy(() =>
 type TabType = 'resultados' | 'obras' | 'usuarios';
 type ObraFilter = 'todas' | 'novo' | 'em_andamento' | 'conferencia' | 'concluidas';
 type UserFilter = 'todos' | 'Encarregado' | 'Administrador';
-
-// Paleta de cores para avatares
-const AVATAR_COLORS = [
-  'bg-[#FD5521]', // Laranja FC
-  'bg-blue-500',
-  'bg-green-500',
-  'bg-purple-500',
-  'bg-pink-500',
-  'bg-indigo-500',
-  'bg-teal-500',
-  'bg-amber-500',
-  'bg-cyan-500',
-  'bg-rose-500',
-];
-
-// Função para gerar cor baseada no ID do usuário
-const getAvatarColor = (userId: string): string => {
-  let hash = 0;
-  for (let i = 0; i < userId.length; i++) {
-    hash = userId.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const index = Math.abs(hash) % AVATAR_COLORS.length;
-  return AVATAR_COLORS[index];
-};
 
 const AdminDashboard: React.FC = () => {
   const { currentUser } = useAuth(); // 🔒 CORREÇÃO #7: logout removido daqui
@@ -118,6 +96,7 @@ const AdminDashboard: React.FC = () => {
   const [viewingObra, setViewingObra] = useState<Obra | null>(null);
   const [viewingFormData, setViewingFormData] = useState<FormData | null>(null);
   const [deletingObra, setDeletingObra] = useState<Obra | null>(null);
+  const [revogandoLinkObra, setRevogandoLinkObra] = useState<Obra | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
 
   // 🎯 SKELETON: Estado para obras em criação
@@ -155,6 +134,26 @@ const AdminDashboard: React.FC = () => {
     } catch (error: any) {
       safeError('❌ Erro ao excluir obra:', error);
       showToast(`Erro ao excluir obra: ${error.message}`, 'error');
+    }
+  };
+
+  const handleRevogarLink = async (obra: Obra) => {
+    const formulario = formularios.find((f) => f.obra_id === obra.id);
+    if (!formulario?.id) {
+      showToast('Não foi possível localizar o formulário desta obra.', 'error');
+      return;
+    }
+    try {
+      const response = await formularioApi.revogarLink(formulario.id);
+      if (response.success) {
+        await loadData();
+        showToast('Link de conferência revogado com sucesso.', 'success');
+      } else {
+        showToast(`Erro ao revogar link: ${response.error}`, 'error');
+      }
+    } catch (error: any) {
+      safeError('❌ Erro ao revogar link:', error);
+      showToast(`Erro ao revogar link: ${error.message}`, 'error');
     }
   };
 
@@ -1010,6 +1009,36 @@ const AdminDashboard: React.FC = () => {
                                 >
                                   <Edit2 className="w-4 h-4" />
                                 </button>
+                                {obra.status === 'enviado_preposto' &&
+                                  (() => {
+                                    const form = formularios.find(
+                                      (f) => f.obra_id === obra.id
+                                    );
+                                    const jaRevogado =
+                                      form?.linkPrepostoRevogado === true;
+                                    return (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (jaRevogado) return;
+                                          setRevogandoLinkObra(obra);
+                                        }}
+                                        disabled={jaRevogado}
+                                        className={`p-2 rounded-lg transition-colors ${
+                                          jaRevogado
+                                            ? 'opacity-40 cursor-not-allowed text-gray-400 dark:text-gray-600'
+                                            : 'hover:bg-amber-50 dark:hover:bg-amber-900/20 text-amber-600 dark:text-amber-400'
+                                        }`}
+                                        title={
+                                          jaRevogado
+                                            ? 'Link de conferência já revogado'
+                                            : 'Revogar link de conferência'
+                                        }
+                                      >
+                                        <Link2Off className="w-4 h-4" />
+                                      </button>
+                                    );
+                                  })()}
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -1128,44 +1157,13 @@ const AdminDashboard: React.FC = () => {
                 <>
                   <div className="bg-white dark:bg-gray-900 rounded-lg overflow-hidden">
                     {usersPagination.paginatedItems.map((user, index) => (
-                      <div key={user.id}>
-                        <div className="px-5 py-4 flex items-center justify-between gap-4">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div
-                              className={`w-10 h-10 rounded-full ${getAvatarColor(user.id)} text-white flex items-center justify-center font-medium flex-shrink-0`}
-                            >
-                              {user.nome.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium text-gray-900 dark:text-white truncate">
-                                {user.nome}
-                              </div>
-                              <div className="text-sm text-gray-600 dark:text-gray-400">
-                                {user.tipo}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => setEditingUser(user)}
-                              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
-                              title="Editar"
-                            >
-                              <Edit2 className="w-5 h-5" />
-                            </button>
-                            <button
-                              onClick={() => setDeletingUser(user)}
-                              className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
-                              title="Excluir"
-                            >
-                              <Trash2 className="w-5 h-5" />
-                            </button>
-                          </div>
-                        </div>
-                        {index < usersPagination.paginatedItems.length - 1 && (
-                          <div className="mx-5 border-b border-[#EDEFE4] dark:border-gray-800"></div>
-                        )}
-                      </div>
+                      <UserListItem
+                        key={user.id}
+                        user={user}
+                        showDivider={index < usersPagination.paginatedItems.length - 1}
+                        onEdit={setEditingUser}
+                        onDelete={setDeletingUser}
+                      />
                     ))}
                   </div>
 
@@ -1276,6 +1274,23 @@ const AdminDashboard: React.FC = () => {
           variant="danger"
           onConfirm={() => handleDeleteObra(deletingObra.id)}
           onCancel={() => setDeletingObra(null)}
+        />
+      )}
+
+      {revogandoLinkObra && (
+        <ConfirmModal
+          isOpen={!!revogandoLinkObra}
+          title="Revogar link de conferência"
+          message={`Deseja revogar o link de conferência da obra "${revogandoLinkObra.cliente} - ${revogandoLinkObra.obra}"? O preposto não conseguirá mais acessar nem assinar por este link. Será necessário reenviar a conferência para gerar um novo link.`}
+          confirmLabel="Revogar"
+          cancelLabel="Cancelar"
+          variant="danger"
+          onConfirm={() => {
+            const obra = revogandoLinkObra;
+            setRevogandoLinkObra(null);
+            handleRevogarLink(obra);
+          }}
+          onCancel={() => setRevogandoLinkObra(null)}
         />
       )}
 

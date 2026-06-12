@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Saídas geradas / artefatos transitórios (não versionar)
+*tsc_output*.txt
+envs*.txt
+coverage
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -3,49 +3,7 @@ import { Copy, ChevronDown, Plus, Trash2, Clock } from 'lucide-react';
 import type { FormData, ServicoData } from '../../types';
 import BottomSheet from '../BottomSheet';
 import { useToast } from '../Toast';
-
-// ✅ CORREÇÃO: Definir constantes de etapas e opções
-const ETAPAS = [
-  { label: 'Temperatura Ambiente', unit: '°C' },
-  { label: 'Umidade Relativa do Ar', unit: '%' },
-  { label: 'Temperatura do Substrato', unit: '°C' },
-  { label: 'Umidade Superficial do Substrato', unit: '%' },
-  { label: 'Temperatura da Mistura', unit: '°C' },
-  { label: 'Tempo de Mistura', unit: 'Minutos' },
-  { label: 'Nº dos Lotes da Parte 1', unit: '' },
-  { label: 'Nº dos Lotes da Parte 2', unit: '' },
-  { label: 'Nº dos Lotes da Parte 3', unit: '' },
-  { label: 'Nº de Kits Gastos', unit: '' },
-  { label: 'Consumo Médio Obtido', unit: 'm²/Kit' },
-  { label: 'Preparo de Substrato (fresagem e ancoragem)', unit: 'm²/ml' },
-  { label: 'Aplicação de Uretano', unit: 'm²', isMultiSelect: true, options: 'ucrete' },
-  { label: 'Serviços de pintura', unit: 'm²', isMultiSelect: true, options: 'pintura' },
-  {
-    label: 'Serviços de pintura de layout',
-    unit: 'ml',
-    isMultiSelect: true,
-    options: 'pinturaLayout',
-  },
-  { label: 'Aplicação de Epóxi', unit: 'm²' },
-  { label: 'Corte / Selamento Juntas de Piso', unit: 'ml' },
-  { label: 'Corte / Selamento Juntas em Muretas', unit: 'ml' },
-  { label: 'Corte / Selamento Juntas em Rodapés', unit: 'ml' },
-  { label: 'Remoção de Substrato Fraco', isDualField: true, units: ['m²', 'cm'] },
-  { label: 'Desbaste de Substrato', isDualField: true, units: ['m²', 'cm'] },
-  { label: 'Grauteamento', isDualField: true, units: ['m²', 'cm'] },
-  { label: 'Remoção e Reparo de Sub-Base', isDualField: true, units: ['m²', 'cm'] },
-  { label: 'Reparo com Concreto Uretânico', isDualField: true, units: ['m²', 'cm'] },
-  { label: 'Tratamento de Trincas', unit: 'ml' },
-  { label: 'Execução de Lábios Poliméricos', unit: 'ml' },
-  { label: 'Secagem de Substrato', unit: 'm²' },
-  { label: 'Remoção de Revestimento Antigo', unit: 'm²' },
-  { label: 'Polimento Mecânico de Substrato', unit: 'm²' },
-  { label: 'Reparo de Revestimento em Piso', isDualField: true, units: ['m²', 'cm'] },
-  { label: 'Reparo de Revestimento em Muretas', unit: 'ml' },
-  { label: 'Reparo de Revestimento em Rodapé', unit: 'ml' },
-  { label: 'Quantos botijões de gás foram utilizados?', unit: '' },
-  { label: 'Quantas bisnagas de selante foram utilizadas?', unit: '' },
-];
+import { ETAPAS } from '../../schema/etapas';
 
 const UCRETE_OPTIONS = [
   'Uretano argamassado 4mm',
@@ -506,7 +464,7 @@ const ServicosSection: React.FC<Props> = React.memo(
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => copiarServico1(servicoKey)}
+                onClick={() => copiarServico1(servicoKey as 'servico2' | 'servico3')}
                 disabled={isReadOnly}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg 
                        border-2 border-dashed border-gray-300 dark:border-gray-700

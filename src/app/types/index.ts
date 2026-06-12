@@ -55,6 +55,7 @@ export interface ServicoData {
   horarioFimManha: string;
   horarioInicioTarde: string;
   horarioFimTarde: string;
+  horario?: string; // resumo de horário (legado/opcional, usado em relatórios)
   local: string;
   etapas: { [key: string]: any };
   fotos?: string[];
@@ -70,10 +71,17 @@ export interface CondicionalItem {
   foto?: string;
   resposta?: boolean;
   comentario?: string;
+  espessura?: number | null; // usado nos registros de substrato (input numérico)
 }
 
 export interface FormData {
+  id?: string; // ID do formulário no backend (usado no link público de conferência)
   obra_id: string; // ✅ CORREÇÃO: Padronizado para snake_case (consistente com backend)
+
+  // Controle do link público do preposto
+  linkPrepostoExpiraEm?: number; // timestamp de expiração do link
+  linkPrepostoRevogado?: boolean;
+  linkPrepostoRevogadoEm?: number | null;
 
   // Condições Ambientais
   clima: ClimaData;
