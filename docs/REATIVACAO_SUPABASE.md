@@ -46,7 +46,23 @@ A `anon key` nova já está no código (`src/config/supabase.ts`,
 
 ---
 
-## ⏳ Passos restantes
+## ✅ REATIVAÇÃO CONCLUÍDA (12/06/2026)
+
+Estado final:
+- Edge Functions `make-server-1ff231a2` e `public-conferencia` **deployadas e ACTIVE**
+  via GitHub Actions (deploy automático a partir da `main` configurado e verde).
+- Secrets configurados (`MASTER_SETUP_KEY`, `RESEND_API_KEY`, `SUPABASE_ACCESS_TOKEN`
+  no GitHub para o CI).
+- Primeiro administrador criado (auth user via Dashboard + registro KV
+  `tipo: Administrador` via migração `seed_admin_user_kv_record`).
+- **Login validado de ponta a ponta** no app em produção.
+- **Decisão sobre os dados antigos: começar limpo.** O backup
+  `db_cluster-02-01-2026@03-16-19` fica guardado como arquivo morto; obras,
+  formulários e encarregados serão recriados pelo painel conforme o uso.
+
+> Os "passos restantes" abaixo ficam como referência histórica do processo.
+
+## ⏳ Passos restantes (histórico — já executados)
 
 ### 1. Deploy das Edge Functions (a partir do repositório)
 ```bash
