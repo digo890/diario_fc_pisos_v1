@@ -86,8 +86,11 @@ async function postEmail(endpoint: string, params: unknown) {
 
       if (!response.ok || !data?.success) {
         const message = data?.error || `Erro ao enviar email (HTTP ${response.status})`;
-        // Apenas 5xx é tratado como transitório; 4xx é permanente.
-        throw new EmailError(message, response.status >= 500);
+        // Transitórios (vale repetir): 5xx e 429 (rate limit) / 408 (timeout).
+        // Demais 4xx são permanentes.
+        const retriable =
+          response.status >= 500 || response.status === 429 || response.status === 408;
+        throw new EmailError(message, retriable);
       }
 
       return data;

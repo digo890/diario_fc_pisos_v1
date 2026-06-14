@@ -18,8 +18,12 @@ const FROM_EMAIL =
   Deno.env.get('RESEND_FROM_EMAIL') || 'FC Pisos <administrativo@fcpisos.com.br>'; // Domínio verificado em fcpisos.com.br
 
 // URL base do app, usada nos links dos emails. Configurável via env (APP_URL).
-export const APP_URL =
-  Deno.env.get('APP_URL') || 'https://diario-fc-pisos-v1.vercel.app';
+// Remove barras finais para não gerar links com barra dupla
+// (ex.: "host//conferencia/ID"), que não seriam reconhecidos como a rota
+// pública de conferência no App.tsx.
+export const APP_URL = (
+  Deno.env.get('APP_URL') || 'https://diario-fc-pisos-v1.vercel.app'
+).replace(/\/+$/, '');
 
 // Email para desenvolvimento/testes
 // No modo de teste do Resend, só é possível enviar para o email do proprietário da conta
