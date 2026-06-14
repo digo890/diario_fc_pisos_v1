@@ -1996,7 +1996,7 @@ app.post(
       }
 
       // ✅ SIMPLES: Link direto com ID do formulário
-      const linkConferencia = `https://diario-fc-pisos-v1.vercel.app/conferencia/${formularioId}`;
+      const linkConferencia = `${emailService.APP_URL}/conferencia/${formularioId}`;
       console.log("🔗 [DEBUG] Link gerado:", linkConferencia);
 
       // 🔒 SEGURANÇA: carimbar validade do link no formulário. O link público do
@@ -2318,6 +2318,63 @@ app.post(
         { success: false, error: error.message },
         500,
       );
+    }
+  },
+);
+
+// 🧪 Rota de teste de envio de email (apenas administradores).
+// Dispara um email de teste para o próprio admin autenticado, permitindo
+// verificar rapidamente se a integração com o Resend está funcionando.
+app.post(
+  "/make-server-1ff231a2/emails/test",
+  requireAuth,
+  async (c) => {
+    try {
+      const userRole = c.get("userRole");
+      const userEmail = c.get("userEmail");
+
+      // 🔒 AUTORIZAÇÃO: somente administradores podem disparar o teste.
+      if (userRole !== "Administrador") {
+        return c.json(
+          {
+            success: false,
+            error: "Apenas administradores podem enviar email de teste",
+          },
+          403,
+        );
+      }
+
+      if (!userEmail) {
+        return c.json(
+          {
+            success: false,
+            error: "Email do administrador não disponível no token",
+          },
+          400,
+        );
+      }
+
+      console.log("🧪 Rota /emails/test chamada por:", userEmail);
+
+      const result = await emailService.sendEmail({
+        to: userEmail,
+        subject: "Teste de envio - FC Pisos",
+        html: emailService.getTesteEnvioEmail(userEmail),
+      });
+
+      if (!result.success) {
+        console.error("❌ Erro no email de teste:", result.error);
+        return c.json({ success: false, error: result.error }, 500);
+      }
+
+      console.log("✅ Email de teste enviado com sucesso");
+      return c.json({
+        success: true,
+        message: `Email de teste enviado para ${userEmail}`,
+      });
+    } catch (error: any) {
+      console.error("❌ Erro no email de teste:", error);
+      return c.json({ success: false, error: error.message }, 500);
     }
   },
 );

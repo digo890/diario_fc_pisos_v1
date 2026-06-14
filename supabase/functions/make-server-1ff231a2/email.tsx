@@ -7,17 +7,28 @@ if (!apiKey) {
   console.error('❌ RESEND_API_KEY não configurada!');
 }
 
-console.log('🔑 RESEND_API_KEY configurada:', apiKey ? `${apiKey.substring(0, 10)}...` : 'NÃO CONFIGURADA');
+// 🔒 SEGURANÇA: nunca logar o valor (nem o prefixo) da chave — apenas se está presente.
+console.log('🔑 RESEND_API_KEY:', apiKey ? 'configurada' : 'NÃO CONFIGURADA');
 
 const resend = new Resend(apiKey);
 
-// Configure aqui o domínio do seu email
-// Se você não verificou domínio ainda, use: 'onboarding@resend.dev'
-const FROM_EMAIL = 'FC Pisos <administrativo@fcpisos.com.br>'; // Domínio verificado em fcpisos.com.br
+// Remetente. Configurável via env (RESEND_FROM_EMAIL); o padrão usa o domínio
+// verificado em fcpisos.com.br. Para testar sem domínio, use 'onboarding@resend.dev'.
+const FROM_EMAIL =
+  Deno.env.get('RESEND_FROM_EMAIL') || 'FC Pisos <administrativo@fcpisos.com.br>'; // Domínio verificado em fcpisos.com.br
+
+// URL base do app, usada nos links dos emails. Configurável via env (APP_URL).
+// Remove barras finais para não gerar links com barra dupla
+// (ex.: "host//conferencia/ID"), que não seriam reconhecidos como a rota
+// pública de conferência no App.tsx.
+export const APP_URL = (
+  Deno.env.get('APP_URL') || 'https://diario-fc-pisos-v1.vercel.app'
+).replace(/\/+$/, '');
 
 // Email para desenvolvimento/testes
 // No modo de teste do Resend, só é possível enviar para o email do proprietário da conta
-const DEV_TEST_EMAIL = 'digoo890@gmail.com'; // Email verificado no Resend
+const DEV_TEST_EMAIL =
+  Deno.env.get('RESEND_DEV_TEST_EMAIL') || 'digoo890@gmail.com'; // Email verificado no Resend
 
 // Detecta se estamos em modo de desenvolvimento (sem domínio verificado)
 const isDevelopmentMode = FROM_EMAIL === 'onboarding@resend.dev';
@@ -399,8 +410,8 @@ export function getEncarregadoNovaObraEmail(
   prepostoNome: string,
   obraId: string // Mantido por compatibilidade, mas não usado no link
 ): string {
-  // ✅ CORREÇÃO: URL hardcoded para o app Vercel
-  const appLink = 'https://diario-fc-pisos-v1.vercel.app';
+  // URL base do app (configurável via env APP_URL)
+  const appLink = APP_URL;
   
   return `
 <!DOCTYPE html>
@@ -540,6 +551,55 @@ export function getEncarregadoNovaObraEmail(
               </p>
               <p style="margin: 16px 0 0 0; font-size: 12px; line-height: 1.4;">
                 <a href="mailto:administrativo@fcpisos.com.br" style="color: #FD5521; text-decoration: none;">administrativo@fcpisos.com.br</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+}
+
+// Template simples usado pela rota de teste de envio (/emails/test).
+// Serve apenas para confirmar que a integração com o Resend está operacional.
+export function getTesteEnvioEmail(destinatario: string): string {
+  return `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teste de Envio - FC Pisos</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #EDEFE4;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background-color: #EDEFE4; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden;">
+          <tr>
+            <td style="background-color: #FD5521; padding: 40px 30px; text-align: center;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">FC Pisos</h1>
+              <p style="margin: 10px 0 0 0; color: #ffffff; font-size: 16px; opacity: 0.95;">Diário de Obras</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 40px 30px;">
+              <h2 style="margin: 0 0 20px 0; color: #1F2937; font-size: 22px; font-weight: 600;">✅ Teste de envio bem-sucedido</h2>
+              <p style="margin: 0 0 16px 0; color: #4B5563; font-size: 16px; line-height: 1.6;">
+                Se você está lendo este email, a integração de envio de emails (Resend) do sistema está funcionando corretamente.
+              </p>
+              <p style="margin: 0; color: #6B7280; font-size: 14px; line-height: 1.5;">
+                Destinatário: <strong style="color: #1F2937;">${destinatario}</strong>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color: #F9FAFB; padding: 24px 30px; text-align: center; border-top: 1px solid #E5E7EB;">
+              <p style="margin: 0; color: #9CA3AF; font-size: 12px; line-height: 1.4;">
+                Email automático de teste do sistema Diário de Obras.
               </p>
             </td>
           </tr>
