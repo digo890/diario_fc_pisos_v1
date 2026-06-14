@@ -34,39 +34,81 @@ interface SendEncarregadoNovaObraParams {
 }
 
 /**
+ * Erro de envio de email que sinaliza se vale a pena tentar novamente.
+ * Erros permanentes (validação, autenticação, 4xx) não devem ser repetidos,
+ * tanto para não desperdiçar tentativas quanto para evitar o risco de enviar
+ * o mesmo email duas vezes quando o servidor já o processou.
+ */
+class EmailError extends Error {
+  retriable: boolean;
+  constructor(message: string, retriable: boolean) {
+    super(message);
+    this.name = 'EmailError';
+    this.retriable = retriable;
+  }
+}
+
+/**
+ * Faz o POST para um endpoint de email com retry apenas em falhas transitórias
+ * (rede ou 5xx). Centraliza a lógica compartilhada pelos envios.
+ */
+async function postEmail(endpoint: string, params: unknown) {
+  return retryWithBackoff(
+    async () => {
+      const accessToken = getAuthToken();
+      if (!accessToken) {
+        // Falta de autenticação é permanente — não adianta repetir.
+        throw new EmailError('Usuário não autenticado', false);
+      }
+
+      let response: Response;
+      try {
+        response = await fetch(`${API_URL}${endpoint}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${publicAnonKey}`,
+            'X-User-Token': accessToken,
+          },
+          body: JSON.stringify(params),
+        });
+      } catch (networkError: any) {
+        // Falha de rede é transitória — vale tentar novamente.
+        throw new EmailError(networkError?.message || 'Falha de rede ao enviar email', true);
+      }
+
+      let data: any = null;
+      try {
+        data = await response.json();
+      } catch {
+        // Resposta sem corpo JSON válido.
+      }
+
+      if (!response.ok || !data?.success) {
+        const message = data?.error || `Erro ao enviar email (HTTP ${response.status})`;
+        // Apenas 5xx é tratado como transitório; 4xx é permanente.
+        throw new EmailError(message, response.status >= 500);
+      }
+
+      return data;
+    },
+    3,
+    1000,
+    true,
+    undefined,
+    (error) => (error instanceof EmailError ? error.retriable : true),
+  );
+}
+
+/**
  * Envia email ao preposto com link de conferência do formulário
  */
 export async function sendPrepostoConferenciaEmail(params: SendPrepostoEmailParams) {
   try {
-    // ✅ CORREÇÃO: Usar retry automático em envio de email
-    const result = await retryWithBackoff(async () => {
-      const accessToken = getAuthToken();
-      if (!accessToken) {
-        throw new Error('Usuário não autenticado');
-      }
-
-      const response = await fetch(`${API_URL}/emails/send-preposto-conferencia`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${publicAnonKey}`,
-          'X-User-Token': accessToken,
-        },
-        body: JSON.stringify(params),
-      });
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Erro ao enviar email');
-      }
-
-      return data;
-    });
-
+    await postEmail('/emails/send-preposto-conferencia', params);
     return { success: true };
   } catch (error: any) {
-    console.error('❌ Erro ao enviar email ao preposto após 3 tentativas:', error);
+    console.error('❌ Erro ao enviar email ao preposto:', error);
     return { success: false, error: error.message };
   }
 }
@@ -76,35 +118,10 @@ export async function sendPrepostoConferenciaEmail(params: SendPrepostoEmailPara
  */
 export async function sendAdminNotificacaoEmail(params: SendAdminNotificacaoParams) {
   try {
-    // ✅ CORREÇÃO: Usar retry automático em envio de email
-    await retryWithBackoff(async () => {
-      const accessToken = getAuthToken();
-      if (!accessToken) {
-        throw new Error('Usuário não autenticado');
-      }
-
-      const response = await fetch(`${API_URL}/emails/send-admin-notificacao`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${publicAnonKey}`,
-          'X-User-Token': accessToken,
-        },
-        body: JSON.stringify(params),
-      });
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Erro ao enviar email');
-      }
-
-      return data;
-    });
-
+    await postEmail('/emails/send-admin-notificacao', params);
     return { success: true };
   } catch (error: any) {
-    console.error('❌ Erro ao enviar email ao admin após 3 tentativas:', error);
+    console.error('❌ Erro ao enviar email ao admin:', error);
     return { success: false, error: error.message };
   }
 }
@@ -114,35 +131,25 @@ export async function sendAdminNotificacaoEmail(params: SendAdminNotificacaoPara
  */
 export async function sendEncarregadoNovaObraEmail(params: SendEncarregadoNovaObraParams) {
   try {
-    // ✅ CORREÇÃO: Usar retry automático em envio de email
-    await retryWithBackoff(async () => {
-      const accessToken = getAuthToken();
-      if (!accessToken) {
-        throw new Error('Usuário não autenticado');
-      }
-
-      const response = await fetch(`${API_URL}/emails/send-encarregado-nova-obra`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${publicAnonKey}`,
-          'X-User-Token': accessToken,
-        },
-        body: JSON.stringify(params),
-      });
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Erro ao enviar email');
-      }
-
-      return data;
-    });
-
+    await postEmail('/emails/send-encarregado-nova-obra', params);
     return { success: true };
   } catch (error: any) {
-    console.error('❌ Erro ao enviar email ao encarregado após 3 tentativas:', error);
+    console.error('❌ Erro ao enviar email ao encarregado:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Dispara um email de teste para o próprio administrador autenticado.
+ * Útil para verificar rapidamente se a integração com o Resend está ativa.
+ * Requer que o usuário logado seja administrador (validado no backend).
+ */
+export async function sendTestEmail() {
+  try {
+    const data = await postEmail('/emails/test', {});
+    return { success: true, message: data?.message };
+  } catch (error: any) {
+    console.error('❌ Erro ao enviar email de teste:', error);
     return { success: false, error: error.message };
   }
 }
