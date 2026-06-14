@@ -47,6 +47,7 @@ import LoadingSpinner from './LoadingSpinner';
 import { Pagination, usePagination } from './Pagination';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 import UserListItem from './UserListItem';
+import StatusBadge from './StatusBadge';
 import { useSafeLogout } from '../hooks/useSafeLogout'; // 🔒 CORREÇÃO #7
 
 // 🚀 LAZY LOADING: Componentes pesados carregados sob demanda
@@ -683,67 +684,7 @@ const AdminDashboard: React.FC = () => {
                         {/* Rodapé: Status e Ações (fora do gradiente) */}
                         <div className="flex items-center justify-between px-2.5">
                           {/* Badge de Status */}
-                          <div className="flex items-center gap-2.5">
-                            <div className="relative w-2.5 h-2.5">
-                              <svg className="absolute inset-0" viewBox="0 0 18 18" fill="none">
-                                <circle
-                                  cx="9"
-                                  cy="9"
-                                  r="5"
-                                  className={
-                                    status.color.includes('blue')
-                                      ? 'fill-blue-600'
-                                      : status.color.includes('green')
-                                        ? 'fill-green-600'
-                                        : status.color.includes('yellow')
-                                          ? 'fill-yellow-600'
-                                          : status.color.includes('purple')
-                                            ? 'fill-purple-600'
-                                            : status.color.includes('orange')
-                                              ? 'fill-orange-600'
-                                              : 'fill-gray-400'
-                                  }
-                                />
-                                <circle
-                                  cx="9"
-                                  cy="9"
-                                  r="7"
-                                  className={
-                                    status.color.includes('blue')
-                                      ? 'stroke-blue-600'
-                                      : status.color.includes('green')
-                                        ? 'stroke-green-600'
-                                        : status.color.includes('yellow')
-                                          ? 'stroke-yellow-600'
-                                          : status.color.includes('purple')
-                                            ? 'stroke-purple-600'
-                                            : status.color.includes('orange')
-                                              ? 'stroke-orange-600'
-                                              : 'stroke-gray-400'
-                                  }
-                                  strokeOpacity="0.24"
-                                  strokeWidth="4"
-                                />
-                              </svg>
-                            </div>
-                            <span
-                              className={`font-medium text-base leading-normal ${
-                                status.color.includes('blue')
-                                  ? 'text-blue-600'
-                                  : status.color.includes('green')
-                                    ? 'text-green-600'
-                                    : status.color.includes('yellow')
-                                      ? 'text-yellow-600'
-                                      : status.color.includes('purple')
-                                        ? 'text-purple-600'
-                                        : status.color.includes('orange')
-                                          ? 'text-orange-600'
-                                          : 'text-gray-600'
-                              }`}
-                            >
-                              {status.label}
-                            </span>
-                          </div>
+                          <StatusBadge color={status.color} label={status.label} />
 
                           {/* Botões de ação */}
                           <div className="flex gap-[6px]">
